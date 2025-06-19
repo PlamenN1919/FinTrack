@@ -20,6 +20,9 @@ const AuthNavigator: React.FC = () => {
 
   // Determine initial route based on user state
   const getInitialRouteName = (): keyof AuthStackParamList => {
+    // Временно винаги показваме Welcome екрана
+    return 'Welcome';
+    /* Оригинален код:
     switch (authState.userState) {
       case UserState.REGISTERED_NO_SUBSCRIPTION:
       case UserState.EXPIRED_SUBSCRIBER:
@@ -29,6 +32,7 @@ const AuthNavigator: React.FC = () => {
       default:
         return 'Welcome';
     }
+    */
   };
 
   return (
