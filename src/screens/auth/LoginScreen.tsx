@@ -24,7 +24,7 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, '
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { signInWithEmail, signInWithGoogle, authState, clearError } = useAuth();
+  const { signInWithEmail, authState, clearError } = useAuth();
 
   // Form state
   const [email, setEmail] = useState('');
@@ -121,26 +121,7 @@ const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      setIsLoading(true);
-      clearError();
 
-      await signInWithGoogle();
-      
-      // Navigation will be handled by the auth state change
-    } catch (error: any) {
-      console.error('Google login error:', error);
-      if (error.code !== 'GOOGLE_SIGNIN_CANCELLED') {
-        Alert.alert(
-          'Грешка при влизане с Google',
-          error.message || 'Възникна неочаквана грешка. Моля, опитайте отново.'
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleForgotPassword = () => {
     navigation.navigate('ForgotPassword', { email });
@@ -301,38 +282,7 @@ const LoginScreen: React.FC = () => {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>или</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
-          {/* Social Login Buttons */}
-          <View style={styles.socialButtonsContainer}>
-            {/* Google Login */}
-            <TouchableOpacity
-              style={[styles.socialButton, isLoading && styles.socialButtonDisabled]}
-              onPress={handleGoogleLogin}
-              disabled={isLoading}
-            >
-              <View style={styles.socialButtonContent}>
-                <Text style={styles.socialButtonIcon}>G</Text>
-                <Text style={styles.socialButtonText}>Влизане с Google</Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Apple Login */}
-            <TouchableOpacity
-              style={[styles.socialButton, styles.appleButton, isLoading && styles.socialButtonDisabled]}
-              disabled={isLoading}
-            >
-              <View style={styles.socialButtonContent}>
-                <Text style={styles.socialButtonIcon}>A</Text>
-                <Text style={styles.socialButtonText}>Влизане с Apple</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
 
           {/* Register Link */}
           <View style={styles.registerContainer}>
@@ -589,67 +539,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(247, 231, 206, 0.3)',
-  },
-  dividerText: {
-    fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.6)',
-    paddingHorizontal: 16,
-    fontWeight: '500',
-  },
-  socialButtonsContainer: {
-    marginBottom: 24,
-  },
-  socialButton: {
-    marginBottom: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    height: 56,
-    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  socialButtonDisabled: {
-    opacity: 0.6,
-  },
-  appleButton: {
-    backgroundColor: 'rgba(26, 26, 26, 0.8)',
-  },
-  socialButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  socialButtonIcon: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginRight: 12,
-    color: '#F7E7CE',
-    width: 20,
-    textAlign: 'center',
-  },
-  socialButtonText: {
-    fontSize: 16,
-    color: '#F7E7CE',
-    fontWeight: '600',
-  },
+
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',

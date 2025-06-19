@@ -12,6 +12,7 @@ import SubscriptionPlansScreen from '../screens/auth/SubscriptionPlansScreen';
 import PaymentScreen from '../screens/auth/PaymentScreen';
 import PaymentSuccessScreen from '../screens/auth/PaymentSuccessScreen';
 import PaymentFailedScreen from '../screens/auth/PaymentFailedScreen';
+import SubscriptionManagementScreen from '../screens/auth/SubscriptionManagementScreen';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
@@ -20,9 +21,6 @@ const AuthNavigator: React.FC = () => {
 
   // Determine initial route based on user state
   const getInitialRouteName = (): keyof AuthStackParamList => {
-    // Временно винаги показваме Welcome екрана
-    return 'Welcome';
-    /* Оригинален код:
     switch (authState.userState) {
       case UserState.REGISTERED_NO_SUBSCRIPTION:
       case UserState.EXPIRED_SUBSCRIBER:
@@ -32,7 +30,6 @@ const AuthNavigator: React.FC = () => {
       default:
         return 'Welcome';
     }
-    */
   };
 
   return (
@@ -126,6 +123,15 @@ const AuthNavigator: React.FC = () => {
           animation: 'slide_from_bottom', // Error modal animation
           presentation: 'modal',
           gestureDirection: 'vertical',
+        }}
+      />
+
+      <Stack.Screen 
+        name="SubscriptionManagement" 
+        component={SubscriptionManagementScreen}
+        options={{
+          animation: 'slide_from_right',
+          gestureDirection: 'horizontal',
         }}
       />
     </Stack.Navigator>

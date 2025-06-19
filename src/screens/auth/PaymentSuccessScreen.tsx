@@ -141,8 +141,9 @@ const PaymentSuccessScreen: React.FC = () => {
   };
 
   const handleViewSubscription = () => {
-    // Navigate to subscription management (ще бъде имплементирано)
-    console.log('Navigate to subscription management');
+    navigation.navigate('SubscriptionManagement', {
+      subscription: subscription,
+    });
   };
 
   return (
@@ -151,7 +152,7 @@ const PaymentSuccessScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#4CAF50', '#45a049', '#388e3c']}
+        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -167,7 +168,7 @@ const PaymentSuccessScreen: React.FC = () => {
               {
                 left: 50 + (index * 60),
                 transform: [{ translateY: confetti }],
-                backgroundColor: ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'][index],
+                backgroundColor: ['#D4AF37', '#F7E7CE', '#B8860B', '#DAA520', '#FFEAA7'][index],
               },
             ]}
           />
@@ -201,7 +202,7 @@ const PaymentSuccessScreen: React.FC = () => {
             ]}
           >
             <LinearGradient
-              colors={['#FFD700', '#FFA500']}
+              colors={['#D4AF37', '#F7E7CE']}
               style={styles.successIconGradient}
             >
               <Text style={styles.successIcon}>🎉</Text>
@@ -299,15 +300,7 @@ const PaymentSuccessScreen: React.FC = () => {
               style={styles.continueButton}
               onPress={handleContinue}
             >
-              <LinearGradient
-                colors={['#FFD700', '#FFA500']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.continueButtonGradient}
-              >
-                <Text style={styles.continueButtonText}>Започни да използваш FinTrack</Text>
-                <Text style={styles.continueButtonIcon}>🚀</Text>
-              </LinearGradient>
+              <Text style={styles.continueButtonText}>Започни да използваш</Text>
             </TouchableOpacity>
 
             {/* View Subscription Button */}
@@ -322,7 +315,7 @@ const PaymentSuccessScreen: React.FC = () => {
           {/* Thank You Message */}
           <View style={styles.thankYouContainer}>
             <Text style={styles.thankYouText}>
-              Благодарим ви, че избрахте FinTrack! 💚
+              Благодарим ви, че избрахте FinTrack! 💛
             </Text>
             <Text style={styles.thankYouSubtext}>
               Готови сме да ви помогнем да управлявате финансите си по-умно
@@ -337,7 +330,7 @@ const PaymentSuccessScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#1A1A1A',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -404,16 +397,16 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     marginBottom: 12,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   successSubtitle: {
     fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(247, 231, 206, 0.9)',
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
@@ -422,12 +415,12 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   subscriptionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
     width: '100%',
   },
   subscriptionHeader: {
@@ -439,10 +432,10 @@ const styles = StyleSheet.create({
   subscriptionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
   },
   activeBadge: {
-    backgroundColor: '#FFD700',
+    backgroundColor: '#D4AF37',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -450,7 +443,7 @@ const styles = StyleSheet.create({
   activeBadgeText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#2E7D32',
+    color: '#1A1A1A',
   },
   subscriptionDetails: {
     gap: 12,
@@ -462,12 +455,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(247, 231, 206, 0.8)',
     fontWeight: '500',
   },
   detailValue: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
@@ -475,28 +468,28 @@ const styles = StyleSheet.create({
   },
   detailValueSmall: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
     marginLeft: 16,
   },
   featuresContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 2,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
     width: '100%',
   },
   featuresTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     marginBottom: 20,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -513,7 +506,7 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(247, 231, 206, 0.9)',
     fontWeight: '500',
     flex: 1,
   },
@@ -523,48 +516,49 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     marginBottom: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  continueButtonGradient: {
+    borderRadius: 20,
+    backgroundColor: '#D4AF37',
     paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    flexDirection: 'row',
+    paddingHorizontal: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 60,
+    flexDirection: 'row',
+    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 15,
+    borderWidth: 2,
+    borderColor: '#F7E7CE',
+    minHeight: 64,
   },
   continueButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#2E7D32',
-    marginRight: 8,
+    color: '#1A1A1A',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(247, 231, 206, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  continueButtonIcon: {
-    fontSize: 20,
-  },
+
   viewSubscriptionButton: {
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(212, 175, 55, 0.5)',
+    backgroundColor: 'rgba(26, 26, 26, 0.6)',
   },
   viewSubscriptionText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -575,16 +569,16 @@ const styles = StyleSheet.create({
   thankYouText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     textAlign: 'center',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   thankYouSubtext: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(247, 231, 206, 0.8)',
     textAlign: 'center',
     lineHeight: 20,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',

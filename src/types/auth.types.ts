@@ -175,6 +175,9 @@ export type AuthStackParamList = {
     planId: SubscriptionPlan;
     retryCount: number;
   };
+  SubscriptionManagement: {
+    subscription: Subscription;
+  };
   AccountLinking: {
     conflictingAccount: {
       email: string;

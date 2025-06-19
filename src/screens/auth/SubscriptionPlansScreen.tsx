@@ -32,14 +32,12 @@ const { width, height } = Dimensions.get('window');
 type SubscriptionPlansScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'SubscriptionPlans'>;
 type SubscriptionPlansScreenRouteProp = RouteProp<AuthStackParamList, 'SubscriptionPlans'>;
 
-type PlanType = 'free' | 'premium';
-
 const SubscriptionPlansScreen: React.FC = () => {
   const navigation = useNavigation<SubscriptionPlansScreenNavigationProp>();
   const route = useRoute<SubscriptionPlansScreenRouteProp>();
   const { authState } = useAuth();
 
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>('free');
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(SubscriptionPlan.QUARTERLY);
   const [isLoading, setIsLoading] = useState(false);
 
   // Animation values
@@ -91,37 +89,29 @@ const SubscriptionPlansScreen: React.FC = () => {
     ]).start();
   }, []);
 
-  // Removed old plan selection handler
-
   const handleContinue = async () => {
-    if (selectedPlan === 'free') {
-      // Navigate directly to main app for free plan
-      Alert.alert(
-        'Добре дошли!',
-        'Вашият безплатен акаунт е готов. Можете да започнете да използвате FinTrack.',
-        [
-          {
-            text: 'Започнете сега',
-            onPress: () => {
-              // This will be handled by auth state change
-              console.log('Free plan selected, should navigate to main app');
-            },
-          },
-        ]
-      );
-    } else {
-      // Navigate to payment for premium plan
-      setIsLoading(true);
-      
-      setTimeout(() => {
-        setIsLoading(false);
-        navigation.navigate('Payment', { 
-          planId: 'premium',
-          amount: 9.99,
-          currency: 'BGN'
-        });
-      }, 1000);
+    setIsLoading(true);
+    
+    const planConfig = SUBSCRIPTION_PLANS[selectedPlan];
+    let amount = planConfig.monthlyPrice;
+    
+    // Adjust amount based on plan type
+    if (selectedPlan === SubscriptionPlan.QUARTERLY && planConfig.quarterlyPrice) {
+      amount = planConfig.quarterlyPrice;
+    } else if (selectedPlan === SubscriptionPlan.YEARLY && planConfig.yearlyPrice) {
+      amount = planConfig.yearlyPrice;
     }
+    
+    const planData = { 
+      planId: selectedPlan, 
+      amount: amount, 
+      currency: planConfig.currency 
+    };
+    
+    setTimeout(() => {
+      setIsLoading(false);
+      navigation.navigate('Payment', planData);
+    }, 1000);
   };
 
   const handleBack = () => {
@@ -216,17 +206,17 @@ const SubscriptionPlansScreen: React.FC = () => {
           <View style={styles.heroSection}>
             <Text style={styles.heroTitle}>Изберете вашия план</Text>
             <Text style={styles.heroSubtitle}>
-              Започнете безплатно и преминете към Premium за достъп до всички функции
+              {getReasonText()}
             </Text>
           </View>
 
           {/* Plans Container */}
           <View style={styles.plansContainer}>
-            {/* Free Plan */}
+            {/* Monthly Plan */}
             <Animated.View
               style={[
                 styles.planCard,
-                selectedPlan === 'free' && styles.planCardSelected,
+                selectedPlan === SubscriptionPlan.MONTHLY && styles.planCardSelected,
                 {
                   opacity: planOpacity,
                   transform: [{ scale: planScale }],
@@ -235,52 +225,33 @@ const SubscriptionPlansScreen: React.FC = () => {
             >
               <TouchableOpacity
                 style={styles.planCardInner}
-                onPress={() => setSelectedPlan('free')}
+                onPress={() => setSelectedPlan(SubscriptionPlan.MONTHLY)}
                 activeOpacity={0.8}
               >
                 <View style={styles.planHeader}>
                   <View style={styles.planIconContainer}>
-                    <Text style={styles.planIcon}>★</Text>
+                    <Text style={styles.planIcon}>📅</Text>
                   </View>
                   <View style={styles.planInfo}>
-                    <Text style={styles.planName}>Безплатен</Text>
-                    <Text style={styles.planPrice}>0 лв</Text>
-                    <Text style={styles.planPeriod}>завинаги</Text>
+                    <Text style={styles.planName}>Месечен план</Text>
+                    <Text style={styles.planPrice}>12.99 лв</Text>
+                    <Text style={styles.planPeriod}>месечно</Text>
                   </View>
-                  {selectedPlan === 'free' && (
+                  {selectedPlan === SubscriptionPlan.MONTHLY && (
                     <View style={styles.selectedIndicator}>
                       <Text style={styles.selectedIndicatorText}>✓</Text>
                     </View>
                   )}
                 </View>
-
-                <View style={styles.planFeatures}>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>Основно проследяване на разходи</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>До 50 транзакции месечно</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>Базови категории</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>Месечни отчети</Text>
-                  </View>
-                </View>
               </TouchableOpacity>
             </Animated.View>
 
-            {/* Premium Plan */}
+            {/* Quarterly Plan */}
             <Animated.View
               style={[
                 styles.planCard,
                 styles.premiumPlanCard,
-                selectedPlan === 'premium' && styles.planCardSelected,
+                selectedPlan === SubscriptionPlan.QUARTERLY && styles.planCardSelected,
                 {
                   opacity: planOpacity,
                   transform: [{ scale: planScale }],
@@ -293,53 +264,97 @@ const SubscriptionPlansScreen: React.FC = () => {
               
               <TouchableOpacity
                 style={styles.planCardInner}
-                onPress={() => setSelectedPlan('premium')}
+                onPress={() => setSelectedPlan(SubscriptionPlan.QUARTERLY)}
                 activeOpacity={0.8}
               >
                 <View style={styles.planHeader}>
                   <View style={[styles.planIconContainer, { borderColor: 'rgba(212, 175, 55, 0.5)', backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
-                    <Text style={styles.planIcon}>★</Text>
+                    <Text style={styles.planIcon}>🏆</Text>
                   </View>
                   <View style={styles.planInfo}>
-                    <Text style={[styles.planName, styles.premiumPlanName]}>Premium</Text>
-                    <Text style={[styles.planPrice, styles.premiumPlanPrice]}>9.99 лв</Text>
-                    <Text style={styles.planPeriod}>месечно</Text>
+                    <Text style={[styles.planName, styles.premiumPlanName]}>Тримесечен план</Text>
+                    <Text style={[styles.planPrice, styles.premiumPlanPrice]}>29.99 лв</Text>
+                    <Text style={styles.planPeriod}>за 3 месеца</Text>
+                    <Text style={styles.savingsText}>Спестявате 23%</Text>
                   </View>
-                  {selectedPlan === 'premium' && (
+                  {selectedPlan === SubscriptionPlan.QUARTERLY && (
                     <View style={styles.selectedIndicator}>
                       <Text style={styles.selectedIndicatorText}>✓</Text>
                     </View>
                   )}
                 </View>
+              </TouchableOpacity>
+            </Animated.View>
 
-                <View style={styles.planFeatures}>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>Неограничени транзакции</Text>
+            {/* Yearly Plan */}
+            <Animated.View
+              style={[
+                styles.planCard,
+                selectedPlan === SubscriptionPlan.YEARLY && styles.planCardSelected,
+                {
+                  opacity: planOpacity,
+                  transform: [{ scale: planScale }],
+                },
+              ]}
+            >
+              <View style={styles.bestValueBadge}>
+                <Text style={styles.bestValueBadgeText}>НАЙ-ИЗГОДЕН</Text>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.planCardInner}
+                onPress={() => setSelectedPlan(SubscriptionPlan.YEARLY)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.planHeader}>
+                  <View style={[styles.planIconContainer, { borderColor: 'rgba(76, 175, 80, 0.5)', backgroundColor: 'rgba(76, 175, 80, 0.1)' }]}>
+                    <Text style={styles.planIcon}>💎</Text>
                   </View>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>Детайлни анализи и графики</Text>
+                  <View style={styles.planInfo}>
+                    <Text style={styles.planName}>Годишен план</Text>
+                    <Text style={styles.planPrice}>99.99 лв</Text>
+                    <Text style={styles.planPeriod}>годишно</Text>
+                    <Text style={styles.savingsText}>Спестявате 36%</Text>
                   </View>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>Персонализирани категории</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>Експорт на данни</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>Приоритетна поддръжка</Text>
-                  </View>
-                  <View style={styles.featureItem}>
-                    <Text style={styles.featureIcon}>✓</Text>
-                    <Text style={styles.featureText}>Облачна синхронизация</Text>
-                  </View>
+                  {selectedPlan === SubscriptionPlan.YEARLY && (
+                    <View style={styles.selectedIndicator}>
+                      <Text style={styles.selectedIndicatorText}>✓</Text>
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             </Animated.View>
+          </View>
+
+          {/* Features Section */}
+          <View style={styles.featuresContainer}>
+            <Text style={styles.featuresTitle}>Защо хората избират FinTrack:</Text>
+            <View style={styles.featuresList}>
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>💰</Text>
+                <Text style={styles.featureText}>Спестете средно 20% от разходите си всеки месец</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>📊</Text>
+                <Text style={styles.featureText}>Разберете къде отиват парите ви с детайлни отчети</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>🎯</Text>
+                <Text style={styles.featureText}>Постигнете финансовите си цели по-бързо</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>⚡</Text>
+                <Text style={styles.featureText}>Автоматично проследяване - без ръчно въвеждане</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>🔒</Text>
+                <Text style={styles.featureText}>Банково ниво на сигурност за вашите данни</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>📱</Text>
+                <Text style={styles.featureText}>Достъп от всички ваши устройства</Text>
+              </View>
+            </View>
           </View>
 
           {/* Continue Button */}
@@ -359,34 +374,14 @@ const SubscriptionPlansScreen: React.FC = () => {
               onPress={handleContinue}
               disabled={isLoading}
             >
-              <LinearGradient
-                colors={
-                  selectedPlan === 'premium'
-                    ? ['#D4AF37', '#F7E7CE', '#D4AF37']
-                    : ['#4CAF50', '#66BB6A', '#4CAF50']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.continueButtonGradient}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#1A1A1A" size="small" />
-                ) : (
-                  <>
-                    <Text style={styles.buttonIcon}>✓</Text>
-                    <Text style={styles.continueButtonText}>
-                      {selectedPlan === 'premium' ? 'Започнете 7-дневния безплатен период' : 'Продължете безплатно'}
-                    </Text>
-                  </>
-                )}
-              </LinearGradient>
+              {isLoading ? (
+                <ActivityIndicator color="#1A1A1A" size="small" />
+              ) : (
+                <Text style={styles.continueButtonText}>
+                  Продължете към плащане
+                </Text>
+              )}
             </TouchableOpacity>
-
-            {selectedPlan === 'premium' && (
-              <Text style={styles.trialInfo}>
-                Можете да откажете по всяко време преди края на пробния период
-              </Text>
-            )}
           </Animated.View>
 
           {/* Security Note */}
@@ -607,7 +602,10 @@ const styles = StyleSheet.create({
     paddingTop: 30,
   },
   planHeader: {
-    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    position: 'relative',
   },
   planName: {
     fontSize: 20,
@@ -749,42 +747,42 @@ const styles = StyleSheet.create({
     color: '#D4AF37',
   },
   buttonContainer: {
-    alignItems: 'center',
     marginBottom: 30,
   },
   continueButton: {
-    borderRadius: 16,
-    shadowColor: '#D4AF37',
+    marginBottom: 24,
+    borderRadius: 20,
+    backgroundColor: '#D4AF37',
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
     shadowOffset: {
       width: 0,
-      height: 6,
+      height: 10,
     },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-    width: '100%',
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 15,
+    borderWidth: 2,
+    borderColor: '#F7E7CE',
+    minHeight: 64,
   },
   continueButtonDisabled: {
     opacity: 0.6,
-  },
-  continueButtonGradient: {
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
   },
   continueButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#1A1A1A',
-    textAlign: 'center',
     letterSpacing: 0.5,
+    textShadowColor: 'rgba(247, 231, 206, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  buttonIcon: {
-    marginRight: 8,
-  },
+
   trialInfo: {
     fontSize: 14,
     color: 'rgba(247, 231, 206, 0.7)',
@@ -814,6 +812,19 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: '#D4AF37',
+  },
+  featuresContainer: {
+    marginBottom: 30,
+  },
+  featuresTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#F7E7CE',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  featuresList: {
+    gap: 8,
   },
 });
 

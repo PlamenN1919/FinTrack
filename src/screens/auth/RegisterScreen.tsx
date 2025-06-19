@@ -24,7 +24,7 @@ type RegisterScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList
 
 const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<RegisterScreenNavigationProp>();
-  const { signUpWithEmail, signInWithGoogle, authState, clearError } = useAuth();
+  const { signUpWithEmail, authState, clearError } = useAuth();
 
   // Form state
   const [email, setEmail] = useState('');
@@ -187,17 +187,7 @@ const RegisterScreen: React.FC = () => {
 
       await signUpWithEmail(credentials);
       
-      // Show success message and navigate to subscription plans
-      Alert.alert(
-        'Регистрацията е успешна!',
-        'Изпратихме ви имейл за потвърждение. Можете да продължите с избора на план.',
-        [
-          {
-            text: 'Продължи',
-            onPress: () => navigation.navigate('SubscriptionPlans', { reason: 'new_user' }),
-          },
-        ]
-      );
+      // Navigation will be handled automatically by AuthNavigator based on user state
     } catch (error: any) {
       console.error('Registration error:', error);
       Alert.alert(
@@ -209,40 +199,7 @@ const RegisterScreen: React.FC = () => {
     }
   };
 
-  const handleGoogleRegister = async () => {
-    try {
-      setIsLoading(true);
-      clearError();
 
-      const result = await signInWithGoogle();
-      
-      if (result.isNewUser) {
-        Alert.alert(
-          'Добре дошли!',
-          'Вашият Google акаунт е успешно свързан. Изберете абонаментен план за да започнете.',
-          [
-            {
-              text: 'Продължи',
-              onPress: () => navigation.navigate('SubscriptionPlans', { reason: 'new_user' }),
-            },
-          ]
-        );
-      } else {
-        // Existing user, navigate based on subscription status
-        // This will be handled by the auth state change
-      }
-    } catch (error: any) {
-      console.error('Google registration error:', error);
-      if (error.code !== 'GOOGLE_SIGNIN_CANCELLED') {
-        Alert.alert(
-          'Грешка при регистрация с Google',
-          error.message || 'Възникна неочаквана грешка. Моля, опитайте отново.'
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleLogin = () => {
     navigation.navigate('Login');
@@ -494,38 +451,7 @@ const RegisterScreen: React.FC = () => {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>или</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
-          {/* Social Registration Buttons */}
-          <View style={styles.socialButtonsContainer}>
-            {/* Google Registration */}
-            <TouchableOpacity
-              style={[styles.socialButton, isLoading && styles.socialButtonDisabled]}
-              onPress={handleGoogleRegister}
-              disabled={isLoading}
-            >
-              <View style={styles.socialButtonContent}>
-                <Text style={styles.socialButtonIcon}>G</Text>
-                <Text style={styles.socialButtonText}>Регистрация с Google</Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Apple Registration */}
-            <TouchableOpacity
-              style={[styles.socialButton, styles.appleButton, isLoading && styles.socialButtonDisabled]}
-              disabled={isLoading}
-            >
-              <View style={styles.socialButtonContent}>
-                <Text style={styles.socialButtonIcon}>A</Text>
-                <Text style={styles.socialButtonText}>Регистрация с Apple</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
 
           {/* Login Link */}
           <View style={styles.loginContainer}>
@@ -818,67 +744,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginRight: 8,
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(247, 231, 206, 0.3)',
-  },
-  dividerText: {
-    fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.6)',
-    paddingHorizontal: 16,
-    fontWeight: '500',
-  },
-  socialButtonsContainer: {
-    marginBottom: 24,
-  },
-  socialButton: {
-    marginBottom: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    height: 56,
-    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  socialButtonDisabled: {
-    opacity: 0.6,
-  },
-  appleButton: {
-    backgroundColor: 'rgba(26, 26, 26, 0.8)',
-  },
-  socialButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  socialButtonIcon: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginRight: 12,
-    color: '#F7E7CE',
-    width: 20,
-    textAlign: 'center',
-  },
-  socialButtonText: {
-    fontSize: 16,
-    color: '#F7E7CE',
-    fontWeight: '600',
-  },
+
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',

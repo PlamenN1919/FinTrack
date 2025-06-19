@@ -187,19 +187,6 @@ const PaymentFailedScreen: React.FC = () => {
     });
   };
 
-  const handleContactSupport = () => {
-    Alert.alert(
-      'Свържете се с поддръжката',
-      'Можете да се свържете с нашия екип за поддръжка на:\n\nИмейл: support@fintrack.bg\nТелефон: +359 2 XXX XXXX\n\nРаботно време: 9:00 - 18:00, Пон-Пет',
-      [
-        {
-          text: 'Разбрах',
-          style: 'default',
-        },
-      ]
-    );
-  };
-
   const handleBackToPlans = () => {
     navigation.navigate('SubscriptionPlans', { 
       reason: 'payment_failed' 
@@ -306,10 +293,6 @@ const PaymentFailedScreen: React.FC = () => {
                 <Text style={styles.detailLabel}>Опити:</Text>
                 <Text style={styles.detailValue}>{retryCount + 1}/3</Text>
               </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Грешка:</Text>
-                <Text style={styles.detailValueError}>{error.code}</Text>
-              </View>
             </View>
           </View>
 
@@ -321,15 +304,7 @@ const PaymentFailedScreen: React.FC = () => {
                 style={styles.retryButton}
                 onPress={handleRetryPayment}
               >
-                <LinearGradient
-                  colors={['#FF9800', '#F57C00']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.retryButtonGradient}
-                >
-                  <Text style={styles.retryButtonText}>{getRetryButtonText()}</Text>
-                  <Text style={styles.retryButtonIcon}>🔄</Text>
-                </LinearGradient>
+                <Text style={styles.retryButtonText}>{getRetryButtonText()}</Text>
               </TouchableOpacity>
             )}
 
@@ -338,10 +313,7 @@ const PaymentFailedScreen: React.FC = () => {
               style={styles.secondaryButton}
               onPress={handleTryDifferentCard}
             >
-              <View style={styles.secondaryButtonContent}>
-                <Text style={styles.secondaryButtonText}>Опитай с друга карта</Text>
-                <Text style={styles.secondaryButtonIcon}>💳</Text>
-              </View>
+              <Text style={styles.secondaryButtonText}>Опитай с друга карта</Text>
             </TouchableOpacity>
 
             {/* Choose Different Plan Button */}
@@ -349,16 +321,21 @@ const PaymentFailedScreen: React.FC = () => {
               style={styles.secondaryButton}
               onPress={handleChooseDifferentPlan}
             >
-              <View style={styles.secondaryButtonContent}>
-                <Text style={styles.secondaryButtonText}>Избери друг план</Text>
-                <Text style={styles.secondaryButtonIcon}>📋</Text>
-              </View>
+              <Text style={styles.secondaryButtonText}>Избери друг план</Text>
+            </TouchableOpacity>
+
+            {/* Back to Plans Button */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={handleBackToPlans}
+            >
+              <Text style={styles.backButtonText}>← Обратно към планове</Text>
             </TouchableOpacity>
           </View>
 
           {/* Help Section */}
           <View style={styles.helpSection}>
-            <Text style={styles.helpTitle}>Нужна помощ?</Text>
+            <Text style={styles.helpTitle}>Полезни съвети</Text>
             <View style={styles.helpItem}>
               <Text style={styles.helpIcon}>💡</Text>
               <Text style={styles.helpText}>
@@ -372,39 +349,12 @@ const PaymentFailedScreen: React.FC = () => {
               </Text>
             </View>
             <View style={styles.helpItem}>
-              <Text style={styles.helpIcon}>📞</Text>
+              <Text style={styles.helpIcon}>🔄</Text>
               <Text style={styles.helpText}>
-                Свържете се с нашата поддръжка за помощ
+                Опитайте отново след няколко минути
               </Text>
             </View>
           </View>
-
-          {/* Support and Back Buttons */}
-          <View style={styles.bottomButtonsContainer}>
-            <TouchableOpacity
-              style={styles.supportButton}
-              onPress={handleContactSupport}
-            >
-              <Text style={styles.supportButtonText}>Свържи се с поддръжката</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={handleBackToPlans}
-            >
-              <Text style={styles.backButtonText}>← Обратно към планове</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Error Details (for debugging) */}
-          {__DEV__ && (
-            <View style={styles.debugContainer}>
-              <Text style={styles.debugTitle}>Debug Info:</Text>
-              <Text style={styles.debugText}>
-                {JSON.stringify(error, null, 2)}
-              </Text>
-            </View>
-          )}
         </Animated.View>
       </ScrollView>
     </View>
@@ -517,12 +467,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
-  detailValueError: {
-    fontSize: 14,
-    color: '#FFCDD2',
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
-  },
   buttonsContainer: {
     width: '100%',
     marginBottom: 30,
@@ -530,6 +474,11 @@ const styles = StyleSheet.create({
   retryButton: {
     marginBottom: 16,
     borderRadius: 12,
+    backgroundColor: '#FF9800',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -538,24 +487,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-  },
-  retryButtonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     minHeight: 56,
   },
   retryButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
-  retryButtonIcon: {
-    fontSize: 18,
     color: '#FFFFFF',
   },
   secondaryButton: {
@@ -567,9 +503,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 32,
     minHeight: 56,
-  },
-  secondaryButtonContent: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -577,11 +510,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    marginRight: 8,
-  },
-  secondaryButtonIcon: {
-    fontSize: 16,
-    color: '#FFFFFF',
+    textAlign: 'center',
   },
   helpSection: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -615,51 +544,20 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     flex: 1,
   },
-  bottomButtonsContainer: {
-    width: '100%',
-    gap: 12,
-  },
-  supportButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  backButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
     borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
   },
-  supportButtonText: {
+  backButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
-  },
-  backButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-  },
-  debugContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 20,
-    width: '100%',
-  },
-  debugTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  debugText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontFamily: 'monospace',
   },
 });
 

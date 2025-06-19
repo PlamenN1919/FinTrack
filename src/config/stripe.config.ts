@@ -1,61 +1,98 @@
-// Stripe конфигурация за FinTrack
-export const STRIPE_CONFIG = {
-  // Test mode keys (за development)
-  test: {
-    publishableKey: 'pk_test_51RHUZh4dsTm22ri7eRMIa1ynvEQEiqilfZRiNgmZHVss0KoXdJ6d3rwheOsiaVr18w5jm6H3EGfifuzuGxnwEySy00vg5ierve',
-    merchantIdentifier: 'merchant.com.fintrack.test',
-    urlScheme: 'fintrack-test',
-  },
-  
-  // Live mode keys (за production) 
-  live: {
-    publishableKey: 'pk_live_51RY1Qr4dsTm22ri7...', // Заменете с вашия live publishable key
-    merchantIdentifier: 'merchant.com.fintrack',
-    urlScheme: 'fintrack',
-  },
+// Stripe Configuration для FinTrack
+import { Environment } from './environment.config';
+
+export interface StripeConfig {
+  publishableKey: string;
+  merchantIdentifier?: string; // For Apple Pay
+  urlScheme?: string; // For redirects
+}
+
+// Test keys от Stripe Dashboard (безопасни за споделяне)
+const STRIPE_TEST_PUBLISHABLE_KEY = 'pk_test_51H5BdL7F8M2mIQLUOCMfr1K3bHXcPL3Fv8RbNXhPr4TnP4dP2k4j1hYbGnV3dMq8RgY1rP5xW6sK9tA7cE2fZ0k4L8nU'; // Заместете с вашия тестови ключ
+
+const getStripeConfig = (): StripeConfig => {
+  const config: StripeConfig = {
+    publishableKey: STRIPE_TEST_PUBLISHABLE_KEY,
+    merchantIdentifier: 'merchant.com.fintrack.app',
+    urlScheme: 'fintrack-payments',
+  };
+
+  // В production ще използваме live ключове
+  if (Environment.isDevelopment) {
+    return {
+      ...config,
+      publishableKey: STRIPE_TEST_PUBLISHABLE_KEY,
+    };
+  }
+
+  return config;
 };
 
-// Текуща конфигурация според режима
-export const getCurrentStripeConfig = () => {
-  const isDevelopment = __DEV__;
-  return isDevelopment ? STRIPE_CONFIG.test : STRIPE_CONFIG.live;
+// Тестови карти за различни сценарии
+export const TEST_CARDS = {
+  SUCCESS: '4242424242424242', // Винаги успешна
+  DECLINED: '4000000000000002', // Винаги отхвърлена  
+  INSUFFICIENT_FUNDS: '4000000000009995', // Недостатъчни средства
+  EXPIRED: '4000000000000069', // Изтекла карта
+  CVC_FAIL: '4000000000000127', // Грешен CVC
+  PROCESSING_ERROR: '4000000000000119', // Грешка при обработка
 };
 
-// Payment configuration
-export const PAYMENT_CONFIG = {
-  // Страна и валута
-  country: 'BG',
-  currency: 'BGN',
+// Валиден CVC за тестване
+export const TEST_CVC = '123';
+
+// Валидна дата за тестване (винаги в бъдещето)
+export const TEST_EXPIRY = {
+  month: 12,
+  year: new Date().getFullYear() + 2,
+};
+
+export const stripeConfig = getStripeConfig();
+
+// Helper функции
+export const formatExpiryDate = (text: string): string => {
+  // Форматира MM/YY
+  const cleaned = text.replace(/\D/g, '');
+  if (cleaned.length >= 2) {
+    return cleaned.substring(0, 2) + (cleaned.length > 2 ? '/' + cleaned.substring(2, 4) : '');
+  }
+  return cleaned;
+};
+
+export const validateCardNumber = (cardNumber: string): boolean => {
+  // Основна Luhn алгоритъм валидация
+  const num = cardNumber.replace(/\D/g, '');
+  if (num.length < 13 || num.length > 19) return false;
   
-  // Timeout settings
-  timeout: 30000, // 30 секунди
+  let sum = 0;
+  let isEven = false;
   
-  // Retry configuration
-  maxRetries: 3,
-  retryDelay: 2000, // 2 секунди
+  for (let i = num.length - 1; i >= 0; i--) {
+    let digit = parseInt(num.charAt(i), 10);
+    
+    if (isEven) {
+      digit *= 2;
+      if (digit > 9) {
+        digit -= 9;
+      }
+    }
+    
+    sum += digit;
+    isEven = !isEven;
+  }
   
-  // UI настройки
-  appearance: {
-    theme: 'stripe' as const,
-    variables: {
-      colorPrimary: '#667eea', // FinTrack primary color
-      borderRadius: '16px',
-      fontFamily: 'System',
-    },
-  },
+  return sum % 10 === 0;
+};
+
+export const getCardType = (cardNumber: string): string => {
+  const num = cardNumber.replace(/\D/g, '');
   
-  // Card input styling
-  cardStyle: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E0E0E0',
-    borderWidth: 1,
-    borderRadius: 16,
-    fontSize: 16,
-    textColor: '#333333',
-    placeholderColor: '#999999',
-    textErrorColor: '#F44336',
-    cursorColor: '#667eea',
-  },
+  if (/^4/.test(num)) return 'Visa';
+  if (/^5[1-5]/.test(num) || /^2[2-7]/.test(num)) return 'Mastercard';
+  if (/^3[47]/.test(num)) return 'American Express';
+  if (/^6/.test(num)) return 'Discover';
+  
+  return 'Unknown';
 };
 
 // Error messages на български
@@ -97,4 +134,6 @@ export const formatAmountForStripe = (amount: number): number => {
 export const formatAmountFromStripe = (amount: number): number => {
   // Конвертира от стотинки обратно в лева
   return amount / 100;
-}; 
+};
+
+export default stripeConfig; 

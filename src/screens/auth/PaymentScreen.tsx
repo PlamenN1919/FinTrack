@@ -23,71 +23,11 @@ import { SubscriptionPlan, SubscriptionStatus } from '../../types/auth.types';
 import { useAuth } from '../../contexts/AuthContext';
 import { SUBSCRIPTION_PLANS } from '../../config/subscription.config';
 
+// Components
+import StripeCardForm from '../../components/payment/StripeCardForm';
+
 // Utils
 // formatPrice utility can be added later when needed
-
-// Temporary mock component until Stripe is integrated
-const StripePaymentForm: React.FC<{
-  planId: SubscriptionPlan;
-  userId: string;
-  onPaymentSuccess: (subscriptionId: string) => void;
-  onPaymentError: (error: string) => void;
-  onPaymentCancel: () => void;
-}> = ({ planId, userId, onPaymentSuccess, onPaymentError, onPaymentCancel }) => {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleMockPayment = async () => {
-    setIsLoading(true);
-    
-    // Simulate payment processing
-    setTimeout(() => {
-      const isSuccess = Math.random() > 0.2; // 80% success rate for testing
-      
-      if (isSuccess) {
-        const mockSubscriptionId = `sub_${Date.now()}`;
-        onPaymentSuccess(mockSubscriptionId);
-      } else {
-        onPaymentError('Плащането беше отхвърлено от банката. Моля, опитайте с друга карта.');
-      }
-      
-      setIsLoading(false);
-    }, 2000);
-  };
-
-  return (
-    <View style={styles.paymentFormContainer}>
-      <Text style={styles.paymentFormTitle}>Детайли за плащане</Text>
-      
-      {/* Mock Card Input */}
-      <View style={styles.mockCardInput}>
-        <Text style={styles.mockCardText}>💳 **** **** **** 1234</Text>
-        <Text style={styles.mockCardInfo}>Тестова карта (Mock)</Text>
-      </View>
-      
-      {/* Pay Button */}
-      <TouchableOpacity
-        style={[styles.payButton, isLoading && styles.payButtonDisabled]}
-        onPress={handleMockPayment}
-        disabled={isLoading}
-      >
-        <LinearGradient
-          colors={isLoading ? ['#999', '#666'] : ['#4CAF50', '#45a049']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.payButtonGradient}
-        >
-          <Text style={styles.payButtonText}>
-            {isLoading ? 'Обработва се...' : 'Плати сега'}
-          </Text>
-        </LinearGradient>
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.cancelButton} onPress={onPaymentCancel}>
-        <Text style={styles.cancelButtonText}>Отказ</Text>
-      </TouchableOpacity>
-    </View>
-  );
-};
 
 type PaymentScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Payment'>;
 type PaymentScreenRouteProp = RouteProp<AuthStackParamList, 'Payment'>;
@@ -155,7 +95,7 @@ const PaymentScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#667eea', '#764ba2', '#f093fb']}
+        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -198,7 +138,7 @@ const PaymentScreen: React.FC = () => {
             <View style={styles.planSummaryCard}>
               <Text style={styles.planName}>{getPlanDisplayName()}</Text>
               <Text style={styles.planPrice}>
-                {amount.toFixed(2)} {currency}
+                {`${amount.toFixed(2)} ${currency}`}
                 <Text style={styles.planPeriod}>
                   {planId === SubscriptionPlan.MONTHLY ? '/месец' : 
                    planId === SubscriptionPlan.QUARTERLY ? '/3 месеца' : '/година'}
@@ -211,13 +151,13 @@ const PaymentScreen: React.FC = () => {
           </View>
 
           {/* Payment Form */}
-          <StripePaymentForm
-            planId={planId}
-            userId={authState.user?.uid || ''}
-            onPaymentSuccess={(subscriptionId) => {
+          <StripeCardForm
+            amount={amount}
+            currency={currency}
+            onPaymentSuccess={() => {
               navigation.navigate('PaymentSuccess', {
                 subscription: {
-                  id: subscriptionId,
+                  id: `pi_${Date.now()}`,
                   userId: authState.user?.uid || '',
                   plan: planId,
                   status: SubscriptionStatus.ACTIVE,
@@ -225,26 +165,13 @@ const PaymentScreen: React.FC = () => {
                   currentPeriodEnd: new Date(Date.now() + (planId === SubscriptionPlan.MONTHLY ? 30 : planId === SubscriptionPlan.QUARTERLY ? 90 : 365) * 24 * 60 * 60 * 1000),
                   cancelAtPeriodEnd: false,
                   stripeCustomerId: `cus_${Date.now()}`,
-                  stripeSubscriptionId: subscriptionId,
+                  stripeSubscriptionId: `sub_${Date.now()}`,
                   priceId: selectedPlan?.stripePriceIds.monthly || '',
                   amount,
                   currency,
                   createdAt: new Date(),
                   updatedAt: new Date(),
                 },
-              });
-            }}
-            onPaymentError={(error) => {
-              navigation.navigate('PaymentFailed', {
-                error: {
-                  code: 'payment/failed',
-                  message: error,
-                  details: { error },
-                  timestamp: new Date(),
-                  recoverable: true,
-                },
-                planId,
-                retryCount: 0,
               });
             }}
             onPaymentCancel={() => {
@@ -290,7 +217,7 @@ const PaymentScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#667eea',
+    backgroundColor: '#1A1A1A',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -310,22 +237,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
-    color: '#FFFFFF',
     fontWeight: 'bold',
+    color: '#F7E7CE',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -351,34 +280,34 @@ const styles = StyleSheet.create({
   planSummaryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   planSummaryCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderRadius: 16,
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   planName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     marginBottom: 8,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   planPrice: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: '#D4AF37',
     textAlign: 'center',
     marginBottom: 8,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
@@ -388,111 +317,112 @@ const styles = StyleSheet.create({
   planPeriod: {
     fontSize: 16,
     fontWeight: 'normal',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(247, 231, 206, 0.8)',
   },
   planDescription: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(247, 231, 206, 0.8)',
     textAlign: 'center',
     lineHeight: 18,
   },
   paymentFormContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderRadius: 16,
     padding: 24,
     marginBottom: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 2,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   paymentFormTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     marginBottom: 20,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   mockCardInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(26, 26, 26, 0.8)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   mockCardText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     fontWeight: '600',
     marginBottom: 4,
   },
   mockCardInfo: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(247, 231, 206, 0.7)',
     fontStyle: 'italic',
   },
   payButton: {
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
+    marginBottom: 24,
+    borderRadius: 20,
+    backgroundColor: '#D4AF37',
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 10,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 15,
+    borderWidth: 2,
+    borderColor: '#F7E7CE',
+    minHeight: 64,
   },
   payButtonDisabled: {
     opacity: 0.6,
-    shadowOpacity: 0.1,
-    elevation: 2,
-  },
-  payButtonGradient: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    alignItems: 'center',
   },
   payButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    color: '#1A1A1A',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(247, 231, 206, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   cancelButton: {
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(212, 175, 55, 0.3)',
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(247, 231, 206, 0.8)',
     fontWeight: '500',
   },
   securitySection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 2,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
   },
   securityTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -508,7 +438,7 @@ const styles = StyleSheet.create({
   },
   securityText: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(247, 231, 206, 0.9)',
     flex: 1,
     fontWeight: '500',
   },
