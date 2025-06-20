@@ -20,6 +20,11 @@ export const mockAchievements: Achievement[] = [
     maxProgress: 1,
     isCompleted: true,
     dateCompleted: '2024-05-10',
+    trigger: {
+      action: 'add_transaction',
+      condition: (metadata, currentProgress) => currentProgress < 1,
+      progressUpdate: (currentProgress) => currentProgress + 1
+    }
   },
   {
     id: '2',
@@ -32,6 +37,11 @@ export const mockAchievements: Achievement[] = [
     progress: 28,
     maxProgress: 30,
     isCompleted: false,
+    trigger: {
+      action: 'budget_compliance_check',
+      condition: (metadata) => metadata.isWithinBudget,
+      progressUpdate: (currentProgress, metadata) => metadata.daysInBudget
+    }
   },
   {
     id: '3',
@@ -44,6 +54,11 @@ export const mockAchievements: Achievement[] = [
     progress: 2,
     maxProgress: 3,
     isCompleted: false,
+    trigger: {
+      action: 'savings_check',
+      condition: (metadata) => metadata.savingsRate >= 0.10,
+      progressUpdate: (currentProgress, metadata) => metadata.consecutiveMonths
+    }
   },
   {
     id: '4',
@@ -56,6 +71,10 @@ export const mockAchievements: Achievement[] = [
     progress: 3,
     maxProgress: 5,
     isCompleted: false,
+    trigger: {
+      action: 'view_report',
+      progressUpdate: (currentProgress) => currentProgress + 1
+    }
   },
   {
     id: '5',
@@ -68,6 +87,10 @@ export const mockAchievements: Achievement[] = [
     progress: 12,
     maxProgress: 30,
     isCompleted: false,
+    trigger: {
+      action: 'streak_updated',
+      progressUpdate: (currentProgress, metadata) => metadata.newStreak
+    }
   },
   {
     id: '6',
@@ -80,6 +103,10 @@ export const mockAchievements: Achievement[] = [
     progress: 2,
     maxProgress: 5,
     isCompleted: false,
+    trigger: {
+      action: 'goal_achieved',
+      progressUpdate: (currentProgress) => currentProgress + 1
+    }
   },
   {
     id: '7',
@@ -92,6 +119,11 @@ export const mockAchievements: Achievement[] = [
     progress: 22,
     maxProgress: 50,
     isCompleted: false,
+    trigger: {
+      action: 'add_transaction',
+      condition: (metadata) => metadata.emotionalState && metadata.emotionalState !== 'neutral',
+      progressUpdate: (currentProgress) => currentProgress + 1
+    }
   },
   {
     id: '8',
@@ -104,6 +136,11 @@ export const mockAchievements: Achievement[] = [
     progress: 78,
     maxProgress: 90,
     isCompleted: false,
+    trigger: {
+      action: 'financial_health_updated',
+      condition: (metadata) => metadata.healthScore >= 95,
+      progressUpdate: (currentProgress, metadata) => metadata.healthScore
+    }
   },
   {
     id: '9',
@@ -116,6 +153,11 @@ export const mockAchievements: Achievement[] = [
     progress: 8,
     maxProgress: 20,
     isCompleted: false,
+    trigger: {
+      action: 'add_transaction',
+      condition: (metadata) => metadata.isScanned,
+      progressUpdate: (currentProgress) => currentProgress + 1
+    }
   },
   {
     id: '10',
@@ -128,6 +170,11 @@ export const mockAchievements: Achievement[] = [
     progress: 15,
     maxProgress: 20,
     isCompleted: false,
+    trigger: {
+      action: 'expense_optimization',
+      condition: (metadata) => metadata.reductionPercentage >= 20,
+      progressUpdate: (currentProgress, metadata) => metadata.reductionPercentage
+    }
   },
 ];
 
@@ -136,16 +183,19 @@ export const mockMissions: Mission[] = [
   {
     id: '1',
     name: 'Проследяване на дневните разходи',
-    description: 'Въведете всички транзакции за деня',
+    description: 'Добавете поне една транзакция днес',
     icon: '📝',
     type: MISSION_TYPES.DAILY,
-    xpReward: 5,
-    progress: 1,
+    xpReward: 10,
+    progress: 0,
     maxProgress: 1,
-    isCompleted: true,
-    expiresAt: '2024-05-20T23:59:59',
-    startedAt: '2024-05-20T00:00:00',
-    completedAt: '2024-05-20T19:30:00',
+    isCompleted: false,
+    expiresAt: new Date(new Date().setHours(23, 59, 59, 999)).toISOString(),
+    startedAt: new Date().toISOString(),
+    trigger: {
+      action: 'daily_activity_completed',
+      progressUpdate: (p) => p + 1
+    }
   },
   {
     id: '2',
@@ -176,15 +226,19 @@ export const mockMissions: Mission[] = [
   {
     id: '4',
     name: 'Ограничете ненужните разходи',
-    description: 'Не правете разходи в категория "Забавления" за 2 дни',
-    icon: '🎭',
-    type: MISSION_TYPES.DAILY,
-    xpReward: 10,
-    progress: 1,
-    maxProgress: 2,
+    description: 'Имайте поне 5 дни без разходи за забавления тази седмица',
+    icon: '🚫',
+    type: MISSION_TYPES.WEEKLY,
+    xpReward: 30,
+    progress: 0,
+    maxProgress: 5,
     isCompleted: false,
-    expiresAt: '2024-05-22T23:59:59',
-    startedAt: '2024-05-20T00:00:00',
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    startedAt: new Date().toISOString(),
+    trigger: {
+      action: 'no_entertainment_day',
+      progressUpdate: (p) => p + 1
+    }
   },
   {
     id: '5',

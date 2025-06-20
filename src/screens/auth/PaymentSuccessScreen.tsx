@@ -14,6 +14,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList, SubscriptionPlan } from '../../types/auth.types';
 import { formatPrice } from '../../config/subscription.config';
+import { useAuth } from '../../contexts/AuthContext';
 
 type PaymentSuccessScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'PaymentSuccess'>;
 type PaymentSuccessScreenRouteProp = RouteProp<AuthStackParamList, 'PaymentSuccess'>;
@@ -21,6 +22,7 @@ type PaymentSuccessScreenRouteProp = RouteProp<AuthStackParamList, 'PaymentSucce
 const PaymentSuccessScreen: React.FC = () => {
   const navigation = useNavigation<PaymentSuccessScreenNavigationProp>();
   const route = useRoute<PaymentSuccessScreenRouteProp>();
+  const { authState, setSubscription } = useAuth();
 
   const { subscription } = route.params;
 
@@ -135,9 +137,18 @@ const PaymentSuccessScreen: React.FC = () => {
     });
   };
 
-  const handleContinue = () => {
-    // Navigate to main app (ще бъде имплементирано когато интегрираме с App.tsx)
-    console.log('Navigate to main app');
+  const handleContinue = async () => {
+    try {
+      // Update auth context with the subscription
+      // This will automatically trigger navigation to main app via AppNavigator
+      console.log('Activating subscription and navigating to main app...');
+      await setSubscription(subscription);
+      console.log('Subscription set successfully, navigation should happen automatically');
+    } catch (error) {
+      console.error('Failed to set subscription:', error);
+      // Even if setting fails, the subscription object indicates success
+      // so we could still navigate or show an alert to try again
+    }
   };
 
   const handleViewSubscription = () => {

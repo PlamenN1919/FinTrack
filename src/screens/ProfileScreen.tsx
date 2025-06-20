@@ -18,6 +18,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../utils/ThemeContext';
 import { useUser } from '../utils/UserContext';
 import { SCREENS } from '../utils/constants';
+import { useAuth } from '../contexts/AuthContext';
 
 // Модерни UI компоненти
 import SimpleAnimatedCard from '../components/ui/SimpleAnimatedCard';
@@ -39,6 +40,7 @@ const ProfileScreen: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const navigation = useNavigation<any>();
   const { userData } = useUser();
+  const { logout } = useAuth();
   
   // Получаване на данни за профила от гамификацията с автоматично обновяване
   const [profile, setProfile] = useState(gamificationService.getProfile());
@@ -89,6 +91,31 @@ const ProfileScreen: React.FC = () => {
   // Превключване на нотификациите
   const toggleNotifications = () => {
     setNotificationsEnabled(!notificationsEnabled);
+  };
+  
+  // Изход от акаунта
+  const handleLogout = () => {
+    Alert.alert(
+      'Изход от акаунта',
+      'Сигурни ли сте, че искате да излезете?',
+      [
+        {
+          text: 'Отказ',
+          style: 'cancel',
+        },
+        {
+          text: 'Изход',
+          style: 'destructive',
+          // При натискане на "Изход", извикваме функцията от AuthContext
+          onPress: async () => {
+            await logout();
+            // Навигацията ще се управлява от AppNavigator
+            // след промяна в състоянието на аутентикацията
+          },
+        },
+      ],
+      { cancelable: false }
+    );
   };
   
   return (
@@ -294,10 +321,7 @@ const ProfileScreen: React.FC = () => {
           {/* Изход */}
           <TouchableOpacity 
             style={[styles.settingsItem, styles.logoutItem]}
-            onPress={() => Alert.alert('Изход', 'Сигурни ли сте, че искате да излезете?', [
-              { text: 'Отказ', style: 'cancel' },
-              { text: 'Изход', style: 'destructive' }
-            ])}
+            onPress={handleLogout}
             activeOpacity={0.7}
           >
             <Text style={[styles.logoutText, { color: theme.colors.error }]}>

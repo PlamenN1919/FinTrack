@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
 import AsyncStorageWrapper from '../utils/AsyncStorageWrapper';
 import { Platform } from 'react-native';
-// import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 // import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { 
   AuthContextType, 
@@ -88,22 +88,67 @@ const createAuthError = (code: string, message: string, details?: any): AuthErro
   recoverable: true,
 });
 
-// Mock Firebase user mapping (for testing)
-const createMockUser = (email: string): User => ({
-  uid: Math.random().toString(36).substring(2, 15),
-  email,
-  emailVerified: true, // Always verified since we don't require email verification
-  displayName: null,
-  photoURL: null,
-  createdAt: new Date(),
-  lastLoginAt: new Date(),
-  provider: AuthProviderEnum.EMAIL,
-  metadata: {
-    deviceId: generateDeviceId(),
-    platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : 'android',
-    appVersion: '1.0.0',
-  },
-});
+// NEW: Firebase error handler
+const handleFirebaseError = (error: any): AuthError => {
+  let code = AuthErrorCode.UNKNOWN_ERROR;
+  let message = 'Възникна неочаквана грешка. Моля, опитайте отново.';
+
+  if (error.code) {
+    switch (error.code) {
+      case 'auth/invalid-email':
+        code = AuthErrorCode.INVALID_EMAIL;
+        message = 'Имейл адресът не е валиден.';
+        break;
+      case 'auth/user-disabled':
+        code = AuthErrorCode.USER_DISABLED;
+        message = 'Този потребителски акаунт е деактивиран.';
+        break;
+      case 'auth/user-not-found':
+        code = AuthErrorCode.USER_NOT_FOUND;
+        message = 'Няма намерен потребител с този имейл.';
+        break;
+      case 'auth/wrong-password':
+        code = AuthErrorCode.WRONG_PASSWORD;
+        message = 'Грешна парола. Моля, опитайте отново.';
+        break;
+      case 'auth/email-already-in-use':
+        code = AuthErrorCode.EMAIL_ALREADY_IN_USE;
+        message = 'Имейл адресът вече се използва от друг акаунт.';
+        break;
+      case 'auth/operation-not-allowed':
+        code = AuthErrorCode.OPERATION_NOT_ALLOWED;
+        message = 'Влизането с имейл и парола не е активирано.';
+        break;
+      case 'auth/weak-password':
+        code = AuthErrorCode.WEAK_PASSWORD;
+        message = 'Паролата е твърде слаба. Трябва да е поне 6 символа.';
+        break;
+      default:
+        console.error('[AuthContext] Unhandled Firebase Error:', error);
+    }
+  }
+
+  return createAuthError(code, message, error);
+};
+
+// NEW: Firebase user mapper
+const mapFirebaseUser = (firebaseUser: FirebaseAuthTypes.User): User => {
+  return {
+    uid: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    emailVerified: firebaseUser.emailVerified,
+    displayName: firebaseUser.displayName || null,
+    photoURL: firebaseUser.photoURL || null,
+    createdAt: new Date(firebaseUser.metadata.creationTime || Date.now()),
+    lastLoginAt: new Date(firebaseUser.metadata.lastSignInTime || Date.now()),
+    provider: (firebaseUser.providerData[0]?.providerId || 'password') as AuthProviderEnum,
+    metadata: {
+      deviceId: generateDeviceId(), // This could be improved to be more stable
+      platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : undefined,
+      appVersion: '1.0.0', // This should come from device info
+    },
+  };
+};
 
 const determineUserState = (user: User | null, subscription: Subscription | null): UserState => {
   if (!user) {
@@ -133,12 +178,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize services (temporarily disabled)
   const initializeServices = useCallback(async () => {
     try {
-      console.log('[AuthContext] Initializing services (simplified version)...');
+      console.log('[AuthContext] Initializing services...');
       
-      // TODO: Initialize Firebase later
+      // We are not using Google Sign-in for now.
       // Environment.logEnvironment();
       
-      // TODO: Configure Google Sign-In later
       // GoogleSignin.configure({
       //   webClientId: Environment.getGoogleSignInConfig().webClientId,
       // });
@@ -211,45 +255,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Initialize auth state (simplified)
+  // Initialize auth state and listen for changes
   useEffect(() => {
     const initializeAuth = async () => {
+      dispatch({ type: 'SET_LOADING', payload: true });
       try {
-        console.log('[AuthContext] Starting simplified authentication initialization...');
-        
-        // Check AsyncStorage availability first
-        try {
-          await AsyncStorageWrapper.getItem('test');
-          console.log('[AuthContext] AsyncStorage is available');
-        } catch (asyncStorageError) {
-          console.error('[AuthContext] AsyncStorage test failed:', asyncStorageError);
-          // Continue anyway, app should work without persistence
-        }
-        
         await initializeServices();
         
-        // Load persisted state
-        const { user: persistedUser, subscription: persistedSubscription } = await loadPersistedState();
-        console.log('[AuthContext] Persisted user:', persistedUser);
-        console.log('[AuthContext] Persisted subscription:', persistedSubscription);
-
-        if (persistedUser) {
-          dispatch({ type: 'SET_USER', payload: persistedUser });
+        // Load persisted subscription state, user state will be handled by Firebase
+        const { subscription: persistedSubscription } = await loadPersistedState();
+        if (persistedSubscription) {
           dispatch({ type: 'SET_SUBSCRIPTION', payload: persistedSubscription });
         }
-
-        console.log('[AuthContext] Auth initialization completed');
       } catch (error) {
         console.error('Auth initialization error:', error);
         dispatch({ type: 'SET_ERROR', payload: createAuthError(
           AuthErrorCode.UNKNOWN_ERROR,
           'Failed to initialize authentication'
         )});
+      } finally {
+        // We set initialized to true, but loading will be handled by the auth listener
+        dispatch({ type: 'SET_INITIALIZED', payload: true });
       }
     };
 
     initializeAuth();
-  }, [initializeServices, loadPersistedState]);
+
+    const subscriber = auth().onAuthStateChanged(async (firebaseUser: FirebaseAuthTypes.User | null) => {
+      try {
+        if (firebaseUser) {
+          // User is signed in
+          console.log('[AuthContext] Firebase user signed in:', firebaseUser.uid);
+          const user = mapFirebaseUser(firebaseUser);
+          dispatch({ type: 'SET_USER', payload: user });
+          // Note: We might need to fetch subscription status from our backend here
+          await persistState(user, state.subscription); 
+        } else {
+          // User is signed out
+          console.log('[AuthContext] Firebase user signed out.');
+          dispatch({ type: 'SET_USER', payload: null });
+          // We keep subscription info in case they log back in
+          await persistState(null, state.subscription);
+        }
+      } catch (error) {
+        console.error('[AuthContext] Error in onAuthStateChanged:', error);
+        dispatch({ type: 'SET_ERROR', payload: createAuthError(
+          AuthErrorCode.UNKNOWN_ERROR,
+          'Failed to handle authentication state change.'
+        )});
+      } finally {
+        // Ensure loading is set to false after the first auth state is received.
+        if (state.isLoading) {
+          dispatch({ type: 'SET_LOADING', payload: false });
+        }
+      }
+    });
+
+    // Unsubscribe on unmount
+    return subscriber;
+  }, [initializeServices, loadPersistedState, persistState, state.subscription, state.isLoading]);
 
   // Update user state when user or subscription changes
   useEffect(() => {
@@ -260,112 +324,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [state.user, state.subscription, state.userState]);
 
-  // Mock authentication methods (for testing UI)
+  // --- REAL AUTHENTICATION METHODS ---
   const signInWithEmail = useCallback(async (credentials: LoginCredentials): Promise<User> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'CLEAR_ERROR' });
-
-      console.log('[AuthContext] Mock sign in with email:', credentials.email);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Create mock user
-      const user = createMockUser(credentials.email);
-      
-      dispatch({ type: 'SET_USER', payload: user });
-      await persistState(user, null);
-      
-      return user;
-    } catch (error: any) {
-      const authError = createAuthError(
-        AuthErrorCode.UNKNOWN_ERROR,
-        'Failed to sign in'
+      const userCredential = await auth().signInWithEmailAndPassword(
+        credentials.email.trim().toLowerCase(),
+        credentials.password
       );
+      // The onAuthStateChanged listener will handle setting the user state.
+      return mapFirebaseUser(userCredential.user);
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
       dispatch({ type: 'SET_ERROR', payload: authError });
       throw authError;
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [persistState]);
+  }, []);
 
   const signUpWithEmail = useCallback(async (credentials: RegisterCredentials): Promise<User> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'CLEAR_ERROR' });
-
       if (credentials.password !== credentials.confirmPassword) {
-        throw createAuthError(
-          AuthErrorCode.INVALID_PASSWORD,
-          'Passwords do not match'
-        );
+        throw { code: AuthErrorCode.INVALID_PASSWORD, message: 'Паролите не съвпадат.' };
       }
-
       if (!credentials.acceptTerms) {
-        throw createAuthError(
-          AuthErrorCode.PERMISSION_DENIED,
-          'You must accept the terms and conditions'
-        );
+        throw { code: AuthErrorCode.PERMISSION_DENIED, message: 'Трябва да приемете общите условия.' };
       }
-
-      console.log('[AuthContext] Mock sign up with email:', credentials.email);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Create mock user
-      const user = createMockUser(credentials.email);
-      
-      dispatch({ type: 'SET_USER', payload: user });
-      await persistState(user, null);
-      
-      return user;
-    } catch (error: any) {
-      const authError = createAuthError(
-        error.code || AuthErrorCode.UNKNOWN_ERROR,
-        error.message || 'Failed to register'
+      const userCredential = await auth().createUserWithEmailAndPassword(
+        credentials.email.trim().toLowerCase(),
+        credentials.password
       );
+      // The onAuthStateChanged listener will handle setting the user state.
+      return mapFirebaseUser(userCredential.user);
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
       dispatch({ type: 'SET_ERROR', payload: authError });
       throw authError;
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [persistState]);
+  }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<SocialLoginResult> => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'CLEAR_ERROR' });
-
-      console.log('[AuthContext] Mock Google sign in');
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const user = createMockUser('user@gmail.com');
-      user.provider = AuthProviderEnum.GOOGLE;
-      
-      dispatch({ type: 'SET_USER', payload: user });
-      await persistState(user, null);
-
-      return {
-        user,
-        isNewUser: false,
-
-        conflictingAccount: undefined,
-      };
-    } catch (error: any) {
-      const authError = createAuthError(
-        AuthErrorCode.GOOGLE_SIGNIN_ERROR,
-        'Google sign-in failed (mock)'
-      );
-      dispatch({ type: 'SET_ERROR', payload: authError });
-      throw authError;
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [persistState]);
+    throw createAuthError(
+      AuthErrorCode.GOOGLE_SIGNIN_ERROR,
+      'Google Sign-In is not implemented.'
+    );
+  }, []);
 
   const signInWithApple = useCallback(async (): Promise<SocialLoginResult> => {
     throw createAuthError(
@@ -375,26 +385,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signOut = useCallback(async (): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      
-      console.log('[AuthContext] Mock sign out');
-      
-      // Clear persisted state
-      if (AsyncStorageWrapper) {
-        await AsyncStorageWrapper.multiRemove([
-        STORAGE_KEYS.USER,
-        STORAGE_KEYS.SUBSCRIPTION,
-        STORAGE_KEYS.AUTH_STATE,
-      ]);
-      }
-      
-      dispatch({ type: 'RESET_STATE' });
+      await auth().signOut();
+      // onAuthStateChanged will handle clearing user data
     } catch (error: any) {
-      const authError = createAuthError(
-        AuthErrorCode.UNKNOWN_ERROR,
-        'Failed to sign out'
-      );
+      const authError = handleFirebaseError(error);
       dispatch({ type: 'SET_ERROR', payload: authError });
       throw authError;
     } finally {
@@ -414,9 +410,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   }, []);
 
-  // Password management (mock)
+  // Password management
   const sendPasswordResetEmail = useCallback(async (email: string): Promise<void> => {
-    console.log('[AuthContext] Mock send password reset email to:', email);
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      await auth().sendPasswordResetEmail(email.trim().toLowerCase());
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
   }, []);
 
   const updatePassword = useCallback(async (currentPassword: string, newPassword: string): Promise<void> => {
@@ -425,8 +430,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Placeholder methods
   const createSubscription = useCallback(async (planId: SubscriptionPlan, paymentMethodId: string): Promise<Subscription> => {
-    throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Subscription creation not implemented yet');
-  }, []);
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      if (!state.user) {
+        throw createAuthError(AuthErrorCode.USER_NOT_FOUND, 'User not authenticated');
+      }
+
+      const planConfig = SUBSCRIPTION_PLANS[planId];
+      if (!planConfig) {
+        throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Invalid plan selected');
+      }
+
+      // In a real app, you would call your backend here to create the subscription
+      // and associate it with the user. The backend would then return the full subscription object.
+      
+      console.log(`[AuthContext] Simulating subscription creation for user ${state.user.uid} with plan ${planId}`);
+      
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const now = new Date();
+      const endDate = new Date(now);
+      if (planId === SubscriptionPlan.MONTHLY) {
+        endDate.setMonth(now.getMonth() + 1);
+      } else if (planId === SubscriptionPlan.QUARTERLY) {
+        endDate.setMonth(now.getMonth() + 3);
+      } else {
+        endDate.setFullYear(now.getFullYear() + 1);
+      }
+
+      const newSubscription: Subscription = {
+        id: `sub_mock_${Date.now()}`,
+        userId: state.user.uid,
+        plan: planId,
+        status: SubscriptionStatus.ACTIVE,
+        currentPeriodStart: now,
+        currentPeriodEnd: endDate,
+        cancelAtPeriodEnd: false,
+        stripeCustomerId: `cus_mock_${state.user.uid}`,
+        stripeSubscriptionId: `sub_mock_${paymentMethodId}`, // Using paymentMethodId as a stand-in
+        priceId: planConfig.stripePriceIds.monthly || '', // Simplified
+        amount: planConfig.monthlyPrice, // Simplified
+        currency: planConfig.currency,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      dispatch({ type: 'SET_SUBSCRIPTION', payload: newSubscription });
+      await persistState(state.user, newSubscription);
+
+      return newSubscription;
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [state.user, persistState]);
 
   const cancelSubscription = useCallback(async (): Promise<void> => {
     throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Subscription cancellation not implemented yet');
@@ -455,6 +516,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const canAccessFeature = useCallback((feature: string): boolean => {
     return state.userState === UserState.ACTIVE_SUBSCRIBER;
   }, [state.userState]);
+
+  const setSubscription = useCallback(async (subscription: Subscription): Promise<void> => {
+    try {
+      console.log('[AuthContext] Setting subscription:', subscription);
+      dispatch({ type: 'SET_SUBSCRIPTION', payload: subscription });
+      await persistState(state.user, subscription);
+    } catch (error: any) {
+      console.error('[AuthContext] Failed to set subscription:', error);
+      const authError = createAuthError(
+        AuthErrorCode.UNKNOWN_ERROR,
+        'Failed to set subscription'
+      );
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    }
+  }, [state.user, persistState]);
 
   const updateProfile = useCallback(async (updates: Partial<User>): Promise<void> => {
     throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Profile update not implemented yet');
@@ -494,6 +571,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     cancelSubscription,
     updateSubscription,
     restorePurchases,
+    setSubscription,
     refreshAuthState,
     clearError,
     getUserState,

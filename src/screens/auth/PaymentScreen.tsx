@@ -10,6 +10,7 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -22,6 +23,7 @@ import { SubscriptionPlan, SubscriptionStatus } from '../../types/auth.types';
 // Context and config
 import { useAuth } from '../../contexts/AuthContext';
 import { SUBSCRIPTION_PLANS } from '../../config/subscription.config';
+import { stripeService } from '../../services/StripeService';
 
 // Components
 import StripeCardForm from '../../components/payment/StripeCardForm';
@@ -37,6 +39,9 @@ const PaymentScreen: React.FC = () => {
   const route = useRoute<PaymentScreenRouteProp>();
   const { createSubscription, authState, clearError } = useAuth();
 
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isPreparingPayment, setIsPreparingPayment] = useState(true);
+
   // Route params
   const { planId, amount, currency } = route.params;
   const selectedPlan = SUBSCRIPTION_PLANS[planId];
@@ -48,6 +53,26 @@ const PaymentScreen: React.FC = () => {
 
   useEffect(() => {
     clearError();
+
+    const preparePayment = async () => {
+      if (!authState.user) {
+        Alert.alert('Грешка', 'Трябва да сте влезли, за да направите плащане.');
+        navigation.goBack();
+        return;
+      }
+      try {
+        setIsPreparingPayment(true);
+        const response = await stripeService.createPaymentIntent(planId, authState.user.uid);
+        setClientSecret(response.clientSecret);
+      } catch (error: any) {
+        Alert.alert('Грешка при подготовка на плащането', error.message);
+        navigation.goBack();
+      } finally {
+        setIsPreparingPayment(false);
+      }
+    };
+
+    preparePayment();
 
     // Entrance animations
     Animated.parallel([
@@ -84,6 +109,39 @@ const PaymentScreen: React.FC = () => {
       default:
         return 'Абонаментен план';
     }
+  };
+
+  const handlePaymentSuccess = async (paymentMethodId: string) => {
+    try {
+      const newSubscription = await createSubscription(planId, paymentMethodId);
+      navigation.navigate('PaymentSuccess', { subscription: newSubscription });
+    } catch (error: any) {
+      Alert.alert('Грешка при създаване на абонамент', error.message);
+      // Navigate to a failed state, or allow retry
+      navigation.navigate('PaymentFailed', {
+        error: {
+          code: 'subscription/creation-failed',
+          message: error.message,
+          timestamp: new Date(),
+          recoverable: true,
+        },
+        planId,
+        retryCount: 0,
+      });
+    }
+  };
+
+  const handlePaymentError = (errorMessage: string) => {
+    navigation.navigate('PaymentFailed', {
+      error: {
+        code: 'payment/failed',
+        message: errorMessage,
+        timestamp: new Date(),
+        recoverable: true,
+      },
+      planId,
+      retryCount: 0,
+    });
   };
 
   return (
@@ -151,33 +209,18 @@ const PaymentScreen: React.FC = () => {
           </View>
 
           {/* Payment Form */}
-          <StripeCardForm
-            amount={amount}
-            currency={currency}
-            onPaymentSuccess={() => {
-              navigation.navigate('PaymentSuccess', {
-                subscription: {
-                  id: `pi_${Date.now()}`,
-                  userId: authState.user?.uid || '',
-                  plan: planId,
-                  status: SubscriptionStatus.ACTIVE,
-                  currentPeriodStart: new Date(),
-                  currentPeriodEnd: new Date(Date.now() + (planId === SubscriptionPlan.MONTHLY ? 30 : planId === SubscriptionPlan.QUARTERLY ? 90 : 365) * 24 * 60 * 60 * 1000),
-                  cancelAtPeriodEnd: false,
-                  stripeCustomerId: `cus_${Date.now()}`,
-                  stripeSubscriptionId: `sub_${Date.now()}`,
-                  priceId: selectedPlan?.stripePriceIds.monthly || '',
-                  amount,
-                  currency,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                },
-              });
-            }}
-            onPaymentCancel={() => {
-              navigation.goBack();
-            }}
-          />
+          {isPreparingPayment ? (
+            <ActivityIndicator size="large" color="#D4AF37" style={{ marginVertical: 40 }}/>
+          ) : clientSecret ? (
+            <StripeCardForm
+              clientSecret={clientSecret}
+              onPaymentSuccess={handlePaymentSuccess}
+              onPaymentError={handlePaymentError}
+              onPaymentCancel={() => navigation.goBack()}
+            />
+          ) : (
+            <Text style={styles.errorText}>Не успяхме да подготвим плащането. Моля, опитайте отново.</Text>
+          )}
 
           {/* Security Info */}
           <View style={styles.securitySection}>

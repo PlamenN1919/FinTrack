@@ -428,199 +428,70 @@ class GamificationService {
   }
   
   /**
-   * Проверява напредъка на постижения въз основа на действието
+   * Проверява напредъка на постижения въз основа на действието (ДЕКЛАРАТИВЕН ПОДХОД)
    */
   checkAchievementsForAction(action: string, metadata: any = {}): Achievement[] {
     console.log(`🔍 Checking achievements for action: ${action}`, metadata);
     
-    const achievementsToUpdate: Achievement[] = [];
-    
-    if (action === 'add_transaction') {
-      // Постижение "Първи стъпки" - само ако все още не е завършено
-      const firstStepsAchievement = this.profile.achievements.find(a => a.id === '1');
-      if (firstStepsAchievement && !firstStepsAchievement.isCompleted && firstStepsAchievement.progress === 0) {
-        this.updateAchievementProgress(firstStepsAchievement.id, 1);
-        achievementsToUpdate.push(firstStepsAchievement);
+    const updatedAchievements: Achievement[] = [];
+
+    this.profile.achievements.forEach(a => {
+      // Проверяваме дали постижението има тригер и дали той съвпада с действието
+      if (!a.trigger || a.trigger.action !== action || a.isCompleted) {
+        return;
       }
       
-      // Постижение "Емоционално осъзнат" - ако транзакцията има емоционално състояние
-      if (metadata.emotionalState && metadata.emotionalState !== 'neutral') {
-        const emotionalAchievement = this.profile.achievements.find(a => a.id === '7');
-        if (emotionalAchievement && !emotionalAchievement.isCompleted) {
-          this.updateAchievementProgress(emotionalAchievement.id, emotionalAchievement.progress + 1);
-          achievementsToUpdate.push(emotionalAchievement);
-        }
+      // Проверяваме опционалното условие
+      if (a.trigger.condition && !a.trigger.condition(metadata, a.progress, this.profile)) {
+        return;
       }
+      
+      // Изчисляваме и прилагаме новия прогрес
+      const newProgress = a.trigger.progressUpdate(a.progress, metadata);
+      if (newProgress > a.progress) {
+        this.updateAchievementProgress(a.id, newProgress);
+        updatedAchievements.push(a);
+      }
+    });
 
-      // Постижение "QR скенер" - ако транзакцията е от сканиране
-      if (metadata.isScanned) {
-        const scannerAchievement = this.profile.achievements.find(a => a.id === '9');
-        if (scannerAchievement && !scannerAchievement.isCompleted) {
-          this.updateAchievementProgress(scannerAchievement.id, scannerAchievement.progress + 1);
-          achievementsToUpdate.push(scannerAchievement);
-        }
-      }
-    }
-    
-    if (action === 'streak_updated') {
-      // Постижение "Последователен" - базирано на streak дни
-      const consistencyAchievement = this.profile.achievements.find(a => a.id === '5');
-      if (consistencyAchievement && !consistencyAchievement.isCompleted) {
-        this.updateAchievementProgress(consistencyAchievement.id, this.profile.streakDays);
-        achievementsToUpdate.push(consistencyAchievement);
-      }
-    }
-    
-    if (action === 'view_report') {
-      // Постижение "Финансов анализатор" - прегледайте отчети
-      const analyzerAchievement = this.profile.achievements.find(a => a.id === '4');
-      if (analyzerAchievement && !analyzerAchievement.isCompleted) {
-        this.updateAchievementProgress(analyzerAchievement.id, analyzerAchievement.progress + 1);
-        achievementsToUpdate.push(analyzerAchievement);
-      }
-    }
-    
-    if (action === 'financial_health_updated') {
-      // Постижение "Финансов гуру" - финансов здравен индекс
-      if (metadata.healthScore && metadata.healthScore >= 90) {
-        const guruAchievement = this.profile.achievements.find(a => a.id === '8');
-        if (guruAchievement && !guruAchievement.isCompleted) {
-          this.updateAchievementProgress(guruAchievement.id, metadata.healthScore);
-          achievementsToUpdate.push(guruAchievement);
-        }
-      }
-    }
-    
-    if (action === 'budget_check') {
-      // Постижение "Бюджетен майстор" - спазвайте бюджети
-      if (metadata.budgetCompliance && metadata.daysInBudget) {
-        const budgetMasterAchievement = this.profile.achievements.find(a => a.id === '2');
-        if (budgetMasterAchievement && !budgetMasterAchievement.isCompleted) {
-          this.updateAchievementProgress(budgetMasterAchievement.id, metadata.daysInBudget);
-          achievementsToUpdate.push(budgetMasterAchievement);
-        }
-      }
-    }
-    
-    if (action === 'savings_check') {
-      // Постижение "Спестовник" - спестете 10% от доход
-      if (metadata.savingsRate && metadata.consecutiveMonths) {
-        const saverAchievement = this.profile.achievements.find(a => a.id === '3');
-        if (saverAchievement && !saverAchievement.isCompleted && metadata.savingsRate >= 0.10) {
-          this.updateAchievementProgress(saverAchievement.id, metadata.consecutiveMonths);
-          achievementsToUpdate.push(saverAchievement);
-        }
-      }
-    }
-    
-    if (action === 'goal_achieved') {
-      // Постижение "Целеустремен" - постигнете финансови цели
-      const goalAchievement = this.profile.achievements.find(a => a.id === '6');
-      if (goalAchievement && !goalAchievement.isCompleted) {
-        this.updateAchievementProgress(goalAchievement.id, goalAchievement.progress + 1);
-        achievementsToUpdate.push(goalAchievement);
-      }
-    }
-    
-    if (action === 'expense_optimization') {
-      // Постижение "Оптимизатор на разходи" - намалете разходи с 20%
-      if (metadata.reductionPercentage && metadata.reductionPercentage >= 20) {
-        const optimizerAchievement = this.profile.achievements.find(a => a.id === '10');
-        if (optimizerAchievement && !optimizerAchievement.isCompleted) {
-          this.updateAchievementProgress(optimizerAchievement.id, metadata.reductionPercentage);
-          achievementsToUpdate.push(optimizerAchievement);
-        }
-      }
-    }
-    
-    return achievementsToUpdate;
+    return updatedAchievements;
   }
   
   /**
-   * Проверява напредъка на мисии въз основа на действието
+   * Проверява напредъка на мисии въз основа на действието (ДЕКЛАРАТИВЕН ПОДХОД)
    */
   checkMissionsForAction(action: string, metadata: any = {}): Mission[] {
     console.log(`🎯 Checking missions for action: ${action}`, metadata);
     
-    // Първо проверяваме и премахваме expired мисии
+    // Първо проверяваме и премахваме изтеклите мисии
     this.cleanupExpiredMissions();
     
-    const missionsToUpdate: Mission[] = [];
-    
-    if (action === 'daily_activity_completed') {
-      // Мисия "Проследяване на дневните разходи" - завършва се веднъж на ден
-      const trackingMission = this.profile.missions.active.find(m => m.id === '1' && m.type === 'daily');
-      if (trackingMission && !trackingMission.isCompleted) {
-        this.updateMissionProgress(trackingMission.id, 1); // Set to completed
-        missionsToUpdate.push(trackingMission);
-      }
-    }
-    
-    if (action === 'add_transaction') {
-      // Мисия "Ограничете ненужните разходи" - проверяваме ако правим разходи за забавления
-      if (metadata.category === 'Забавления' && metadata.amount < 0) {
-        const limitMission = this.profile.missions.active.find(m => m.id === '4');
-        if (limitMission && !limitMission.isCompleted) {
-          // При разход за забавления - reset прогреса или penalize
-          console.log(`💸 Entertainment expense detected - mission "${limitMission.name}" progress affected`);
-          // Можем да reset-нем прогреса или да го оставим както е
-          // За сега ще го оставим както е, но ще log-нем
-        }
+    const updatedMissions: Mission[] = [];
+
+    this.profile.missions.active.forEach(m => {
+      // Проверяваме дали мисията има тригер и дали той съвпада с действието
+      if (!m.trigger || m.trigger.action !== action || m.isCompleted) {
+        return;
       }
       
-      // Мисия "Оптимизирайте храната" - проверяваме бюджет за храна
-      if (metadata.category === 'Храна' && metadata.amount < 0) {
-        const foodMission = this.profile.missions.active.find(m => m.id === '2');
-        if (foodMission && !foodMission.isCompleted && metadata.withinBudget) {
-          this.updateMissionProgress(foodMission.id, foodMission.progress + 1);
-          missionsToUpdate.push(foodMission);
-        }
+      // Проверяваме опционалното условие
+      if (m.trigger.condition && !m.trigger.condition(metadata, m.progress, this.profile)) {
+        return;
       }
-    }
-    
-    if (action === 'view_report') {
-      // Мисия "Проучване на отчети"
-      const reportMission = this.profile.missions.active.find(m => m.id === '3');
-      if (reportMission && !reportMission.isCompleted) {
-        this.updateMissionProgress(reportMission.id, reportMission.progress + 1);
-        missionsToUpdate.push(reportMission);
+      
+      // Изчисляваме и прилагаме новия прогрес
+      const newProgress = m.trigger.progressUpdate(m.progress, metadata);
+      if (newProgress > m.progress) {
+        this.updateMissionProgress(m.id, newProgress);
+        updatedMissions.push(m);
       }
-    }
-    
-    if (action === 'weekly_analysis') {
-      // Мисия "Финансов преглед на седмицата"
-      const weeklyMission = this.profile.missions.active.find(m => m.id === '5');
-      if (weeklyMission && !weeklyMission.isCompleted) {
-        this.updateMissionProgress(weeklyMission.id, weeklyMission.progress + 1);
-        missionsToUpdate.push(weeklyMission);
-      }
-    }
-    
-    if (action === 'budget_compliance_check') {
-      // Проверяваме дали сме в бюджет за различни мисии
-      if (metadata.category === 'Храна' && metadata.isWithinBudget) {
-        const foodMission = this.profile.missions.active.find(m => m.id === '2');
-        if (foodMission && !foodMission.isCompleted) {
-          this.updateMissionProgress(foodMission.id, foodMission.progress + 1);
-          missionsToUpdate.push(foodMission);
-        }
-      }
-    }
-    
-    if (action === 'no_entertainment_day') {
-      // Мисия "Ограничете ненужните разходи" - ден без разходи за забавления
-      const limitMission = this.profile.missions.active.find(m => m.id === '4');
-      if (limitMission && !limitMission.isCompleted) {
-        this.updateMissionProgress(limitMission.id, limitMission.progress + 1);
-        missionsToUpdate.push(limitMission);
-      }
-    }
-    
-    return missionsToUpdate;
+    });
+
+    return updatedMissions;
   }
 
   /**
-   * Почиства expired мисии
+   * Почиства изтеклите мисии
    */
   private cleanupExpiredMissions(): void {
     const now = new Date();

@@ -144,6 +144,7 @@ export interface AuthContextType {
   cancelSubscription: () => Promise<void>;
   updateSubscription: (planId: SubscriptionPlan) => Promise<Subscription>;
   restorePurchases: () => Promise<Subscription[]>;
+  setSubscription: (subscription: Subscription) => Promise<void>;
   
   // Utility methods
   refreshAuthState: () => Promise<void>;
@@ -225,10 +226,12 @@ export enum AuthErrorCode {
   INVALID_EMAIL = 'auth/invalid-email',
   INVALID_PASSWORD = 'auth/invalid-password',
   USER_NOT_FOUND = 'auth/user-not-found',
+  USER_DISABLED = 'auth/user-disabled',
   WRONG_PASSWORD = 'auth/wrong-password',
   EMAIL_ALREADY_IN_USE = 'auth/email-already-in-use',
   WEAK_PASSWORD = 'auth/weak-password',
   TOO_MANY_REQUESTS = 'auth/too-many-requests',
+  OPERATION_NOT_ALLOWED = 'auth/operation-not-allowed',
   
   // Email verification
   EMAIL_NOT_VERIFIED = 'auth/email-not-verified',

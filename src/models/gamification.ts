@@ -1,5 +1,18 @@
 import { ACHIEVEMENT_TYPES, ACHIEVEMENT_RARITY, MISSION_TYPES, REWARD_TYPES } from '../utils/constants';
 
+// 🎯 НОВ МОДЕЛ: Декларативен тригер за проверка на събития
+export interface GamificationEventTrigger {
+  // Действието, което задейства проверката (напр. 'add_transaction')
+  action: string;
+  
+  // Функция, която изчислява новия напредък.
+  // Връща число, което представлява НОВИЯ общ напредък.
+  progressUpdate: (currentProgress: number, metadata: any) => number;
+  
+  // Опционално условие. Ако върне false, проверката се пропуска.
+  condition?: (metadata: any, currentProgress: number, profile: GamificationProfile) => boolean;
+}
+
 // Интерфейс за постижение
 export interface Achievement {
   id: string;
@@ -13,6 +26,8 @@ export interface Achievement {
   maxProgress: number;
   isCompleted: boolean;
   dateCompleted?: string;
+  // Декларативен тригер за автоматична проверка
+  trigger?: GamificationEventTrigger;
   reward?: Reward;
 }
 
@@ -30,6 +45,8 @@ export interface Mission {
   expiresAt: string;
   startedAt: string;
   completedAt?: string;
+  // Декларативен тригер за автоматична проверка
+  trigger?: GamificationEventTrigger;
   reward?: Reward;
 }
 
