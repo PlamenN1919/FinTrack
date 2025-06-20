@@ -24,7 +24,7 @@ const MainAppScreen: React.FC = () => {
 
   return (
     <LinearGradient
-      colors={['#667eea', '#764ba2', '#f093fb']}
+      colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
       style={styles.container}
     >
       <View style={styles.content}>
@@ -71,7 +71,7 @@ const AppNavigator: React.FC = () => {
   if (isLoading) {
     return (
       <LinearGradient
-        colors={['#667eea', '#764ba2', '#f093fb']}
+        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
         style={styles.loadingContainer}
       >
         <Text style={styles.loadingText}>Зареждане...</Text>
@@ -146,8 +146,8 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    color: '#F7E7CE',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -163,25 +163,26 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#F7E7CE',
     textAlign: 'center',
     marginBottom: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(212, 175, 55, 0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 18,
-    color: '#FFFFFF',
+    color: 'rgba(247, 231, 206, 0.9)',
     textAlign: 'center',
     marginBottom: 32,
-    opacity: 0.9,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   userInfo: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
     padding: 20,
     borderRadius: 16,
     marginBottom: 32,
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   },
   userText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: 'rgba(247, 231, 206, 0.9)',
     marginBottom: 8,
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
@@ -197,21 +198,24 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   logoutButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#D4AF37',
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 25,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#D4AF37',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
   },
   logoutText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#1A1A1A',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
 });
 

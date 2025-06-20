@@ -303,8 +303,8 @@ const PaymentFailedScreen: React.FC = () => {
               <TouchableOpacity
                 style={styles.retryButton}
                 onPress={handleRetryPayment}
-              >
-                <Text style={styles.retryButtonText}>{getRetryButtonText()}</Text>
+                >
+                  <Text style={styles.retryButtonText}>{getRetryButtonText()}</Text>
               </TouchableOpacity>
             )}
 
@@ -313,7 +313,7 @@ const PaymentFailedScreen: React.FC = () => {
               style={styles.secondaryButton}
               onPress={handleTryDifferentCard}
             >
-              <Text style={styles.secondaryButtonText}>Опитай с друга карта</Text>
+                <Text style={styles.secondaryButtonText}>Опитай с друга карта</Text>
             </TouchableOpacity>
 
             {/* Choose Different Plan Button */}
@@ -321,7 +321,7 @@ const PaymentFailedScreen: React.FC = () => {
               style={styles.secondaryButton}
               onPress={handleChooseDifferentPlan}
             >
-              <Text style={styles.secondaryButtonText}>Избери друг план</Text>
+                <Text style={styles.secondaryButtonText}>Избери друг план</Text>
             </TouchableOpacity>
 
             {/* Back to Plans Button */}

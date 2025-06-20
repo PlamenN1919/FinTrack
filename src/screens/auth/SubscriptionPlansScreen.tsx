@@ -299,7 +299,7 @@ const SubscriptionPlansScreen: React.FC = () => {
             >
               <View style={styles.bestValueBadge}>
                 <Text style={styles.bestValueBadgeText}>НАЙ-ИЗГОДЕН</Text>
-              </View>
+                  </View>
               
               <TouchableOpacity
                 style={styles.planCardInner}
@@ -319,7 +319,7 @@ const SubscriptionPlansScreen: React.FC = () => {
                   {selectedPlan === SubscriptionPlan.YEARLY && (
                     <View style={styles.selectedIndicator}>
                       <Text style={styles.selectedIndicatorText}>✓</Text>
-                    </View>
+                  </View>
                   )}
                 </View>
               </TouchableOpacity>
@@ -373,14 +373,14 @@ const SubscriptionPlansScreen: React.FC = () => {
               ]}
               onPress={handleContinue}
               disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#1A1A1A" size="small" />
-              ) : (
-                <Text style={styles.continueButtonText}>
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#1A1A1A" size="small" />
+                ) : (
+                    <Text style={styles.continueButtonText}>
                   Продължете към плащане
-                </Text>
-              )}
+                    </Text>
+                )}
             </TouchableOpacity>
           </Animated.View>
 

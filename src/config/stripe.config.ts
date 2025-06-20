@@ -15,7 +15,7 @@ const getStripeConfig = (): StripeConfig => {
     publishableKey: STRIPE_TEST_PUBLISHABLE_KEY,
     merchantIdentifier: 'merchant.com.fintrack.app',
     urlScheme: 'fintrack-payments',
-  };
+};
 
   // В production ще използваме live ключове
   if (Environment.isDevelopment) {
@@ -134,6 +134,6 @@ export const formatAmountForStripe = (amount: number): number => {
 export const formatAmountFromStripe = (amount: number): number => {
   // Конвертира от стотинки обратно в лева
   return amount / 100;
-};
+}; 
 
 export default stripeConfig; 
