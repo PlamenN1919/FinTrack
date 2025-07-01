@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
 import AsyncStorageWrapper from '../utils/AsyncStorageWrapper';
-import { Platform } from 'react-native';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { Platform, Alert } from 'react-native';
+import { auth, db, functions } from '../config/firebase.config';
+import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 // import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { 
   AuthContextType, 
@@ -20,7 +21,6 @@ import {
 } from '../types/auth.types';
 import { SUBSCRIPTION_PLANS } from '../config/subscription.config';
 import { Environment } from '../config/environment.config';
-// import { stripeService } from '../services/StripeService';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -35,8 +35,8 @@ const initialState: AuthState = {
   user: null,
   subscription: null,
   userState: UserState.UNREGISTERED,
-  isLoading: false, // Changed from true to false for immediate auth screen
-  isInitialized: true, // Changed to true for immediate display
+  isLoading: true, // Start loading initially
+  isInitialized: false, // Start as not initialized
   error: null,
 };
 
@@ -197,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const persistState = useCallback(async (user: User | null, subscription: Subscription | null) => {
     try {
       // Check if AsyncStorage is available
-      if (!AsyncStorageWrapper) {
+      if (!AsyncStorageWrapper || typeof AsyncStorageWrapper.setItem !== 'function' || typeof AsyncStorageWrapper.removeItem !== 'function') {
         console.log('[AuthContext] AsyncStorage not available, skipping persistence');
         return;
       }
@@ -222,7 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadPersistedState = useCallback(async () => {
     try {
       // Check if AsyncStorage is available
-      if (!AsyncStorageWrapper) {
+      if (!AsyncStorageWrapper || typeof AsyncStorageWrapper.getItem !== 'function') {
         console.log('[AuthContext] AsyncStorage not available');
         return { user: null, subscription: null };
       }
@@ -260,6 +260,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       try {
+        // Firebase is already initialized in firebase.config.ts
+        console.log('[AuthContext] Firebase already initialized');
+        
         await initializeServices();
         
         // Load persisted subscription state, user state will be handled by Firebase
@@ -275,7 +278,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         )});
       } finally {
         // We set initialized to true, but loading will be handled by the auth listener
-        dispatch({ type: 'SET_INITIALIZED', payload: true });
+        // This will be set by the onAuthStateChanged listener
       }
     };
 
@@ -288,14 +291,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('[AuthContext] Firebase user signed in:', firebaseUser.uid);
           const user = mapFirebaseUser(firebaseUser);
           dispatch({ type: 'SET_USER', payload: user });
-          // Note: We might need to fetch subscription status from our backend here
-          await persistState(user, state.subscription); 
+
+          // Fetch subscription from Firestore
+          const subscriptionDoc = await db().collection('subscriptions').doc(user.uid).get();
+          if (subscriptionDoc.exists()) {
+            const subData = subscriptionDoc.data() as Subscription;
+            // Convert Firestore Timestamps to JS Dates
+            subData.currentPeriodStart = (subData.currentPeriodStart as any).toDate();
+            subData.currentPeriodEnd = (subData.currentPeriodEnd as any).toDate();
+            subData.createdAt = (subData.createdAt as any).toDate();
+            subData.updatedAt = (subData.updatedAt as any).toDate();
+            dispatch({ type: 'SET_SUBSCRIPTION', payload: subData });
+            await persistState(user, subData);
+          } else {
+            dispatch({ type: 'SET_SUBSCRIPTION', payload: null });
+            await persistState(user, null);
+          }
         } else {
           // User is signed out
           console.log('[AuthContext] Firebase user signed out.');
           dispatch({ type: 'SET_USER', payload: null });
-          // We keep subscription info in case they log back in
-          await persistState(null, state.subscription);
+          dispatch({ type: 'SET_SUBSCRIPTION', payload: null }); // Clear subscription on sign out
+          await persistState(null, null);
         }
       } catch (error) {
         console.error('[AuthContext] Error in onAuthStateChanged:', error);
@@ -305,6 +322,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         )});
       } finally {
         // Ensure loading is set to false after the first auth state is received.
+        if (!state.isInitialized) {
+          dispatch({ type: 'SET_INITIALIZED', payload: true });
+        }
         if (state.isLoading) {
           dispatch({ type: 'SET_LOADING', payload: false });
         }
@@ -313,7 +333,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Unsubscribe on unmount
     return subscriber;
-  }, [initializeServices, loadPersistedState, persistState, state.subscription, state.isLoading]);
+  }, [initializeServices, loadPersistedState, persistState]);
 
   // Update user state when user or subscription changes
   useEffect(() => {
@@ -425,61 +445,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const updatePassword = useCallback(async (currentPassword: string, newPassword: string): Promise<void> => {
-    console.log('[AuthContext] Mock update password');
-  }, []);
-
-  // Placeholder methods
-  const createSubscription = useCallback(async (planId: SubscriptionPlan, paymentMethodId: string): Promise<Subscription> => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      if (!state.user) {
-        throw createAuthError(AuthErrorCode.USER_NOT_FOUND, 'User not authenticated');
+      const user = auth().currentUser;
+      if (!user || !user.email) {
+        throw new Error('Потребителят не е автентикиран');
       }
 
-      const planConfig = SUBSCRIPTION_PLANS[planId];
-      if (!planConfig) {
-        throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Invalid plan selected');
-      }
+      // Повторна автентикация с текущата парола
+      const credential = auth.EmailAuthProvider.credential(user.email, currentPassword);
+      await user.reauthenticateWithCredential(credential);
 
-      // In a real app, you would call your backend here to create the subscription
-      // and associate it with the user. The backend would then return the full subscription object.
-      
-      console.log(`[AuthContext] Simulating subscription creation for user ${state.user.uid} with plan ${planId}`);
-      
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const now = new Date();
-      const endDate = new Date(now);
-      if (planId === SubscriptionPlan.MONTHLY) {
-        endDate.setMonth(now.getMonth() + 1);
-      } else if (planId === SubscriptionPlan.QUARTERLY) {
-        endDate.setMonth(now.getMonth() + 3);
-      } else {
-        endDate.setFullYear(now.getFullYear() + 1);
-      }
-
-      const newSubscription: Subscription = {
-        id: `sub_mock_${Date.now()}`,
-        userId: state.user.uid,
-        plan: planId,
-        status: SubscriptionStatus.ACTIVE,
-        currentPeriodStart: now,
-        currentPeriodEnd: endDate,
-        cancelAtPeriodEnd: false,
-        stripeCustomerId: `cus_mock_${state.user.uid}`,
-        stripeSubscriptionId: `sub_mock_${paymentMethodId}`, // Using paymentMethodId as a stand-in
-        priceId: planConfig.stripePriceIds.monthly || '', // Simplified
-        amount: planConfig.monthlyPrice, // Simplified
-        currency: planConfig.currency,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      dispatch({ type: 'SET_SUBSCRIPTION', payload: newSubscription });
-      await persistState(state.user, newSubscription);
-
-      return newSubscription;
+      // Обновяване на паролата
+      await user.updatePassword(newPassword);
     } catch (error: any) {
       const authError = handleFirebaseError(error);
       dispatch({ type: 'SET_ERROR', payload: authError });
@@ -487,23 +465,112 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [state.user, persistState]);
+  }, []);
+
+  // --- МЕТОДИ ЗА УПРАВЛЕНИЕ НА АБОНАМЕНТ ---
+
+  // Тази функция вече не е нужна, тъй като плащането и създаването на абонамент
+  // се обработват от PaymentScreen -> stripeWebhook.
+  const createSubscription = useCallback(async (planId: SubscriptionPlan, paymentMethodId: string): Promise<Subscription> => {
+    throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'This function is deprecated.');
+  }, []);
 
   const cancelSubscription = useCallback(async (): Promise<void> => {
-    throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Subscription cancellation not implemented yet');
-  }, []);
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      if (!state.subscription?.stripeSubscriptionId) {
+        throw new Error("Няма активен абонамент за отмяна.");
+      }
+      
+      const cancelStripeSubscription = functions().httpsCallable('cancelStripeSubscription');
+      
+      await cancelStripeSubscription({ subscriptionId: state.subscription.stripeSubscriptionId });
+      
+      // Firestore документът ще се обнови автоматично от webhook
+      // Можем да покажем съобщение за успех веднага.
+      Alert.alert("Заявката е приета", "Вашият абонамент ще бъде отменен в края на текущия период.");
 
-  const updateSubscription = useCallback(async (planId: SubscriptionPlan): Promise<Subscription> => {
-    throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Subscription update not implemented yet');
-  }, []);
+    } catch (error: any) {
+      console.error("Error cancelling subscription:", error);
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [state.subscription]);
+
+  const updateSubscription = useCallback(async (newPlanId: SubscriptionPlan): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      if (!state.subscription?.stripeSubscriptionId) {
+        throw new Error("Няма активен абонамент за промяна.");
+      }
+
+      // Намираме stripePriceId за новия план
+      const newPlanConfig = SUBSCRIPTION_PLANS[newPlanId];
+      if (!newPlanConfig || !newPlanConfig.stripePriceIds) {
+          throw new Error("Невалиден нов план.");
+      }
+      const newPriceId = Object.values(newPlanConfig.stripePriceIds)[0];
+
+      const updateStripeSubscription = functions().httpsCallable('updateStripeSubscription');
+
+      await updateStripeSubscription({
+        subscriptionId: state.subscription.stripeSubscriptionId,
+        newPriceId: newPriceId,
+      });
+      
+      Alert.alert("Успех", "Вашият абонамент ще бъде променен скоро.");
+
+    } catch (error: any) {
+      console.error("Error updating subscription:", error);
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [state.subscription]);
 
   const restorePurchases = useCallback(async (): Promise<Subscription[]> => {
     return [];
   }, []);
 
   const refreshAuthState = useCallback(async (): Promise<void> => {
-    console.log('[AuthContext] Mock refresh auth state');
-  }, []);
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const currentUser = auth().currentUser;
+      if (currentUser) {
+        // Презареждаме потребителските данни
+        await currentUser.reload();
+        const user = mapFirebaseUser(currentUser);
+        dispatch({ type: 'SET_USER', payload: user });
+
+        // Презареждаме абонамента от Firestore
+        const subscriptionDoc = await db().collection('subscriptions').doc(user.uid).get();
+        if (subscriptionDoc.exists()) {
+          const subData = subscriptionDoc.data() as Subscription;
+          // Convert Firestore Timestamps to JS Dates
+          subData.currentPeriodStart = (subData.currentPeriodStart as any).toDate();
+          subData.currentPeriodEnd = (subData.currentPeriodEnd as any).toDate();
+          subData.createdAt = (subData.createdAt as any).toDate();
+          subData.updatedAt = (subData.updatedAt as any).toDate();
+          dispatch({ type: 'SET_SUBSCRIPTION', payload: subData });
+          await persistState(user, subData);
+        } else {
+          dispatch({ type: 'SET_SUBSCRIPTION', payload: null });
+          await persistState(user, null);
+        }
+      }
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [persistState]);
 
   const clearError = useCallback(() => {
     dispatch({ type: 'CLEAR_ERROR' });

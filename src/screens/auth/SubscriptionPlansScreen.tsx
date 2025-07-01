@@ -151,7 +151,7 @@ const SubscriptionPlansScreen: React.FC = () => {
       
       {/* Premium Background */}
       <LinearGradient
-        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
+        colors={['#01579B', '#0288D1', '#00B4DB']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -191,12 +191,12 @@ const SubscriptionPlansScreen: React.FC = () => {
           <View style={styles.logoSection}>
             <View style={styles.logoWrapper}>
               <Image
-                source={require('../../../logo/F.png')}
+                source={require('../../assets/images/F.png')}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
               <LinearGradient
-                colors={['rgba(212, 175, 55, 0.2)', 'rgba(247, 231, 206, 0.1)']}
+                colors={['rgba(0, 180, 219, 0.2)', 'rgba(227, 242, 253, 0.1)']}
                 style={styles.logoGlow}
               />
             </View>
@@ -268,7 +268,7 @@ const SubscriptionPlansScreen: React.FC = () => {
                 activeOpacity={0.8}
               >
                 <View style={styles.planHeader}>
-                  <View style={[styles.planIconContainer, { borderColor: 'rgba(212, 175, 55, 0.5)', backgroundColor: 'rgba(212, 175, 55, 0.1)' }]}>
+                  <View style={[styles.planIconContainer, { borderColor: 'rgba(0, 180, 219, 0.5)', backgroundColor: 'rgba(0, 180, 219, 0.1)' }]}>
                     <Text style={styles.planIcon}>🏆</Text>
                   </View>
                   <View style={styles.planInfo}>
@@ -375,7 +375,7 @@ const SubscriptionPlansScreen: React.FC = () => {
               disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#1A1A1A" size="small" />
+                  <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                     <Text style={styles.continueButtonText}>
                   Продължете към плащане
@@ -400,7 +400,7 @@ const SubscriptionPlansScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#01579B',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -420,24 +420,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -463,13 +463,13 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#F7E7CE',
+    backgroundColor: '#E3F2FD',
     borderWidth: 3,
-    borderColor: '#D4AF37',
+    borderColor: '#00B4DB',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    shadowColor: '#D4AF37',
+    shadowColor: '#00B4DB',
     shadowOffset: {
       width: 0,
       height: 8,
@@ -500,17 +500,17 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 8,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
     letterSpacing: 1,
   },
   heroSubtitle: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 20,
@@ -523,17 +523,17 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   planCard: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderRadius: 16,
     padding: 20,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     position: 'relative',
   },
   planCardSelected: {
-    borderColor: '#D4AF37',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
-    shadowColor: '#D4AF37',
+    borderColor: '#00B4DB',
+    backgroundColor: 'rgba(0, 180, 219, 0.1)',
+    shadowColor: '#00B4DB',
     shadowOffset: {
       width: 0,
       height: 8,
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     left: 20,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#00B4DB',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
   popularBadgeText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
   bestValueBadge: {
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   planName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 4,
   },
   planDescription: {
@@ -672,13 +672,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   radioButtonSelected: {
-    borderColor: '#FFD700',
+    borderColor: '#00B4DB',
   },
   radioButtonInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FFD700',
+    backgroundColor: '#00B4DB',
   },
   planCardInner: {
     flex: 1,
@@ -687,9 +687,9 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(26, 26, 26, 0.8)',
+    backgroundColor: 'rgba(1, 87, 155, 0.8)',
     borderWidth: 2,
-    borderColor: 'rgba(76, 175, 80, 0.5)',
+    borderColor: 'rgba(0, 180, 219, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -700,18 +700,18 @@ const styles = StyleSheet.create({
   planPrice: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 2,
   },
   planPeriod: {
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.7)',
+    color: 'rgba(227, 242, 253, 0.7)',
   },
   selectedIndicator: {
     position: 'absolute',
     top: -10,
     right: -10,
-    backgroundColor: 'rgba(26, 26, 26, 0.9)',
+    backgroundColor: 'rgba(1, 87, 155, 0.9)',
     borderRadius: 12,
     padding: 2,
   },
@@ -732,19 +732,19 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 15,
-    color: 'rgba(247, 231, 206, 0.9)',
+    color: 'rgba(227, 242, 253, 0.9)',
     flex: 1,
     fontWeight: '500',
   },
   premiumPlanCard: {
-    borderColor: '#D4AF37',
-    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    borderColor: '#00B4DB',
+    backgroundColor: 'rgba(0, 180, 219, 0.05)',
   },
   premiumPlanName: {
-    color: '#D4AF37',
+    color: '#00B4DB',
   },
   premiumPlanPrice: {
-    color: '#D4AF37',
+    color: '#00B4DB',
   },
   buttonContainer: {
     marginBottom: 30,
@@ -752,13 +752,13 @@ const styles = StyleSheet.create({
   continueButton: {
     marginBottom: 24,
     borderRadius: 20,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#00B4DB',
     paddingVertical: 18,
     paddingHorizontal: 40,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
+    shadowColor: Platform.OS === 'android' ? '#000' : '#00B4DB',
     shadowOffset: {
       width: 0,
       height: 10,
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 15,
     borderWidth: 2,
-    borderColor: '#F7E7CE',
+    borderColor: '#E3F2FD',
     minHeight: 64,
   },
   continueButtonDisabled: {
@@ -776,16 +776,16 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(247, 231, 206, 0.5)',
+    textShadowColor: 'rgba(0, 180, 219, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
 
   trialInfo: {
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.7)',
+    color: 'rgba(227, 242, 253, 0.7)',
     marginTop: 12,
     textAlign: 'center',
     paddingHorizontal: 20,
@@ -799,19 +799,19 @@ const styles = StyleSheet.create({
   },
   securityIcon: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.6)',
+    color: 'rgba(227, 242, 253, 0.6)',
     marginRight: 8,
   },
   securityText: {
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.6)',
+    color: 'rgba(227, 242, 253, 0.6)',
     textAlign: 'center',
     fontWeight: '500',
   },
   planIcon: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#D4AF37',
+    color: '#00B4DB',
   },
   featuresContainer: {
     marginBottom: 30,
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
   featuresTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 12,
     textAlign: 'center',
   },

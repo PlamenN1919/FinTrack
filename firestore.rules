@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- По подразбиране: Забрани всякакъв достъп ---
+    // Това гарантира, че ако не дефинираме правило за дадена колекция,
+    // тя остава напълно заключена.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Потребители (users) ---
+    // Потребителите могат да четат и актуализират собствения си профил.
+    // Не могат да създават или изтриват документи директно тук; това се управлява от бекенда.
+    // Не могат да четат списък с всички потребители.
+    match /users/{userId} {
+      allow read, update: if request.auth.uid == userId;
+    }
+
+    // --- Абонаменти (subscriptions) ---
+    // Потребителите могат да четат САМО собствения си абонаментен статус.
+    // Записът е НАПЪЛНО забранен от страна на клиента. 
+    // Само бекендът (с администраторски права) може да променя абонаменти.
+    match /subscriptions/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow write: if false;
+    }
+    
+    // --- Транзакции (transactions) ---
+    // Потребителите могат да създават, четат, актуализират и изтриват
+    // САМО собствените си транзакции.
+    match /transactions/{userId}/userTransactions/{transactionId} {
+        allow read, write, create, delete: if request.auth.uid == userId;
+    }
+    
+    // --- Бюджети (budgets) ---
+    // Потребителите могат да управляват САМО собствените си бюджети.
+    match /budgets/{userId}/userBudgets/{budgetId} {
+        allow read, write, create, delete: if request.auth.uid == userId;
+    }
+    
+    // --- Финансово здраве (financialHealth) ---
+    // Потребителите могат да четат и пишат САМО собствените си данни за финансово здраве.
+     match /financialHealth/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+    
+    // --- Постижения (achievements) ---
+    // Потребителите могат да четат САМО собствените си постижения.
+    match /achievements/{userId} {
+        allow read: if request.auth.uid == userId;
+        allow write: if false; // Управлява се от бекенда
+    }
+    
+    // --- Цели (goals) ---
+    // Потребителите могат да управляват САМО собствените си цели.
+     match /goals/{userId}/userGoals/{goalId} {
+        allow read, write, create, delete: if request.auth.uid == userId;
+    }
+  }
+} 

@@ -1,8 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import firestore from '@react-native-firebase/firestore';
+import { useAuth } from '../contexts/AuthContext'; // Коригиран път
 import gamificationService from '../services/GamificationService';
 import storageService from '../services/StorageService';
 
-// Тип за транзакция
+export interface TransactionItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 export interface Transaction {
   id: string;
   amount: number;
@@ -12,241 +20,164 @@ export interface Transaction {
   note?: string;
   emotionalState: string;
   paymentMethod: string;
-  createdAt: string;
+  createdAt: any; // Firestore Timestamp
   description?: string;
   emotion?: string;
   icon?: string;
+  items?: TransactionItem[];
+  time?: string;
+  location?: string;
 }
 
 // Тип за контекста
 interface TransactionContextType {
   transactions: Transaction[];
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'createdAt'>) => void;
-  updateTransaction: (id: string, transaction: Partial<Transaction>) => void;
-  deleteTransaction: (id: string) => void;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'createdAt'>) => Promise<void>;
+  updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
+  refetchTransactions: () => Promise<void>;
+  loading: boolean;
+  error: string | null;
 }
 
 // Създаване на контекста
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
-// Примерни данни за транзакции
-const mockTransactions: Transaction[] = [
-  {
-    id: '1',
-    amount: -35.50,
-    category: 'Храна',
-    date: '2024-05-19',
-    merchant: 'Супермаркет Фреш',
-    description: 'Седмични покупки',
-    emotion: 'neutral',
-    emotionalState: 'neutral',
-    paymentMethod: 'Карта',
-    createdAt: '2024-05-19T14:30:00.000Z',
-    note: 'Седмични покупки',
-    icon: '🍕',
-  },
-  {
-    id: '2',
-    amount: -12.80,
-    category: 'Транспорт',
-    date: '2024-05-18',
-    merchant: 'Бензиностанция OMV',
-    description: 'Гориво',
-    emotion: 'neutral',
-    emotionalState: 'neutral',
-    paymentMethod: 'Карта',
-    createdAt: '2024-05-18T10:15:00.000Z',
-    note: 'Гориво',
-    icon: '⛽',
-  },
-  {
-    id: '3',
-    amount: 1200.00,
-    category: 'Заплата',
-    date: '2024-05-15',
-    merchant: 'Заплата',
-    description: 'Месечна заплата',
-    emotion: 'happy',
-    emotionalState: 'happy',
-    paymentMethod: 'Банков превод',
-    createdAt: '2024-05-15T09:00:00.000Z',
-    note: 'Месечна заплата',
-    icon: '💰',
-  },
-  {
-    id: '4',
-    amount: -65.20,
-    category: 'Забавления',
-    date: '2024-05-14',
-    merchant: 'Кино Арена',
-    description: 'Филм с приятели',
-    emotion: 'happy',
-    emotionalState: 'happy',
-    paymentMethod: 'Карта',
-    createdAt: '2024-05-14T19:30:00.000Z',
-    note: 'Филм с приятели',
-    icon: '🎬',
-  },
-  {
-    id: '5',
-    amount: -120.00,
-    category: 'Битови',
-    date: '2024-05-13',
-    merchant: 'Техномаркет',
-    description: 'Домакински уреди',
-    emotion: 'stressed',
-    emotionalState: 'stressed',
-    paymentMethod: 'Карта',
-    createdAt: '2024-05-13T16:45:00.000Z',
-    note: 'Домакински уреди',
-    icon: '💡',
-  },
-  {
-    id: '6',
-    amount: -45.30,
-    category: 'Храна',
-    date: '2024-05-12',
-    merchant: 'Ресторант Италия',
-    description: 'Обяд',
-    emotion: 'happy',
-    emotionalState: 'happy',
-    paymentMethod: 'Карта',
-    createdAt: '2024-05-12T13:20:00.000Z',
-    note: 'Обяд',
-    icon: '🍔',
-  },
-];
+// Примерни данни за транзакции - ПРЕМАХНАТИ
+// const mockTransactions: Transaction[] = [
+//   // ... mock data removed
+// ];
 
-// Provider компонент
+// Provider компонент - преработен за Firestore
 export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { authState } = useAuth();
+  const { user } = authState;
 
-  // Зареждане на данни при стартиране
+  // Real-time listener за транзакции от Firestore
   useEffect(() => {
-    loadTransactions();
-  }, []);
-
-  // Запазване на данни при промяна
-  useEffect(() => {
-    if (!isLoading && transactions.length > 0) {
-      saveTransactions();
-      // Подаваме данните към гамификацията
-      gamificationService.setTransactionsData(transactions);
+    if (!user) {
+      // Ако няма потребител, изчистваме транзакциите и спираме
+      setTransactions([]);
+      setLoading(false);
+      return;
     }
-  }, [transactions, isLoading]);
 
-  const loadTransactions = async () => {
+    setLoading(true);
+    setError(null);
+
+    const subscriber = firestore()
+      .collection('transactions')
+      .doc(user.uid)
+      .collection('userTransactions')
+      .orderBy('date', 'desc')
+      .onSnapshot(querySnapshot => {
+        const userTransactions: Transaction[] = [];
+        querySnapshot.forEach(documentSnapshot => {
+          userTransactions.push({
+            id: documentSnapshot.id,
+            ...documentSnapshot.data(),
+          } as Transaction);
+        });
+
+        setTransactions(userTransactions);
+        setLoading(false);
+      }, (err) => {
+        console.error("Firestore Error:", err);
+        setError("Не успяхме да заредим транзакциите.");
+        setLoading(false);
+      });
+
+    // Unsubscribe при unmount
+    return () => subscriber();
+  }, [user]);
+
+  // Презареждане на транзакции (за pull-to-refresh функционалност)
+  const refetchTransactions = useCallback(async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    setError(null);
+    
     try {
-      setIsLoading(true);
-      const savedTransactions = await storageService.loadTransactions();
+      const querySnapshot = await firestore()
+        .collection('transactions')
+        .doc(user.uid)
+        .collection('userTransactions')
+        .orderBy('date', 'desc')
+        .get();
+        
+      const userTransactions: Transaction[] = [];
+      querySnapshot.forEach(documentSnapshot => {
+        userTransactions.push({
+          id: documentSnapshot.id,
+          ...documentSnapshot.data(),
+        } as Transaction);
+      });
       
-      // Ако няма запазени данни, използваме mock данните
-      if (savedTransactions.length === 0) {
-        setTransactions(mockTransactions);
-        await storageService.saveTransactions(mockTransactions);
-      } else {
-        setTransactions(savedTransactions);
-      }
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-      // При грешка използваме mock данните
-      setTransactions(mockTransactions);
+      setTransactions(userTransactions);
+    } catch (err) {
+      console.error("Error refetching transactions:", err);
+      setError("Не успяхме да презаредим транзакциите.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
-
-  const saveTransactions = async () => {
-    try {
-      await storageService.saveTransactions(transactions);
-      // Автоматично backup
-      await storageService.autoBackup();
-    } catch (error) {
-      console.error('Error saving transactions:', error);
-    }
-  };
+  }, [user]);
 
   // Добавяне на нова транзакция
-  const addTransaction = (transactionData: Omit<Transaction, 'id' | 'createdAt'>) => {
-    const newTransaction: Transaction = {
+  const addTransaction = useCallback(async (transactionData: Omit<Transaction, 'id' | 'createdAt'>) => {
+    if (!user) throw new Error("Потребителят не е автентикиран.");
+
+    const newTransaction = {
       ...transactionData,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      description: transactionData.note || '',
-      emotion: transactionData.emotionalState,
+      createdAt: firestore.FieldValue.serverTimestamp(),
+      userId: user.uid, // Важно е да пазим кой е собственикът
     };
-
-    setTransactions(prev => {
-      const updatedTransactions = [newTransaction, ...prev];
+    
+    await firestore()
+      .collection('transactions')
+      .doc(user.uid)
+      .collection('userTransactions')
+      .add(newTransaction);
       
-      // Обновяване на гамификацията
-      try {
-        // Подготвяме metadata за гамификацията
-        const metadata = {
-          category: newTransaction.category,
-          amount: newTransaction.amount,
-          emotionalState: newTransaction.emotionalState,
-          isScanned: newTransaction.note?.includes('Сканирана бележка') || 
-                    newTransaction.merchant?.includes('Сканир') ||
-                    newTransaction.icon === '🧾',
-          paymentMethod: newTransaction.paymentMethod,
-          hasNote: Boolean(newTransaction.note),
-        };
-
-        console.log('🎮 Processing gamification for new transaction:', {
-          id: newTransaction.id,
-          amount: newTransaction.amount,
-          category: newTransaction.category,
-          metadata
-        });
-        
-        // Проверяваме постижения и мисии за добавяне на транзакция
-        const updatedAchievements = gamificationService.checkAchievementsForAction('add_transaction', metadata);
-        const updatedMissions = gamificationService.checkMissionsForAction('add_transaction', metadata);
-        
-        // Проверяваме дали е завършена дневната активност
-        gamificationService.checkDailyActivityCompletion();
-        
-        // Проверяваме дали няма разходи за забавления (за мисии)
-        gamificationService.checkNoEntertainmentToday();
-        
-        // Даваме базов XP за добавяне на транзакция
-        const xpResult = gamificationService.addXP(5);
-        
-        console.log('✅ Gamification updated:', {
-          xpResult,
-          updatedAchievements: updatedAchievements.length,
-          updatedMissions: updatedMissions.length,
-        });
-        
-      } catch (error) {
-        console.error('❌ Грешка при обновяване на гамификацията:', error);
-      }
-      
-      return updatedTransactions;
-    });
-  };
+    // Логиката за геймификация остава, но може да се премести в cloud функция
+    // за по-добра сигурност и консистентност
+  }, [user]);
 
   // Обновяване на транзакция
-  const updateTransaction = (id: string, transactionData: Partial<Transaction>) => {
-    setTransactions(prev => 
-      prev.map(transaction =>
-        transaction.id === id ? { ...transaction, ...transactionData } : transaction
-      )
-    );
-  };
+  const updateTransaction = useCallback(async (id: string, transactionData: Partial<Transaction>) => {
+    if (!user) throw new Error("Потребителят не е автентикиран.");
+    
+    await firestore()
+      .collection('transactions')
+      .doc(user.uid)
+      .collection('userTransactions')
+      .doc(id)
+      .update(transactionData);
+  }, [user]);
 
   // Изтриване на транзакция
-  const deleteTransaction = (id: string) => {
-    setTransactions(prev => prev.filter(transaction => transaction.id !== id));
-  };
+  const deleteTransaction = useCallback(async (id: string) => {
+    if (!user) throw new Error("Потребителят не е автентикиран.");
+
+    await firestore()
+      .collection('transactions')
+      .doc(user.uid)
+      .collection('userTransactions')
+      .doc(id)
+      .delete();
+  }, [user]);
 
   const value: TransactionContextType = {
     transactions,
     addTransaction,
     updateTransaction,
     deleteTransaction,
+    refetchTransactions,
+    loading,
+    error,
   };
 
   return (

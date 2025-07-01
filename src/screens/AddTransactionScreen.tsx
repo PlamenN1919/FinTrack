@@ -18,7 +18,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../utils/ThemeContext';
 import { useTransactions } from '../utils/TransactionContext';
 import { useBudgets } from '../utils/BudgetContext';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, EMOTIONS } from '../utils/constants';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, EMOTIONS, PAYMENT_METHODS } from '../utils/constants';
 
 // UI компоненти
 import SimpleAnimatedCard from '../components/ui/SimpleAnimatedCard';
@@ -39,6 +39,7 @@ const AddTransactionScreen: React.FC = () => {
   const [isExpense, setIsExpense] = useState(true);
   const [emotion, setEmotion] = useState(EMOTIONS.NEUTRAL);
   const [selectedIcon, setSelectedIcon] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS.card.key);
   
   // Масив с категории според типа транзакция
   const categoryOptions = isExpense ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
@@ -64,14 +65,23 @@ const AddTransactionScreen: React.FC = () => {
 
   // Функция за запазване на транзакцията
   const saveTransaction = () => {
-    if (!amount || !category) {
-      Alert.alert('Грешка', 'Моля, попълнете сума и категория');
+    // Разширена валидация
+    if (!amount) {
+      Alert.alert('Грешка', 'Моля, въведете сума');
+      return;
+    }
+    if (!category) {
+      Alert.alert('Грешка', 'Моля, изберете категория');
+      return;
+    }
+     if (!merchant.trim()) {
+      Alert.alert('Грешка', 'Моля, въведете търговец или източник');
       return;
     }
 
     const parsedAmount = parseFloat(amount.replace(',', '.'));
-    if (isNaN(parsedAmount)) {
-      Alert.alert('Грешка', 'Моля, въведете валидна сума');
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert('Грешка', 'Моля, въведете валидна, положителна сума');
       return;
     }
 
@@ -83,7 +93,7 @@ const AddTransactionScreen: React.FC = () => {
       merchant,
       note,
       emotionalState: emotion,
-      paymentMethod: 'Карта', // По подразбиране
+      paymentMethod: paymentMethod,
       icon: selectedIcon || '💰', // По подразбиране икона
     };
 
@@ -310,6 +320,45 @@ const AddTransactionScreen: React.FC = () => {
             </ScrollView>
           </SimpleAnimatedCard>
         )}
+
+        {/* Метод на плащане */}
+        <SimpleAnimatedCard style={styles.inputCard} animationDelay={220}>
+           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Метод на плащане
+          </Text>
+          <View style={styles.paymentMethodContainer}>
+            {Object.values(PAYMENT_METHODS).map((method: { key: string; name: string; icon: string }) => (
+               <TouchableOpacity
+                key={method.key}
+                style={[
+                  styles.categoryChip, // Reusing similar style
+                  paymentMethod === method.key && { 
+                    backgroundColor: theme.colors.primary,
+                    borderColor: theme.colors.primary,
+                  }
+                ]}
+                onPress={() => setPaymentMethod(method.key)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.categoryChipIcon}>
+                  {method.icon}
+                </Text>
+                <Text 
+                  style={[
+                    styles.categoryChipText, 
+                    { 
+                      color: paymentMethod === method.key 
+                        ? 'white' 
+                        : theme.colors.text 
+                    }
+                  ]}
+                >
+                  {method.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </SimpleAnimatedCard>
 
         {/* Поле за търговец - Подобрено */}
         <SimpleAnimatedCard style={styles.inputCard} animationDelay={250}>
@@ -713,6 +762,12 @@ const styles = StyleSheet.create({
   // Save button стилове
   saveButton: {
     marginTop: 8,
+  },
+  
+  paymentMethodContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
 });
 

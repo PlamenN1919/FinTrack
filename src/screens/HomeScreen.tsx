@@ -24,7 +24,7 @@ import FloatingActionButton from '../components/ui/FloatingActionButton';
 // Тематичен контекст
 import { useTheme } from '../utils/ThemeContext';
 import { useTransactions } from '../utils/TransactionContext';
-import { useUser } from '../utils/UserContext';
+import { useUser } from '../contexts/UserContext';
 import { SCREENS } from '../utils/constants';
 
 // Гамификация компоненти и данни
@@ -33,9 +33,7 @@ import AchievementCard from '../components/gamification/AchievementCard';
 import MissionCard from '../components/gamification/MissionCard';
 import GamificationOverlay from '../components/gamification/GamificationOverlay';
 import gamificationService from '../services/GamificationService';
-
-// Примерни данни за демонстрация (ще бъдат заменени с реални данни)
-const mockInitialBalance = 2450.75;
+import { GamificationProfile } from '../models/gamification';
 
 // Функция за изчисляване на финансово здраве с error handling
 const calculateFinancialHealth = (transactions: any[], monthlyIncome: number, monthlyExpense: number, currentBalance: number) => {
@@ -196,18 +194,16 @@ const getCategoryColor = (category: string, amount: number) => {
 const HomeScreen: React.FC = () => {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
-  const { transactions } = useTransactions();
-  const { userData } = useUser();
+  const { transactions, loading: transactionsLoading } = useTransactions();
+  const { userData, loading: userLoading } = useUser();
 
   // Анимация за кръга
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   
-  // Loading и error състояния
-  const [isLoading, setIsLoading] = useState(false);
+  const isLoading = transactionsLoading || userLoading;
   const [error, setError] = useState<string | null>(null);
 
-  // Функция за генериране на инициали от името
   const getUserInitials = (name: string): string => {
     return name
       .split(' ')
@@ -216,163 +212,84 @@ const HomeScreen: React.FC = () => {
       .substring(0, 2); // Вземаме максимум 2 инициала
   };
   
-  // Изчисляване на реални данни от транзакциите с error handling и мемоизация
-  const monthlyStats = useMemo(() => {
-    try {
-      setError(null);
-      
-      if (!transactions || !Array.isArray(transactions)) {
-        return { monthlyIncome: 0, monthlyExpense: 0, currentMonthTransactions: [] };
-      }
-
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth();
-      const currentYear = currentDate.getFullYear();
-      
-      // Филтриране на транзакции за текущия месец
-      const currentMonthTransactions = transactions.filter(transaction => {
-        try {
-          if (!transaction || !transaction.date) return false;
-          const transactionDate = new Date(transaction.date);
-          return !isNaN(transactionDate.getTime()) &&
-                 transactionDate.getMonth() === currentMonth && 
-                 transactionDate.getFullYear() === currentYear;
-        } catch (error) {
-          console.warn('Грешка при филтриране на транзакция:', error);
-          return false;
-        }
-      });
-      
-      // Изчисляване на месечни приходи и разходи
-      const monthlyIncome = currentMonthTransactions
-        .filter(t => t && typeof t.amount === 'number' && t.amount > 0)
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
-        
-      const monthlyExpense = Math.abs(currentMonthTransactions
-        .filter(t => t && typeof t.amount === 'number' && t.amount < 0)
-        .reduce((sum, t) => sum + (t.amount || 0), 0));
-
-      return { monthlyIncome, monthlyExpense, currentMonthTransactions };
-    } catch (error) {
-      console.error('Грешка при изчисляване на месечни статистики:', error);
-      setError('Грешка при зареждане на статистиките');
-      return { monthlyIncome: 0, monthlyExpense: 0, currentMonthTransactions: [] };
-    }
-  }, [transactions]);
-
-  const { monthlyIncome, monthlyExpense, currentMonthTransactions } = monthlyStats;
-  
-  // Изчисляване на текущ баланс (начален баланс + всички транзакции) с error handling
-  const balanceData = useMemo(() => {
-    try {
-      if (!transactions || !Array.isArray(transactions)) {
-        return { balance: mockInitialBalance, totalTransactionAmount: 0 };
-      }
-
-      const totalTransactionAmount = transactions
-        .filter(t => t && typeof t.amount === 'number')
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
-      const balance = mockInitialBalance + totalTransactionAmount;
-
-      return { balance, totalTransactionAmount };
-    } catch (error) {
-      console.error('Грешка при изчисляване на баланс:', error);
-      return { balance: mockInitialBalance, totalTransactionAmount: 0 };
-    }
-  }, [transactions]);
-
-  const { balance, totalTransactionAmount } = balanceData;
-  
-  // Изчисляване на данни за предишния месец за сравнение с error handling
-  const previousMonthData = useMemo(() => {
-    try {
-      if (!transactions || !Array.isArray(transactions)) {
-        return { previousMonthIncome: 0, previousMonthExpense: 0, previousMonthTransactions: [] };
-      }
-
-      const currentDate = new Date();
-      const currentYear = currentDate.getFullYear();
-      const previousMonth = currentDate.getMonth() - 1;
-      const previousYear = previousMonth < 0 ? currentYear - 1 : currentYear;
-      const adjustedPreviousMonth = previousMonth < 0 ? 11 : previousMonth;
-
-      const previousMonthTransactions = transactions.filter(transaction => {
-        try {
-          if (!transaction || !transaction.date) return false;
-          const transactionDate = new Date(transaction.date);
-          return !isNaN(transactionDate.getTime()) &&
-                 transactionDate.getMonth() === adjustedPreviousMonth && 
-                 transactionDate.getFullYear() === previousYear;
-        } catch (error) {
-          console.warn('Грешка при филтриране на предишен месец:', error);
-          return false;
-        }
-      });
-
-      const previousMonthIncome = previousMonthTransactions
-        .filter(t => t && typeof t.amount === 'number' && t.amount > 0)
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
-        
-      const previousMonthExpense = Math.abs(previousMonthTransactions
-        .filter(t => t && typeof t.amount === 'number' && t.amount < 0)
-        .reduce((sum, t) => sum + (t.amount || 0), 0));
-
-      return { previousMonthIncome, previousMonthExpense, previousMonthTransactions };
-    } catch (error) {
-      console.error('Грешка при изчисляване на данни за предишен месец:', error);
-      return { previousMonthIncome: 0, previousMonthExpense: 0, previousMonthTransactions: [] };
-    }
-  }, [transactions]);
-
-  const { previousMonthIncome, previousMonthExpense, previousMonthTransactions } = previousMonthData;
-
-  // Изчисляване на реални проценти за промяна с error handling
   const calculatePercentageChange = useCallback((current: number, previous: number) => {
     try {
       const safeCurrent = typeof current === 'number' && !isNaN(current) ? current : 0;
       const safePrevious = typeof previous === 'number' && !isNaN(previous) ? previous : 0;
       
       if (safePrevious === 0) return safeCurrent > 0 ? 100 : 0;
-      return Math.round(((safeCurrent - safePrevious) / safePrevious) * 100);
+      return Math.round(((current - safePrevious) / safePrevious) * 100);
     } catch (error) {
       console.warn('Грешка при изчисляване на процентна промяна:', error);
       return 0;
     }
   }, []);
 
-  // Мемоизирани изчисления за промени и данни
-  const calculatedData = useMemo(() => {
+  const memoizedData = useMemo(() => {
     try {
+      setError(null);
+      if (!transactions || !userData) {
+        return {
+          balance: 0,
+          monthlyIncome: 0,
+          monthlyExpense: 0,
+          incomeChange: 0,
+          expenseChange: 0,
+          balanceChange: 0,
+          recentTransactions: [],
+          chartData: generateChartData([]),
+          financialHealthScore: 0,
+        };
+      }
+
+      // --- Основни изчисления ---
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
+      
+      const currentMonthTransactions = transactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+
+      const monthlyIncome = currentMonthTransactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+      const monthlyExpense = Math.abs(currentMonthTransactions.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0));
+      
+      const totalTransactionAmount = transactions.reduce((s, t) => s + t.amount, 0);
+      const balance = (userData.initialBalance || 0) + totalTransactionAmount;
+
+      // --- Изчисления за предходен месец ---
+      const prevMonthDate = new Date();
+      prevMonthDate.setMonth(currentDate.getMonth() - 1);
+      const previousMonth = prevMonthDate.getMonth();
+      const previousYear = prevMonthDate.getFullYear();
+      
+      const previousMonthTransactions = transactions.filter(t => {
+        const d = new Date(t.date);
+        return d.getMonth() === previousMonth && d.getFullYear() === previousYear;
+      });
+
+      const previousMonthIncome = previousMonthTransactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+      const previousMonthExpense = Math.abs(previousMonthTransactions.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0));
+
+      const prevTotalTransactionAmount = transactions
+        .filter(t => new Date(t.date) <= prevMonthDate)
+        .reduce((s, t) => s + t.amount, 0);
+      const previousBalance = (userData.initialBalance || 0) + prevTotalTransactionAmount;
+      
+      // --- Изчисляване на промени и други данни ---
       const incomeChange = calculatePercentageChange(monthlyIncome, previousMonthIncome);
       const expenseChange = calculatePercentageChange(monthlyExpense, previousMonthExpense);
-      
-      // За баланса изчисляваме промяната на общия баланс
-      const previousTotalTransactionAmount = previousMonthTransactions
-        .filter(t => t && typeof t.amount === 'number')
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
-      const previousBalance = mockInitialBalance + previousTotalTransactionAmount;
       const balanceChange = calculatePercentageChange(balance, previousBalance);
       
-      // Последни 3 транзакции за показване
-      const recentTransactions = transactions
-        .filter(t => t && t.date)
-        .sort((a, b) => {
-          try {
-            return new Date(b.date).getTime() - new Date(a.date).getTime();
-          } catch (error) {
-            console.warn('Грешка при сортиране на транзакции:', error);
-            return 0;
-          }
-        })
-        .slice(0, 3);
-        
-      // Генериране на данни за графика
+      const recentTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 3);
       const chartData = generateChartData(transactions);
-      
-      // Изчисляване на финансово здраве
       const financialHealthScore = calculateFinancialHealth(transactions, monthlyIncome, monthlyExpense, balance);
 
       return {
+        balance,
+        monthlyIncome,
+        monthlyExpense,
         incomeChange,
         expenseChange,
         balanceChange,
@@ -380,97 +297,69 @@ const HomeScreen: React.FC = () => {
         chartData,
         financialHealthScore,
       };
-    } catch (error) {
-      console.error('Грешка при изчисляване на данни:', error);
-      setError('Грешка при обработка на данните');
+
+    } catch (e) {
+      console.error("Грешка в useMemo:", e);
+      setError("Грешка при обработка на данните");
       return {
-        incomeChange: 0,
-        expenseChange: 0,
-        balanceChange: 0,
-        recentTransactions: [],
-        chartData: generateChartData([]),
-        financialHealthScore: 0,
+          balance: 0, monthlyIncome: 0, monthlyExpense: 0, incomeChange: 0, expenseChange: 0,
+          balanceChange: 0, recentTransactions: [], chartData: generateChartData([]), financialHealthScore: 0
       };
     }
-  }, [
-    monthlyIncome,
-    monthlyExpense,
-    previousMonthIncome,
-    previousMonthExpense,
-    previousMonthTransactions,
-    balance,
-    transactions,
-    calculatePercentageChange,
-  ]);
-
-  const {
-    incomeChange,
-    expenseChange,
-    balanceChange,
-    recentTransactions,
-    chartData,
-    financialHealthScore,
-  } = calculatedData;
+  }, [transactions, userData, calculatePercentageChange]);
   
   // Интеграция с гамификация за финансово здраве
   useEffect(() => {
-    if (financialHealthScore > 0) {
-      gamificationService.onFinancialHealthUpdated(financialHealthScore, {
-        monthlyIncome,
-        monthlyExpense,
-        balance,
-        ratio: monthlyIncome > 0 ? (monthlyExpense / monthlyIncome) : 0,
-        savingsRate: monthlyIncome > 0 ? ((monthlyIncome - monthlyExpense) / monthlyIncome) : 0
+    if (memoizedData.financialHealthScore > 0) {
+      gamificationService.onFinancialHealthUpdated(memoizedData.financialHealthScore, {
+        monthlyIncome: memoizedData.monthlyIncome,
+        monthlyExpense: memoizedData.monthlyExpense,
+        balance: memoizedData.balance,
+        ratio: memoizedData.monthlyIncome > 0 ? (memoizedData.monthlyExpense / memoizedData.monthlyIncome) : 0,
+        savingsRate: memoizedData.monthlyIncome > 0 ? ((memoizedData.monthlyIncome - memoizedData.monthlyExpense) / memoizedData.monthlyIncome) : 0
       });
     }
-  }, [financialHealthScore, monthlyIncome, monthlyExpense, balance]);
+  }, [memoizedData]);
   
   // Получаване на данни за гамификация с автоматично обновяване
   const [gamificationProfile, setGamificationProfile] = useState(gamificationService.getProfile());
   const [notifications, setNotifications] = useState<React.ReactNode[]>([]);
 
-  // Автоматично обновяване на гамификационния профил
+  // Gamification setup
   useEffect(() => {
-    console.log('🔄 HomeScreen: Setting up gamification listeners');
-    
-    const handleGamificationUpdate = (updatedProfile: any) => {
-      console.log('📱 HomeScreen: Gamification profile updated', {
-        level: updatedProfile.level,
-        xp: updatedProfile.xp,
-        streakDays: updatedProfile.streakDays,
+    if (userData && !isLoading) {
+      const onProfileUpdate = (profile: GamificationProfile) => {
+        setGamificationProfile(profile);
+      };
+      
+      // Слушаме за промени в профила
+      gamificationService.onProfileUpdated(onProfileUpdate);
+      
+      // Инициализираме за текущия потребител
+      gamificationService.initForUser(userData.id).then(() => {
+        const currentProfile = gamificationService.getProfile();
+        if (currentProfile) {
+          setGamificationProfile(currentProfile);
+        }
       });
-      setGamificationProfile(updatedProfile);
-    };
-
-    // Слушаме за промени в гамификационния профил
-    gamificationService.onProfileUpdated(handleGamificationUpdate);
-    gamificationService.onInitialized(handleGamificationUpdate);
-
-    // Проверяваме дали има готов профил
-    if (gamificationService.isReady()) {
-      const currentProfile = gamificationService.getProfile();
-      console.log('✅ HomeScreen: Initial gamification profile loaded', currentProfile);
-      setGamificationProfile(currentProfile);
+      
+      return () => {
+        gamificationService.offProfileUpdated(onProfileUpdate);
+      };
     }
-
-    // Cleanup при unmount
-    return () => {
-      console.log('🧹 HomeScreen: Cleaning up gamification listeners');
-      gamificationService.offProfileUpdated(handleGamificationUpdate);
-    };
-  }, []);
+  }, [userData, isLoading]);
 
   // Показва здравен статус въз основа на резултата
-  const getHealthStatus = (score: number) => {
+  const getHealthStatus = useCallback((score: number) => {
     if (score >= 80) return { status: 'Отлично', color: theme.colors.success };
-    if (score >= 60) return { status: 'Добро', color: '#3CB371' };
-    if (score >= 40) return { status: 'Средно', color: theme.colors.warning };
-    if (score >= 20) return { status: 'Лошо', color: '#DAA520' };
-    return { status: 'Критично', color: theme.colors.error };
-  };
+    if (score >= 60) return { status: 'Добро', color: theme.colors.warning };
+    if (score >= 40) return { status: 'Средно', color: theme.colors.error };
+    return { status: 'Слабо', color: theme.colors.error };
+  }, [theme.colors]);
 
   // Генериране на персонализирани съвети за финансово здраве
   const getHealthAdvice = () => {
+    const { monthlyIncome, monthlyExpense, balance } = memoizedData;
     const ratio = monthlyIncome > 0 ? (monthlyExpense / monthlyIncome) : 0;
     
     if (monthlyIncome === 0 && monthlyExpense > 0) {
@@ -488,7 +377,7 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  const healthStatus = getHealthStatus(financialHealthScore);
+  const healthStatus = getHealthStatus(memoizedData.financialHealthScore);
   const healthAdvice = getHealthAdvice();
 
   // Анимация за появяване на кръга
@@ -531,29 +420,30 @@ const HomeScreen: React.FC = () => {
   const statsData = [
     {
       label: 'Баланс',
-      value: `${balance.toFixed(2)} лв.`,
-      change: Math.abs(balanceChange),
-      changeType: balanceChange > 0 ? 'positive' as const : 'negative' as const,
+      value: `${memoizedData.balance.toFixed(2)} лв.`,
+      change: Math.abs(memoizedData.balanceChange),
+      changeType: memoizedData.balanceChange > 0 ? 'positive' as const : 'negative' as const,
       color: theme.colors.primary,
     },
     {
       label: 'Приходи',
-      value: `${monthlyIncome.toFixed(2)} лв.`,
-      change: Math.abs(incomeChange),
-      changeType: incomeChange > 0 ? 'positive' as const : 'negative' as const,
+      value: `${memoizedData.monthlyIncome.toFixed(2)} лв.`,
+      change: Math.abs(memoizedData.incomeChange),
+      changeType: memoizedData.incomeChange > 0 ? 'positive' as const : 'negative' as const,
       color: theme.colors.success,
     },
     {
       label: 'Разходи',
-      value: `${monthlyExpense.toFixed(2)} лв.`,
-      change: Math.abs(expenseChange),
-      changeType: expenseChange > 0 ? 'negative' as const : 'positive' as const,
+      value: `${memoizedData.monthlyExpense.toFixed(2)} лв.`,
+      change: Math.abs(memoizedData.expenseChange),
+      changeType: memoizedData.expenseChange > 0 ? 'negative' as const : 'positive' as const,
       color: theme.colors.error,
     },
   ];
 
   // Debug информация за финансово здраве
   useEffect(() => {
+    const { financialHealthScore, monthlyIncome, monthlyExpense, balance } = memoizedData;
     const ratio = monthlyIncome > 0 ? (monthlyExpense / monthlyIncome) : 0;
     const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpense) / monthlyIncome) : 0;
     
@@ -567,20 +457,12 @@ const HomeScreen: React.FC = () => {
       status: healthStatus.status,
       advice: healthAdvice
     });
-  }, [financialHealthScore, monthlyIncome, monthlyExpense, balance, healthStatus, healthAdvice]);
+  }, [memoizedData, healthStatus, healthAdvice]);
 
   // Обновяване на статистиките при промяна на транзакциите
   useEffect(() => {
-    console.log('HomeScreen статистиките се обновиха:', {
-      totalTransactions: transactions.length,
-      balance: balance.toFixed(2),
-      monthlyIncome: monthlyIncome.toFixed(2),
-      monthlyExpense: monthlyExpense.toFixed(2),
-      balanceChange: `${balanceChange}%`,
-      incomeChange: `${incomeChange}%`,
-      expenseChange: `${expenseChange}%`
-    });
-  }, [transactions, balance, monthlyIncome, monthlyExpense, balanceChange, incomeChange, expenseChange]);
+    console.log('HomeScreen статистиките се обновиха:', memoizedData);
+  }, [memoizedData]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -643,19 +525,21 @@ const HomeScreen: React.FC = () => {
               {/* Светещ ефект около профила */}
               <View style={styles.profileGlow} />
               
-              <LinearGradient
-                colors={theme.colors.accentGradient}
-                style={styles.levelBadge}
-              >
-                <Text style={styles.levelText}>{gamificationProfile.level}</Text>
-              </LinearGradient>
+              {gamificationProfile && (
+                <LinearGradient
+                  colors={theme.colors.accentGradient}
+                  style={styles.levelBadge}
+                >
+                  <Text style={styles.levelText}>{gamificationProfile.level}</Text>
+                </LinearGradient>
+              )}
               
               <LinearGradient
                 colors={['rgba(247, 231, 206, 0.25)', 'rgba(247, 231, 206, 0.1)']}
                 style={styles.profileButton}
               >
                 <Text style={styles.profileButtonText}>
-                  {getUserInitials(userData.name)}
+                  {userData ? getUserInitials(userData.name) : '...'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -669,7 +553,7 @@ const HomeScreen: React.FC = () => {
             </View>
             
             <View style={styles.balanceAmountContainer}>
-              <Text style={styles.balanceAmount}>{balance.toFixed(2)}</Text>
+              <Text style={styles.balanceAmount}>{isLoading ? '...' : memoizedData.balance.toFixed(2)}</Text>
               <Text style={styles.balanceCurrency}>лв.</Text>
             </View>
           </View>
@@ -690,9 +574,8 @@ const HomeScreen: React.FC = () => {
                 style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
                 onPress={() => {
                   setError(null);
-                  setIsLoading(true);
-                  // Simulate data reload
-                  setTimeout(() => setIsLoading(false), 1000);
+                  // Данните ще се опитат да се заредят автоматично от контекста.
+                  // Можем да добавим refetch функции в бъдеще.
                 }}
               >
                 <Text style={styles.retryButtonText}>Опитай отново</Text>
@@ -779,7 +662,7 @@ const HomeScreen: React.FC = () => {
                     style={styles.scoreCircle}
                   >
                     <View style={[styles.scoreOverlay, { backgroundColor: `${healthStatus.color}40` }]}>
-                      <Text style={styles.scoreText}>{financialHealthScore}</Text>
+                      <Text style={styles.scoreText}>{memoizedData.financialHealthScore}</Text>
                       <Text style={styles.scoreLabel}>/ 100</Text>
                     </View>
                   </LinearGradient>
@@ -799,21 +682,21 @@ const HomeScreen: React.FC = () => {
                   <View style={styles.metricItem}>
                     <View style={[styles.metricDot, { backgroundColor: theme.colors.success }]} />
                     <Text style={[styles.metricText, { color: theme.colors.textSecondary }]}>
-                      Приходи: {monthlyIncome.toFixed(0)} лв.
+                      Приходи: {memoizedData.monthlyIncome.toFixed(0)} лв.
                     </Text>
                   </View>
                   <View style={styles.metricItem}>
                     <View style={[styles.metricDot, { backgroundColor: theme.colors.error }]} />
                     <Text style={[styles.metricText, { color: theme.colors.textSecondary }]}>
-                      Разходи: {monthlyExpense.toFixed(0)} лв.
+                      Разходи: {memoizedData.monthlyExpense.toFixed(0)} лв.
                     </Text>
                   </View>
                   <View style={styles.metricItem}>
-                    <View style={[styles.metricDot, { backgroundColor: monthlyIncome > 0 ? 
-                      (monthlyExpense / monthlyIncome > 0.7 ? theme.colors.warning : theme.colors.primary) : theme.colors.textSecondary }]} />
+                    <View style={[styles.metricDot, { backgroundColor: memoizedData.monthlyIncome > 0 ? 
+                      (memoizedData.monthlyExpense / memoizedData.monthlyIncome > 0.7 ? theme.colors.warning : theme.colors.primary) : theme.colors.textSecondary }]} />
                     <Text style={[styles.metricText, { color: theme.colors.textSecondary }]}>
-                      {monthlyIncome > 0 ? 
-                        `Съотношение: ${((monthlyExpense / monthlyIncome) * 100).toFixed(0)}%` :
+                      {memoizedData.monthlyIncome > 0 ? 
+                        `Съотношение: ${((memoizedData.monthlyExpense / memoizedData.monthlyIncome) * 100).toFixed(0)}%` :
                         'Няма приходи'
                       }
                     </Text>
@@ -854,7 +737,7 @@ const HomeScreen: React.FC = () => {
                 Най-добър
               </Text>
               <Text style={[styles.chartStatsValue, { color: theme.colors.accent }]}>
-                {Math.max(...chartData.datasets[0].data).toFixed(0)} лв.
+                {Math.max(...memoizedData.chartData.datasets[0].data).toFixed(0)} лв.
               </Text>
             </View>
           </View>
@@ -862,7 +745,7 @@ const HomeScreen: React.FC = () => {
           <View style={styles.chartContainer}>
             <View style={styles.chartWrapper}>
               <LineChart
-                data={chartData}
+                data={memoizedData.chartData}
                 width={320}
                 height={200}
                 yAxisLabel=""
@@ -922,7 +805,7 @@ const HomeScreen: React.FC = () => {
                   Последни транзакции
                 </Text>
                 <Text style={[styles.cardSubtitle, { color: theme.colors.textSecondary }]}>
-                  {recentTransactions.length} от общо {transactions.length}
+                  {memoizedData.recentTransactions.length} от общо {transactions.length}
                 </Text>
               </View>
             </View>
@@ -934,9 +817,9 @@ const HomeScreen: React.FC = () => {
             />
           </View>
 
-          {recentTransactions.length > 0 ? (
+          {memoizedData.recentTransactions.length > 0 ? (
             <View style={styles.transactionsContainer}>
-              {recentTransactions.map((transaction, index) => (
+              {memoizedData.recentTransactions.map((transaction, index) => (
                 <View key={transaction.id} style={styles.transactionWrapper}>
                   <TouchableOpacity
                     style={styles.enhancedTransactionItem}
@@ -1008,7 +891,7 @@ const HomeScreen: React.FC = () => {
                       </View>
                     </View>
                   </TouchableOpacity>
-                  {index < recentTransactions.length - 1 && (
+                  {index < memoizedData.recentTransactions.length - 1 && (
                     <View style={styles.transactionDivider} />
                   )}
                 </View>
@@ -1050,7 +933,7 @@ const HomeScreen: React.FC = () => {
             />
           </View>
           
-          {gamificationProfile.missions.active.length > 0 ? (
+          {gamificationProfile && gamificationProfile.missions.active.length > 0 ? (
             <MissionCard 
               mission={gamificationProfile.missions.active[0]} 
               onPress={() => navigation.navigate(SCREENS.ACHIEVEMENTS, { initialTab: 'missions' })}
@@ -1064,6 +947,20 @@ const HomeScreen: React.FC = () => {
           )}
           
         </SimpleAnimatedCard>
+
+        {/* Level Progress Bar */}
+        {/* Временно премахнато докато не се имплементира правилно
+        {gamificationProfile && (
+          <View style={styles.levelContainer}>
+            <LevelProgressBar
+              level={gamificationProfile.level}
+              currentXP={gamificationProfile.xp}
+              nextLevelXP={gamificationProfile.level * 1000}
+              showAnimation={true}
+            />
+          </View>
+        )}
+        */}
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
@@ -1785,6 +1682,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     fontWeight: '500',
+  },
+  levelContainer: {
+    marginBottom: 24,
   },
 });
 

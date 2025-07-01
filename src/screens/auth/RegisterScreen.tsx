@@ -76,12 +76,13 @@ const RegisterScreen: React.FC = () => {
 
   // Real-time validation
   const validateEmail = (emailValue: string) => {
+    const processedEmail = emailValue.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailValue.trim()) {
+    if (!processedEmail) {
       setEmailError('Имейлът е задължителен');
       return false;
     }
-    if (!emailRegex.test(emailValue)) {
+    if (!emailRegex.test(processedEmail)) {
       setEmailError('Моля, въведете валиден имейл адрес');
       return false;
     }
@@ -142,8 +143,9 @@ const RegisterScreen: React.FC = () => {
 
   const handleEmailChange = (value: string) => {
     setEmail(value);
-    if (value.trim()) {
-      validateEmail(value);
+    const processedEmail = value.trim().toLowerCase();
+    if (processedEmail) {
+      validateEmail(processedEmail);
     } else {
       setEmailError('');
     }
@@ -189,17 +191,14 @@ const RegisterScreen: React.FC = () => {
       
       // Navigation will be handled automatically by AuthNavigator based on user state
     } catch (error: any) {
-      console.error('Registration error:', error);
-      Alert.alert(
-        'Грешка при регистрация',
-        error.message || 'Възникна неочаквана грешка. Моля, опитайте отново.'
-      );
+      // Log a cleaner error message to the console for debugging
+      console.warn(`Registration failed: ${error.message}`);
+      // The error is already being displayed via the authState.error in the UI
+      // so the alert is redundant.
     } finally {
       setIsLoading(false);
     }
   };
-
-
 
   const handleLogin = () => {
     navigation.navigate('Login');
@@ -260,7 +259,8 @@ const RegisterScreen: React.FC = () => {
       
       {/* Premium Background */}
       <LinearGradient
-        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
+        colors={['#0A0A0A', '#1A1A1A', '#2A2020', '#1A1A1A', '#0A0A0A']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -301,12 +301,12 @@ const RegisterScreen: React.FC = () => {
           <View style={styles.logoSection}>
             <View style={styles.logoWrapper}>
               <Image
-                source={require('../../../logo/F.png')}
+                source={require('../../assets/images/F.png')}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
               <LinearGradient
-                colors={['rgba(212, 175, 55, 0.2)', 'rgba(247, 231, 206, 0.1)']}
+                colors={['rgba(0, 180, 219, 0.4)', 'rgba(64, 196, 255, 0.2)']}
                 style={styles.logoGlow}
               />
             </View>
@@ -329,7 +329,7 @@ const RegisterScreen: React.FC = () => {
                 ref={emailRef}
                 style={styles.textInput}
                 placeholder="example@email.com"
-                placeholderTextColor="rgba(247, 231, 206, 0.5)"
+                placeholderTextColor="rgba(227, 242, 253, 0.5)"
                 value={email}
                 onChangeText={handleEmailChange}
                 keyboardType="email-address"
@@ -352,7 +352,7 @@ const RegisterScreen: React.FC = () => {
                 ref={passwordRef}
                 style={styles.textInput}
                 placeholder="Въведете сигурна парола"
-                placeholderTextColor="rgba(247, 231, 206, 0.5)"
+                placeholderTextColor="rgba(227, 242, 253, 0.5)"
                 value={password}
                 onChangeText={handlePasswordChange}
                 secureTextEntry={!showPassword}
@@ -401,7 +401,7 @@ const RegisterScreen: React.FC = () => {
                 ref={confirmPasswordRef}
                 style={styles.textInput}
                 placeholder="Въведете паролата отново"
-                placeholderTextColor="rgba(247, 231, 206, 0.5)"
+                placeholderTextColor="rgba(227, 242, 253, 0.5)"
                 value={confirmPassword}
                 onChangeText={handleConfirmPasswordChange}
                 secureTextEntry={!showConfirmPassword}
@@ -423,19 +423,37 @@ const RegisterScreen: React.FC = () => {
 
           {/* Terms and Conditions */}
           <View style={styles.termsContainer}>
-            <TouchableOpacity
-              style={styles.checkboxContainer}
-              onPress={() => setAcceptTerms(!acceptTerms)}
-            >
-              <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
-                {acceptTerms && <Text style={styles.checkmark}>✓</Text>}
+            <View style={styles.checkboxRow}>
+              <TouchableOpacity
+                style={styles.checkboxWrapper}
+                onPress={() => setAcceptTerms(!acceptTerms)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
+                  {acceptTerms && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+              </TouchableOpacity>
+              
+              <View style={styles.termsTextWrapper}>
+                <Text style={styles.termsMainText}>
+                  Съгласявам се с{' '}
+                  <Text 
+                    style={styles.termsLink}
+                    onPress={() => navigation.navigate('TermsOfService')}
+                  >
+                    Условията за ползване
+                  </Text>
+                  {' '}и{' '}
+                  <Text 
+                    style={styles.termsLink}
+                    onPress={() => navigation.navigate('PrivacyPolicy')}
+                  >
+                    Политиката за поверителност
+                  </Text>
+                  .
+                </Text>
               </View>
-              <Text style={styles.termsText}>
-                Съгласявам се с{' '}
-                <Text style={styles.termsLink}>Условията за ползване</Text> и{' '}
-                <Text style={styles.termsLink}>Политиката за поверителност</Text>
-              </Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
           {/* Register Button */}
@@ -450,8 +468,6 @@ const RegisterScreen: React.FC = () => {
               <Text style={styles.registerButtonText}>Създай акаунт</Text>
             )}
           </TouchableOpacity>
-
-
 
           {/* Login Link */}
           <View style={styles.loginContainer}>
@@ -476,7 +492,7 @@ const RegisterScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#0A0A0A',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -498,22 +514,22 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     fontWeight: 'bold',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -541,13 +557,13 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#F7E7CE',
+    backgroundColor: '#E3F2FD',
     borderWidth: 3,
-    borderColor: '#D4AF37',
+    borderColor: '#00B4DB',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    shadowColor: '#D4AF37',
+    shadowColor: '#00B4DB',
     shadowOffset: {
       width: 0,
       height: 8,
@@ -578,17 +594,17 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 8,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
     letterSpacing: 1,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
     textAlign: 'center',
     lineHeight: 22,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
@@ -602,7 +618,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 8,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
@@ -614,7 +630,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     paddingHorizontal: 16,
     height: 56,
   },
@@ -625,7 +641,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     paddingVertical: 0,
     paddingLeft: 12,
   },
@@ -655,7 +671,7 @@ const styles = StyleSheet.create({
   passwordStrengthBar: {
     flex: 1,
     height: 4,
-    backgroundColor: 'rgba(247, 231, 206, 0.2)',
+    backgroundColor: 'rgba(227, 242, 253, 0.2)',
     borderRadius: 2,
     marginRight: 12,
   },
@@ -672,73 +688,75 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingHorizontal: 4,
   },
-  checkboxContainer: {
+  checkboxRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+  },
+  checkboxWrapper: {
+    marginRight: 12,
+    marginTop: 2,
   },
   checkbox: {
     width: 20,
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: 'rgba(247, 231, 206, 0.6)',
-    marginRight: 12,
-    marginTop: 2,
+    borderColor: 'rgba(227, 242, 253, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#D4AF37',
-    borderColor: '#D4AF37',
+    backgroundColor: '#00B4DB',
+    borderColor: '#00B4DB',
   },
   checkmark: {
     color: '#1A1A1A',
     fontSize: 12,
     fontWeight: 'bold',
   },
-  termsText: {
+  termsTextWrapper: {
     flex: 1,
+  },
+  termsMainText: {
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
     lineHeight: 20,
     fontWeight: '400',
   },
   termsLink: {
-    color: '#D4AF37',
+    color: '#00B4DB',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   registerButton: {
     marginBottom: 24,
-    borderRadius: 20,
-    backgroundColor: '#D4AF37',
-    paddingVertical: 18,
+    borderRadius: 25,
+    backgroundColor: '#00B4DB',
+    paddingVertical: 20,
     paddingHorizontal: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
+    shadowColor: '#00B4DB',
     shadowOffset: {
       width: 0,
-      height: 10,
+      height: 8,
     },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 15,
-    borderWidth: 2,
-    borderColor: '#F7E7CE',
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
     minHeight: 64,
   },
   registerButtonDisabled: {
     opacity: 0.6,
   },
   registerButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 19,
+    fontWeight: '800',
     color: '#1A1A1A',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(247, 231, 206, 0.5)',
+    letterSpacing: 0.8,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
   buttonIcon: {
     fontSize: 20,
@@ -753,11 +771,11 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
   },
   loginLink: {
     fontSize: 16,
-    color: '#D4AF37',
+    color: '#00B4DB',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

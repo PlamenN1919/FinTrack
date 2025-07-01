@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -13,46 +14,35 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 // Тематичен контекст
 import { useTheme } from '../utils/ThemeContext';
 import { EMOTIONS } from '../utils/constants';
-
-// Примерни данни за транзакцията
-const mockTransaction = {
-  id: '1',
-  amount: -35.50,
-  category: 'Храна',
-  date: '2024-05-19',
-  time: '14:30',
-  merchant: 'Супермаркет Фреш',
-  items: [
-    { id: '1', name: 'Хляб пълнозърнест', price: 2.50, quantity: 1 },
-    { id: '2', name: 'Ябълки', price: 3.20, quantity: 1.5 },
-    { id: '3', name: 'Кисело мляко', price: 1.80, quantity: 2 },
-    { id: '4', name: 'Сирене', price: 15.40, quantity: 0.5 },
-    { id: '5', name: 'Кафе', price: 12.60, quantity: 1 },
-  ],
-  note: 'Седмични покупки',
-  emotionalState: 'neutral', // could be 'happy', 'sad', 'stressed', 'excited', 'bored', 'neutral'
-  paymentMethod: 'Карта',
-  receiptImage: null, // URL to image if available
-  location: 'ул. Иван Вазов 12, София',
-};
+import { useTransactions } from '../utils/TransactionContext';
 
 // Тип за параметрите на маршрута
 type ParamList = {
   TransactionDetails: { id: string };
 };
 
+type DetailsRouteProp = RouteProp<{ Details: { id: string } }, 'Details'>;
+
 const TransactionDetailsScreen: React.FC = () => {
   const { theme } = useTheme();
-  const navigation = useNavigation();
-  const route = useRoute<RouteProp<ParamList, 'TransactionDetails'>>();
-  const [transaction, setTransaction] = useState(mockTransaction);
-  const [selectedEmotion, setSelectedEmotion] = useState<string>(mockTransaction.emotionalState);
+  const navigation = useNavigation<any>();
+  const route = useRoute<DetailsRouteProp>();
+  const { transactions, updateTransaction, deleteTransaction } = useTransactions();
+
+  const transactionId = route.params.id;
+
+  // Намираме транзакцията от глобалния контекст
+  const transaction = useMemo(() => 
+    transactions.find(t => t.id === transactionId), 
+    [transactions, transactionId]
+  );
+
+  const [selectedEmotion, setSelectedEmotion] = useState<string>('');
   
   // Изчисляване на общата сума
-  const totalAmount = transaction.items.reduce(
-    (sum, item) => sum + item.price * item.quantity, 
-    0
-  ).toFixed(2);
+  const totalAmount = (transaction?.items || [])
+    .reduce((sum, item) => sum + item.price * item.quantity, 0)
+    .toFixed(2);
   
   // Емоции за избор
   const emotions = [
@@ -89,10 +79,51 @@ const TransactionDetailsScreen: React.FC = () => {
 
   // Вземане на нужната информация от маршрута
   useEffect(() => {
-    // В реално приложение тук бихме извършили API заявка за вземане на данните
-    // за транзакцията с ID: route.params.id
-    console.log('Транзакция с ID:', route.params?.id);
-  }, [route.params?.id]);
+    if (transaction) {
+      setSelectedEmotion(transaction.emotionalState || 'neutral');
+    }
+  }, [transaction]);
+
+  if (!transaction) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Транзакцията не е намерена.</Text>
+      </View>
+    );
+  }
+
+  // Обновяване на емоцията
+  const handleUpdateEmotion = async () => {
+    try {
+      await updateTransaction(transactionId, { emotionalState: selectedEmotion });
+      Alert.alert('Успех', 'Емоцията е обновена.');
+    } catch (error) {
+      Alert.alert('Грешка', 'Неуспешно обновяване на емоцията.');
+    }
+  };
+
+  // Изтриване на транзакцията
+  const handleDelete = () => {
+    Alert.alert(
+      'Изтриване на транзакция',
+      'Сигурни ли сте, че искате да изтриете тази транзакция? Това действие е необратимо.',
+      [
+        { text: 'Отказ', style: 'cancel' },
+        { 
+          text: 'Изтрий', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteTransaction(transactionId);
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Грешка', 'Неуспешно изтриване на транзакцията.');
+            }
+          } 
+        }
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -104,7 +135,8 @@ const TransactionDetailsScreen: React.FC = () => {
               {transaction.merchant}
             </Text>
             <Text style={[styles.dateTime, { color: theme.colors.textSecondary }]}>
-              {new Date(transaction.date).toLocaleDateString('bg-BG')} • {transaction.time}
+              {new Date(transaction.date).toLocaleDateString('bg-BG', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {transaction.time && ` в ${transaction.time}`}
             </Text>
             <Text 
               style={[
@@ -133,10 +165,14 @@ const TransactionDetailsScreen: React.FC = () => {
             <Text style={[styles.detailValue, { color: theme.colors.text }]}>{transaction.paymentMethod}</Text>
           </View>
           <View style={styles.divider} />
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Местоположение</Text>
-            <Text style={[styles.detailValue, { color: theme.colors.text }]}>{transaction.location}</Text>
-          </View>
+          {transaction.location && (
+            <View style={styles.detailItem}>
+              <Text style={styles.detailIcon}>📍</Text>
+              <Text style={[styles.detailText, { color: theme.colors.text }]}>
+                {transaction.location}
+              </Text>
+            </View>
+          )}
           {transaction.note && (
             <>
               <View style={styles.divider} />
@@ -148,30 +184,23 @@ const TransactionDetailsScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Елементи от покупката */}
+        {/* Списък с артикули, ако съществува */}
         {transaction.items && transaction.items.length > 0 && (
           <View style={[styles.itemsCard, { backgroundColor: theme.colors.card }]}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Продукти</Text>
-            
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Артикули</Text>
             {transaction.items.map((item, index) => (
-              <View key={item.id} style={styles.itemRow}>
-                <View style={styles.itemDetails}>
-                  <Text style={[styles.itemName, { color: theme.colors.text }]}>{item.name}</Text>
-                  {item.quantity !== 1 && (
-                    <Text style={[styles.itemQuantity, { color: theme.colors.textSecondary }]}>
-                      {item.quantity} x {item.price.toFixed(2)} лв.
-                    </Text>
-                  )}
-                </View>
+              <View key={item.id || index} style={styles.itemRow}>
+                <Text style={[styles.itemName, { color: theme.colors.text }]}>
+                  {item.quantity} x {item.name}
+                </Text>
                 <Text style={[styles.itemPrice, { color: theme.colors.text }]}>
                   {(item.price * item.quantity).toFixed(2)} лв.
                 </Text>
               </View>
             ))}
-            
             <View style={styles.totalRow}>
-              <Text style={[styles.totalLabel, { color: theme.colors.text }]}>Общо</Text>
-              <Text style={[styles.totalAmount, { color: theme.colors.text }]}>{totalAmount} лв.</Text>
+              <Text style={styles.totalLabel}>Общо</Text>
+              <Text style={styles.totalAmount}>{totalAmount} лв.</Text>
             </View>
           </View>
         )}
@@ -225,11 +254,13 @@ const TransactionDetailsScreen: React.FC = () => {
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.colors.card }]}
+            onPress={handleUpdateEmotion}
           >
             <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Редактирай</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.colors.error }]}
+            onPress={handleDelete}
           >
             <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Изтрий</Text>
           </TouchableOpacity>
@@ -395,6 +426,25 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  detailIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  detailText: {
+    fontSize: 14,
   },
 });
 

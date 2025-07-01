@@ -150,4 +150,10 @@ export const EMOTIONS = {
   EXCITED: 'excited',
   BORED: 'bored',
   NEUTRAL: 'neutral',
+};
+
+export const PAYMENT_METHODS = {
+  card: { key: 'card', name: 'Карта', icon: '💳' },
+  cash: { key: 'cash', name: 'В брой', icon: '💵' },
+  bank: { key: 'bank', name: 'Банков превод', icon: '🏦' },
 }; 

@@ -33,6 +33,12 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSCameraUsageDescription</key>
+	<string>Приложението се нуждае от достъп до камерата, за да можете да сканирате QR кодове от фактури и да прикачвате снимки към транзакции.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Приложението се нуждае от достъп до галерията, за да можете да избирате и прикачвате изображения към вашите транзакции.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Приложението се нуждае от достъп до микрофона, за да може да записва аудио по време на видеозапис на разходи (ако е приложимо).</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

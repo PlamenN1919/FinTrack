@@ -34,7 +34,7 @@ import AnimatedStats from '../components/ui/AnimatedStats';
 const TransactionsScreen: React.FC = () => {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
-  const { transactions } = useTransactions();
+  const { transactions, refetchTransactions } = useTransactions();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Всички');
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -461,17 +461,8 @@ const TransactionsScreen: React.FC = () => {
       setRefreshing(true);
       setError(null);
       
-      // Simulate refresh with potential error
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate occasional error
-          if (Math.random() < 0.1) {
-            reject(new Error('Грешка при обновяване'));
-          } else {
-            resolve(true);
-          }
-        }, 1000);
-      });
+      // Използваме реалната refetchTransactions функция
+      await refetchTransactions();
       
     } catch (error) {
       console.error('Грешка при обновяване на транзакции:', error);
@@ -479,7 +470,7 @@ const TransactionsScreen: React.FC = () => {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [refetchTransactions]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>

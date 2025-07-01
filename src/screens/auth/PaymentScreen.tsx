@@ -17,8 +17,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // Types
-import { AuthStackParamList } from '../../types/auth.types';
-import { SubscriptionPlan, SubscriptionStatus } from '../../types/auth.types';
+import { AuthStackParamList, SubscriptionPlan, SubscriptionStatus } from '../../types/auth.types';
 
 // Context and config
 import { useAuth } from '../../contexts/AuthContext';
@@ -113,8 +112,25 @@ const PaymentScreen: React.FC = () => {
 
   const handlePaymentSuccess = async (paymentMethodId: string) => {
     try {
-      const newSubscription = await createSubscription(planId, paymentMethodId);
-      navigation.navigate('PaymentSuccess', { subscription: newSubscription });
+      await createSubscription(planId, paymentMethodId);
+      navigation.navigate('PaymentSuccess', { 
+        subscription: {
+          id: 'temp-id',
+          userId: authState.user?.uid || '',
+          plan: planId,
+          status: SubscriptionStatus.ACTIVE,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          cancelAtPeriodEnd: false,
+          stripeCustomerId: '',
+          stripeSubscriptionId: '',
+          priceId: '',
+          amount,
+          currency,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      });
     } catch (error: any) {
       Alert.alert('Грешка при създаване на абонамент', error.message);
       // Navigate to a failed state, or allow retry
@@ -153,7 +169,7 @@ const PaymentScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
+        colors={['#01579B', '#0288D1', '#00B4DB']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -210,7 +226,7 @@ const PaymentScreen: React.FC = () => {
 
           {/* Payment Form */}
           {isPreparingPayment ? (
-            <ActivityIndicator size="large" color="#D4AF37" style={{ marginVertical: 40 }}/>
+            <ActivityIndicator size="large" color="#00B4DB" style={{ marginVertical: 40 }}/>
           ) : clientSecret ? (
             <StripeCardForm
               clientSecret={clientSecret}
@@ -260,7 +276,7 @@ const PaymentScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#01579B',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -280,24 +296,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -323,34 +339,34 @@ const styles = StyleSheet.create({
   planSummaryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   planSummaryCard: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderRadius: 16,
     padding: 24,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
   },
   planName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 8,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   planPrice: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#D4AF37',
+    color: '#00B4DB',
     textAlign: 'center',
     marginBottom: 8,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
@@ -360,60 +376,60 @@ const styles = StyleSheet.create({
   planPeriod: {
     fontSize: 16,
     fontWeight: 'normal',
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
   },
   planDescription: {
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
     textAlign: 'center',
     lineHeight: 18,
   },
   paymentFormContainer: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderRadius: 16,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
   },
   paymentFormTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 20,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   mockCardInput: {
-    backgroundColor: 'rgba(26, 26, 26, 0.8)',
+    backgroundColor: 'rgba(1, 87, 155, 0.8)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
   },
   mockCardText: {
     fontSize: 16,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     fontWeight: '600',
     marginBottom: 4,
   },
   mockCardInfo: {
     fontSize: 12,
-    color: 'rgba(247, 231, 206, 0.7)',
+    color: 'rgba(227, 242, 253, 0.7)',
     fontStyle: 'italic',
   },
   payButton: {
     marginBottom: 24,
     borderRadius: 20,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#00B4DB',
     paddingVertical: 18,
     paddingHorizontal: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
+    shadowColor: Platform.OS === 'android' ? '#000' : '#00B4DB',
     shadowOffset: {
       width: 0,
       height: 10,
@@ -422,7 +438,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 15,
     borderWidth: 2,
-    borderColor: '#F7E7CE',
+    borderColor: '#E3F2FD',
     minHeight: 64,
   },
   payButtonDisabled: {
@@ -431,9 +447,9 @@ const styles = StyleSheet.create({
   payButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(247, 231, 206, 0.5)',
+    textShadowColor: 'rgba(0, 180, 219, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -441,31 +457,31 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
     fontWeight: '500',
   },
   securitySection: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
   },
   securityTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -481,7 +497,7 @@ const styles = StyleSheet.create({
   },
   securityText: {
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.9)',
+    color: 'rgba(227, 242, 253, 0.9)',
     flex: 1,
     fontWeight: '500',
   },

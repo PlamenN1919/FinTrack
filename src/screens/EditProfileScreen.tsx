@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../utils/ThemeContext';
-import { useUser } from '../utils/UserContext';
+import { useUser } from '../contexts/UserContext';
 import { launchImageLibrary, ImagePickerResponse, MediaType } from 'react-native-image-picker';
 
 // Интерфейс за потребителски данни
@@ -26,13 +26,13 @@ interface UserProfile {
 const EditProfileScreen: React.FC = () => {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
-  const { userData, updateUserData } = useUser();
+  const { userData, updateUserData, loading: isUserLoading } = useUser();
   
   // Локално състояние за редактиране
   const [profile, setProfile] = useState<UserProfile>({
-    name: userData.name,
-    email: userData.email,
-    avatar: userData.avatar
+    name: userData?.name || '',
+    email: userData?.email || '',
+    avatar: userData?.avatar || 'https://example.com/default-avatar.png',
   });
   
   const [isLoading, setIsLoading] = useState(false);
@@ -56,7 +56,7 @@ const EditProfileScreen: React.FC = () => {
       Alert.alert('Грешка', 'Моля, въведете валиден имейл адрес');
       return false;
     }
-    
+
     return true;
   };
 
@@ -67,15 +67,12 @@ const EditProfileScreen: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Симулация на API заявка
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Обновяваме данните в контекста
-      updateUserData({
+      const dataToUpdate = {
         name: profile.name,
-        email: profile.email,
-        avatar: profile.avatar
-      });
+        avatar: profile.avatar,
+      };
+
+      await updateUserData(dataToUpdate);
       
       Alert.alert(
         'Успех', 
@@ -189,7 +186,9 @@ const EditProfileScreen: React.FC = () => {
               placeholderTextColor={theme.colors.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={false}
             />
+            <Text style={styles.inputHint}>Имейлът не може да бъде променян.</Text>
           </View>
         </View>
 
@@ -345,6 +344,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
+  },
+  inputHint: {
+    fontSize: 12,
+    color: 'grey',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   
   // Бутони

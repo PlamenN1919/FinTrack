@@ -185,7 +185,7 @@ const SubscriptionManagementScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
+        colors={['#01579B', '#0288D1', '#00B4DB']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -375,7 +375,7 @@ const SubscriptionManagementScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#01579B',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -395,24 +395,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     fontWeight: 'bold',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -432,12 +432,12 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   subscriptionCard: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
   },
   subscriptionHeader: {
     flexDirection: 'row',
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   subscriptionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -470,12 +470,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
     fontWeight: '500',
   },
   detailValue: {
     fontSize: 16,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
   },
   detailValueSmall: {
     fontSize: 12,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
@@ -508,21 +508,21 @@ const styles = StyleSheet.create({
   actionsTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 16,
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderRadius: 16,
     padding: 20,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: 'rgba(0, 180, 219, 0.2)',
   },
   actionIcon: {
     fontSize: 24,
@@ -534,33 +534,33 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 4,
   },
   actionSubtitle: {
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.7)',
+    color: 'rgba(227, 242, 253, 0.7)',
   },
   actionArrow: {
     fontSize: 18,
-    color: '#D4AF37',
+    color: '#00B4DB',
     fontWeight: 'bold',
   },
   featuresContainer: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
   },
   featuresTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 20,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.9)',
+    color: 'rgba(227, 242, 253, 0.9)',
     fontWeight: '500',
     flex: 1,
   },

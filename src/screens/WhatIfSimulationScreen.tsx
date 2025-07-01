@@ -20,6 +20,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../utils/ThemeContext';
 import { useTransactions } from '../utils/TransactionContext';
 import { useBudgets } from '../utils/BudgetContext';
+import { useUser } from '../contexts/UserContext';
 
 // Типове за симулации
 interface SimulationScenario {
@@ -50,8 +51,9 @@ interface SimulationResult {
 
 const WhatIfSimulationScreen: React.FC = () => {
   const { theme } = useTheme();
-  const navigation = useNavigation();
-  const { transactions } = useTransactions();
+  const navigation = useNavigation<any>();
+  const { transactions, loading: transactionsLoading } = useTransactions();
+  const { userData, loading: userLoading } = useUser();
   const { budgets } = useBudgets();
   
   const [selectedScenario, setSelectedScenario] = useState<SimulationScenario | null>(null);
@@ -61,26 +63,27 @@ const WhatIfSimulationScreen: React.FC = () => {
   const [customCategory, setCustomCategory] = useState('');
   const [customDuration, setCustomDuration] = useState('12');
 
-  // Изчисляване на текущи финансови показатели
+  // Изчисляване на финансови показатели
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
-  
-  const currentMonthTransactions = transactions.filter(transaction => {
-    const transactionDate = new Date(transaction.date);
-    return transactionDate.getMonth() === currentMonth && 
-           transactionDate.getFullYear() === currentYear;
+
+  const currentMonthTransactions = transactions.filter(t => {
+    const transactionDate = new Date(t.date);
+    return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
   });
-  
+
   const monthlyIncome = currentMonthTransactions
     .filter(t => t.amount > 0)
     .reduce((sum, t) => sum + t.amount, 0);
-    
+
   const monthlyExpense = Math.abs(currentMonthTransactions
     .filter(t => t.amount < 0)
     .reduce((sum, t) => sum + t.amount, 0));
   
-  const currentBalance = 2450.75 + transactions.reduce((sum, t) => sum + t.amount, 0);
+  // Използваме реалния баланс от userData + всички транзакции
+  const totalTransactionAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const currentBalance = (userData?.initialBalance || 0) + totalTransactionAmount;
   const monthlySavings = monthlyIncome - monthlyExpense;
 
   // Предефинирани сценарии

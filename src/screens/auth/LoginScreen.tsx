@@ -29,9 +29,12 @@ const LoginScreen: React.FC = () => {
   // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Validation states
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -66,32 +69,38 @@ const LoginScreen: React.FC = () => {
     ]).start();
   }, []);
 
-  const validateForm = (): boolean => {
-    if (!email.trim()) {
-      Alert.alert('Грешка', 'Моля, въведете имейл адрес');
-      emailRef.current?.focus();
+  const validateEmail = (emailValue: string) => {
+    const processedEmail = emailValue.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!processedEmail) {
+      setEmailError('Имейлът е задължителен');
       return false;
     }
-
-    if (!email.includes('@') || !email.includes('.')) {
-      Alert.alert('Грешка', 'Моля, въведете валиден имейл адрес');
-      emailRef.current?.focus();
+    if (!emailRegex.test(processedEmail)) {
+      setEmailError('Моля, въведете валиден имейл адрес');
       return false;
     }
-
-    if (!password.trim()) {
-      Alert.alert('Грешка', 'Моля, въведете парола');
-      passwordRef.current?.focus();
-      return false;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Грешка', 'Паролата трябва да бъде поне 6 символа');
-      passwordRef.current?.focus();
-      return false;
-    }
-
+    setEmailError('');
     return true;
+  };
+
+  const validatePassword = (passwordValue: string) => {
+    if (!passwordValue.trim()) {
+      setPasswordError('Паролата е задължителна');
+      return false;
+    }
+    if (passwordValue.length < 6) {
+      setPasswordError('Паролата трябва да бъде поне 6 символа');
+      return false;
+    }
+    setPasswordError('');
+    return true;
+  };
+
+  const validateForm = (): boolean => {
+    const isEmailValid = validateEmail(email);
+    const isPasswordValid = validatePassword(password);
+    return isEmailValid && isPasswordValid;
   };
 
   const handleEmailLogin = async () => {
@@ -104,24 +113,18 @@ const LoginScreen: React.FC = () => {
       const credentials: LoginCredentials = {
         email: email.trim().toLowerCase(),
         password,
-        rememberMe,
       };
 
       await signInWithEmail(credentials);
       
       // Navigation will be handled by the auth state change
     } catch (error: any) {
-      console.error('Login error:', error);
-      Alert.alert(
-        'Грешка при влизане',
-        error.message || 'Възникна неочаквана грешка. Моля, опитайте отново.'
-      );
+      // The error will be displayed via authState.error, no need for an alert here.
+      console.error('Login error:', error.message);
     } finally {
       setIsLoading(false);
     }
   };
-
-
 
   const handleForgotPassword = () => {
     navigation.navigate('ForgotPassword', { email });
@@ -144,7 +147,8 @@ const LoginScreen: React.FC = () => {
       
       {/* Premium Background */}
       <LinearGradient
-        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
+        colors={['#0A0A0A', '#1A1A1A', '#2A2020', '#1A1A1A', '#0A0A0A']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -185,12 +189,12 @@ const LoginScreen: React.FC = () => {
           <View style={styles.logoSection}>
             <View style={styles.logoWrapper}>
               <Image
-                source={require('../../../logo/F.png')}
+                source={require('../../assets/images/F.png')}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
               <LinearGradient
-                colors={['rgba(212, 175, 55, 0.2)', 'rgba(247, 231, 206, 0.1)']}
+                colors={['rgba(0, 180, 219, 0.4)', 'rgba(64, 196, 255, 0.2)']}
                 style={styles.logoGlow}
               />
             </View>
@@ -207,15 +211,18 @@ const LoginScreen: React.FC = () => {
           {/* Email Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Имейл адрес</Text>
-            <View style={styles.inputWrapper}>
+            <View style={[styles.inputWrapper, emailError && styles.inputWrapperError]}>
               <Text style={styles.inputIcon}>📧</Text>
               <TextInput
                 ref={emailRef}
                 style={styles.textInput}
                 placeholder="example@email.com"
-                placeholderTextColor="rgba(247, 231, 206, 0.5)"
+                placeholderTextColor="rgba(227, 242, 253, 0.5)"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  validateEmail(text);
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -224,20 +231,24 @@ const LoginScreen: React.FC = () => {
                 editable={!isLoading}
               />
             </View>
+            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
           </View>
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Парола</Text>
-            <View style={styles.inputWrapper}>
+            <View style={[styles.inputWrapper, passwordError && styles.inputWrapperError]}>
               <Text style={styles.inputIcon}>🔒</Text>
               <TextInput
                 ref={passwordRef}
                 style={styles.textInput}
                 placeholder="Въведете паролата си"
-                placeholderTextColor="rgba(247, 231, 206, 0.5)"
+                placeholderTextColor="rgba(227, 242, 253, 0.5)"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  validatePassword(text);
+                }}
                 secureTextEntry={!showPassword}
                 returnKeyType="done"
                 onSubmitEditing={handleEmailLogin}
@@ -250,20 +261,12 @@ const LoginScreen: React.FC = () => {
                 <Text style={styles.passwordToggleText}>{showPassword ? '🙈' : '👁️'}</Text>
               </TouchableOpacity>
             </View>
+            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
           </View>
 
-          {/* Remember Me & Forgot Password */}
+          {/* Forgot Password Link */}
           <View style={styles.optionsRow}>
-            <TouchableOpacity
-              style={styles.rememberMeContainer}
-              onPress={() => setRememberMe(!rememberMe)}
-            >
-              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                {rememberMe && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-              <Text style={styles.rememberMeText}>Запомни ме</Text>
-            </TouchableOpacity>
-
+             <View style={{flex: 1}} />
             <TouchableOpacity onPress={handleForgotPassword}>
               <Text style={styles.forgotPasswordText}>Забравена парола?</Text>
             </TouchableOpacity>
@@ -281,8 +284,6 @@ const LoginScreen: React.FC = () => {
               <Text style={styles.loginButtonText}>Влизане</Text>
             )}
           </TouchableOpacity>
-
-
 
           {/* Register Link */}
           <View style={styles.registerContainer}>
@@ -307,7 +308,7 @@ const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#0A0A0A',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -329,22 +330,22 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     fontWeight: 'bold',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -372,13 +373,13 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#F7E7CE',
+    backgroundColor: '#E3F2FD',
     borderWidth: 3,
-    borderColor: '#D4AF37',
+    borderColor: '#00B4DB',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    shadowColor: '#D4AF37',
+    shadowColor: '#00B4DB',
     shadowOffset: {
       width: 0,
       height: 8,
@@ -409,17 +410,17 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 8,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
     letterSpacing: 1,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
     textAlign: 'center',
     lineHeight: 22,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
@@ -432,7 +433,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 8,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
@@ -444,14 +445,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(26, 26, 26, 0.6)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     paddingHorizontal: 16,
     height: 56,
+  },
+  inputWrapperError: {
+    borderColor: '#F44336',
   },
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     paddingVertical: 0,
     paddingLeft: 12,
   },
@@ -465,7 +469,7 @@ const styles = StyleSheet.create({
   },
   passwordToggleText: {
     fontSize: 20,
-    color: 'rgba(247, 231, 206, 0.6)',
+    color: 'rgba(227, 242, 253, 0.6)',
   },
   optionsRow: {
     flexDirection: 'row',
@@ -473,71 +477,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
   },
-  rememberMeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: 'rgba(247, 231, 206, 0.6)',
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#D4AF37',
-    borderColor: '#D4AF37',
-  },
-  checkmark: {
-    color: '#1A1A1A',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  rememberMeText: {
-    fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.8)',
-    fontWeight: '500',
-  },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#D4AF37',
+    color: '#00B4DB',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   loginButton: {
     marginBottom: 24,
-    borderRadius: 20,
-    backgroundColor: '#D4AF37',
-    paddingVertical: 18,
+    borderRadius: 25,
+    backgroundColor: '#00B4DB',
+    paddingVertical: 20,
     paddingHorizontal: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
+    shadowColor: '#00B4DB',
     shadowOffset: {
       width: 0,
-      height: 10,
+      height: 8,
     },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 15,
-    borderWidth: 2,
-    borderColor: '#F7E7CE',
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
     minHeight: 64,
   },
   loginButtonDisabled: {
     opacity: 0.6,
   },
   loginButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 19,
+    fontWeight: '800',
     color: '#1A1A1A',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(247, 231, 206, 0.5)',
+    letterSpacing: 0.8,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
 
   registerContainer: {
@@ -548,11 +522,11 @@ const styles = StyleSheet.create({
   },
   registerText: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
   },
   registerLink: {
     fontSize: 16,
-    color: '#D4AF37',
+    color: '#00B4DB',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -17,13 +18,11 @@ import { useTheme } from '../utils/ThemeContext';
 import { useTransactions } from '../utils/TransactionContext';
 import { SCREENS } from '../utils/constants';
 import gamificationService from '../services/GamificationService';
+import { useUser } from '../contexts/UserContext';
 
 // Модерни UI компоненти
 import SimpleAnimatedCard from '../components/ui/SimpleAnimatedCard';
 import PremiumButton from '../components/ui/PremiumButton';
-
-// Примерни данни за демонстрация (ще бъдат заменени с реални данни)
-const mockInitialBalance = 2450.75;
 
 // Функция за изчисляване на финансово здраве (същата като в HomeScreen)
 const calculateFinancialHealth = (transactions: any[], monthlyIncome: number, monthlyExpense: number, currentBalance: number) => {
@@ -63,51 +62,63 @@ const calculateFinancialHealth = (transactions: any[], monthlyIncome: number, mo
 const FinancialHealthScreen: React.FC = () => {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
-  const { transactions } = useTransactions();
+  const { transactions, loading: transactionsLoading } = useTransactions();
+  const { userData, loading: userLoading } = useUser();
 
-  // Изчисляване на реални данни от транзакциите
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
-  
-  // Филтриране на транзакции за текущия месец
-  const currentMonthTransactions = transactions.filter(transaction => {
-    const transactionDate = new Date(transaction.date);
-    return transactionDate.getMonth() === currentMonth && 
-           transactionDate.getFullYear() === currentYear;
-  });
-  
-  // Изчисляване на месечни приходи и разходи
-  const monthlyIncome = currentMonthTransactions
-    .filter(t => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
+  const isLoading = transactionsLoading || userLoading;
+
+  const financialData = useMemo(() => {
+    if (!userData || !transactions) {
+      return null; 
+    }
     
-  const monthlyExpense = Math.abs(currentMonthTransactions
-    .filter(t => t.amount < 0)
-    .reduce((sum, t) => sum + t.amount, 0));
-  
-  // Изчисляване на текущ баланс (начален баланс + всички транзакции)
-  const totalTransactionAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
-  const balance = mockInitialBalance + totalTransactionAmount;
-  
-  // Изчисляване на финансово здраве
-  const financialHealthScore = calculateFinancialHealth(transactions, monthlyIncome, monthlyExpense, balance);
-  
-  // Интеграция с гамификация за финансово здраве
+    const initialBalance = userData.initialBalance || 0;
+    
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    
+    const currentMonthTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
+    });
+
+    const monthlyIncome = currentMonthTransactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
+    const monthlyExpense = Math.abs(currentMonthTransactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0));
+    
+    const totalTransactionAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+    const balance = initialBalance + totalTransactionAmount;
+    
+    const financialHealthScore = calculateFinancialHealth(transactions, monthlyIncome, monthlyExpense, balance);
+
+    return {
+      monthlyIncome,
+      monthlyExpense,
+      balance,
+      financialHealthScore,
+    };
+  }, [transactions, userData]);
+
   useEffect(() => {
-    if (financialHealthScore > 0) {
-      gamificationService.onFinancialHealthUpdated(financialHealthScore, {
-        monthlyIncome,
-        monthlyExpense,
-        balance,
-        ratio: monthlyIncome > 0 ? (monthlyExpense / monthlyIncome) : 0,
-        savingsRate: monthlyIncome > 0 ? ((monthlyIncome - monthlyExpense) / monthlyIncome) : 0
+    if (financialData) {
+      gamificationService.onFinancialHealthUpdated(financialData.financialHealthScore, {
+        monthlyIncome: financialData.monthlyIncome,
+        monthlyExpense: financialData.monthlyExpense,
+        balance: financialData.balance,
+        ratio: financialData.monthlyIncome > 0 ? (financialData.monthlyExpense / financialData.monthlyIncome) : 0,
+        savingsRate: financialData.monthlyIncome > 0 ? ((financialData.monthlyIncome - financialData.monthlyExpense) / financialData.monthlyIncome) : 0
       });
-      
-      // Задействаме постижение за преглед на отчет
       gamificationService.onReportViewed('financial_health');
     }
-  }, [financialHealthScore, monthlyIncome, monthlyExpense, balance]);
+  }, [financialData]);
+
+  if (isLoading) {
+    return <ActivityIndicator style={{ flex: 1 }} size="large" color={theme.colors.primary} />;
+  }
+  
+  if (!financialData) {
+    return <Text>Не могат да се заредят данните.</Text>;
+  }
 
   // Получава здравен статус въз основа на резултата
   const getHealthStatus = (score: number) => {
@@ -120,17 +131,17 @@ const FinancialHealthScreen: React.FC = () => {
 
   // Генериране на персонализирани съвети за финансово здраве
   const getHealthAdvice = () => {
-    const ratio = monthlyIncome > 0 ? (monthlyExpense / monthlyIncome) : 0;
+    const ratio = financialData.monthlyIncome > 0 ? (financialData.monthlyExpense / financialData.monthlyIncome) : 0;
     
-    if (monthlyIncome === 0 && monthlyExpense > 0) {
+    if (financialData.monthlyIncome === 0 && financialData.monthlyExpense > 0) {
       return 'Добавете приходи за подобряване на финансовото здраве';
     } else if (ratio > 0.9) {
       return 'Намалете разходите - те са над 90% от приходите';
     } else if (ratio > 0.7) {
       return 'Подобрете спестяванията - разходите са високи';
-    } else if (balance < 0) {
+    } else if (financialData.balance < 0) {
       return 'Балансът е отрицателен - фокусирайте се върху приходите';
-    } else if (balance < 1000) {
+    } else if (financialData.balance < 1000) {
       return 'Увеличете спестяванията за по-добра финансова сигурност';
     } else {
       return 'Отлично управление! Продължавайте в същия дух';
@@ -139,8 +150,8 @@ const FinancialHealthScreen: React.FC = () => {
 
   // Генериране на реални фактори според данните
   const generateFactors = () => {
-    const ratio = monthlyIncome > 0 ? (monthlyExpense / monthlyIncome) : 0;
-    const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpense) / monthlyIncome) : 0;
+    const ratio = financialData.monthlyIncome > 0 ? (financialData.monthlyExpense / financialData.monthlyIncome) : 0;
+    const savingsRate = financialData.monthlyIncome > 0 ? ((financialData.monthlyIncome - financialData.monthlyExpense) / financialData.monthlyIncome) : 0;
     const recentTransactions = transactions.filter(t => {
       const daysDiff = (new Date().getTime() - new Date(t.date).getTime()) / (1000 * 3600 * 24);
       return daysDiff <= 30;
@@ -152,7 +163,7 @@ const FinancialHealthScreen: React.FC = () => {
         name: 'Съотношение разходи/приходи',
         score: Math.max(0, Math.min(100, (1 - ratio) * 100)),
         maxScore: 100,
-        description: monthlyIncome > 0 ? 
+        description: financialData.monthlyIncome > 0 ? 
           `${(ratio * 100).toFixed(0)}% от приходите се изразходват` :
           'Няма приходи за текущия месец'
       },
@@ -175,19 +186,19 @@ const FinancialHealthScreen: React.FC = () => {
       {
         id: '4',
         name: 'Финансов баланс',
-        score: balance > 2000 ? 100 : balance > 1000 ? 75 : balance > 0 ? 50 : balance > -500 ? 25 : 0,
+        score: financialData.balance > 2000 ? 100 : financialData.balance > 1000 ? 75 : financialData.balance > 0 ? 50 : financialData.balance > -500 ? 25 : 0,
         maxScore: 100,
-        description: `Текущ баланс: ${balance.toFixed(2)} лв.`
+        description: `Текущ баланс: ${financialData.balance.toFixed(2)} лв.`
       }
     ];
   };
 
   // Генериране на персонализирани препоръки
   const generateRecommendations = () => {
-    const ratio = monthlyIncome > 0 ? (monthlyExpense / monthlyIncome) : 0;
+    const ratio = financialData.monthlyIncome > 0 ? (financialData.monthlyExpense / financialData.monthlyIncome) : 0;
     const recommendations = [];
 
-    if (monthlyIncome === 0) {
+    if (financialData.monthlyIncome === 0) {
       recommendations.push({
         id: '1',
         title: 'Добавете източници на приходи',
@@ -210,7 +221,7 @@ const FinancialHealthScreen: React.FC = () => {
       });
     }
 
-    if (balance < 500) {
+    if (financialData.balance < 500) {
       recommendations.push({
         id: '4',
         title: 'Създайте резерв за спешни случаи',
@@ -240,6 +251,8 @@ const FinancialHealthScreen: React.FC = () => {
     return recommendations;
   };
 
+  // Променливите се извличат от memoized данните
+  const { financialHealthScore, balance, monthlyIncome, monthlyExpense } = financialData;
   const healthStatus = getHealthStatus(financialHealthScore);
   const healthAdvice = getHealthAdvice();
   const factors = generateFactors();

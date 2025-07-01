@@ -17,6 +17,7 @@ export interface EnvironmentConfig {
     android: {
       apiKey: string;
       authDomain: string;
+      databaseURL: string;
       projectId: string;
       storageBucket: string;
       messagingSenderId: string;
@@ -25,6 +26,7 @@ export interface EnvironmentConfig {
     ios: {
       apiKey: string;
       authDomain: string;
+      databaseURL: string;
       projectId: string;
       storageBucket: string;
       messagingSenderId: string;
@@ -59,20 +61,22 @@ const developmentConfig: EnvironmentConfig = {
   },
   firebase: {
     android: {
-      apiKey: 'your-android-api-key',
-      authDomain: 'fintrack-dev.firebaseapp.com',
-      projectId: 'fintrack-dev',
-      storageBucket: 'fintrack-dev.appspot.com',
-      messagingSenderId: '123456789',
-      appId: '1:123456789:android:abcdef',
+      apiKey: 'AIzaSyAAdL7AafHHBBt0gRq1QJXtuw1tT3ct6Ag',
+      authDomain: 'fintrack-bef0a.firebaseapp.com',
+      databaseURL: 'https://fintrack-bef0a.firebaseio.com',
+      projectId: 'fintrack-bef0a',
+      storageBucket: 'fintrack-bef0a.firebasestorage.app',
+      messagingSenderId: '917988712524',
+      appId: '1:917988712524:android:678aa4263a25b0d59454e9',
     },
     ios: {
-      apiKey: 'your-ios-api-key',
-      authDomain: 'fintrack-dev.firebaseapp.com',
-      projectId: 'fintrack-dev',
-      storageBucket: 'fintrack-dev.appspot.com',
-      messagingSenderId: '123456789',
-      appId: '1:123456789:ios:abcdef',
+      apiKey: 'AIzaSyCderU5HnCZvwgGNrCchqPy137L5fCjeAE',
+      authDomain: 'fintrack-bef0a.firebaseapp.com',
+      databaseURL: 'https://fintrack-bef0a.firebaseio.com',
+      projectId: 'fintrack-bef0a',
+      storageBucket: 'fintrack-bef0a.firebasestorage.app',
+      messagingSenderId: '917988712524',
+      appId: '1:917988712524:ios:26a01f2983d13d0c9454e9',
     },
   },
   stripe: {
@@ -100,6 +104,7 @@ const productionConfig: EnvironmentConfig = {
     android: {
       apiKey: 'your-prod-android-api-key',
       authDomain: 'fintrack-prod.firebaseapp.com',
+      databaseURL: '', // TODO: Add your production databaseURL
       projectId: 'fintrack-prod',
       storageBucket: 'fintrack-prod.appspot.com',
       messagingSenderId: '987654321',
@@ -108,6 +113,7 @@ const productionConfig: EnvironmentConfig = {
     ios: {
       apiKey: 'your-prod-ios-api-key',
       authDomain: 'fintrack-prod.firebaseapp.com',
+      databaseURL: '', // TODO: Add your production databaseURL
       projectId: 'fintrack-prod',
       storageBucket: 'fintrack-prod.appspot.com',
       messagingSenderId: '987654321',

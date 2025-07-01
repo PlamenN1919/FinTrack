@@ -163,7 +163,7 @@ const PaymentSuccessScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
+        colors={['#01579B', '#0288D1', '#00B4DB']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -179,7 +179,7 @@ const PaymentSuccessScreen: React.FC = () => {
               {
                 left: 50 + (index * 60),
                 transform: [{ translateY: confetti }],
-                backgroundColor: ['#D4AF37', '#F7E7CE', '#B8860B', '#DAA520', '#FFEAA7'][index],
+                backgroundColor: ['#00B4DB', '#E3F2FD', '#40C4FF', '#80D8FF', '#B3E5FC'][index],
               },
             ]}
           />
@@ -213,7 +213,7 @@ const PaymentSuccessScreen: React.FC = () => {
             ]}
           >
             <LinearGradient
-              colors={['#D4AF37', '#F7E7CE']}
+              colors={['#00B4DB', '#E3F2FD']}
               style={styles.successIconGradient}
             >
               <Text style={styles.successIcon}>🎉</Text>
@@ -341,7 +341,7 @@ const PaymentSuccessScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#01579B',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -408,16 +408,16 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     marginBottom: 12,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   successSubtitle: {
     fontSize: 18,
-    color: 'rgba(247, 231, 206, 0.9)',
+    color: 'rgba(227, 242, 253, 0.9)',
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
@@ -426,12 +426,12 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   subscriptionCard: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     width: '100%',
   },
   subscriptionHeader: {
@@ -443,10 +443,10 @@ const styles = StyleSheet.create({
   subscriptionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#E3F2FD',
   },
   activeBadge: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#00B4DB',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   activeBadgeText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
   },
   subscriptionDetails: {
     gap: 12,
@@ -466,12 +466,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
     fontWeight: '500',
   },
   detailValue: {
     fontSize: 16,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
@@ -479,62 +479,62 @@ const styles = StyleSheet.create({
   },
   detailValueSmall: {
     fontSize: 12,
-    color: '#F7E7CE',
+    color: '#E3F2FD',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
     marginLeft: 16,
   },
   featuresContainer: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
     width: '100%',
   },
   featuresTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F7E7CE',
-    marginBottom: 20,
+    color: '#E3F2FD',
+    marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(0, 180, 219, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   featuresList: {
-    gap: 16,
+    gap: 12,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   featureIcon: {
-    fontSize: 20,
-    marginRight: 16,
+    fontSize: 18,
+    marginRight: 12,
+    width: 24,
   },
   featureText: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.9)',
-    fontWeight: '500',
+    color: 'rgba(227, 242, 253, 0.9)',
     flex: 1,
+    fontWeight: '500',
   },
   buttonsContainer: {
     width: '100%',
+    gap: 16,
     marginBottom: 30,
   },
   continueButton: {
-    marginBottom: 16,
     borderRadius: 20,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#00B4DB',
     paddingVertical: 18,
     paddingHorizontal: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
+    shadowColor: Platform.OS === 'android' ? '#000' : '#00B4DB',
     shadowOffset: {
       width: 0,
       height: 10,
@@ -543,58 +543,48 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 15,
     borderWidth: 2,
-    borderColor: '#F7E7CE',
+    borderColor: '#E3F2FD',
     minHeight: 64,
   },
   continueButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#1A1A1A',
+    color: '#FFFFFF',
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(247, 231, 206, 0.5)',
+    textShadowColor: 'rgba(0, 180, 219, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-
   viewSubscriptionButton: {
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 16,
+    backgroundColor: 'rgba(1, 87, 155, 0.6)',
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.5)',
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    borderColor: 'rgba(0, 180, 219, 0.3)',
+    alignItems: 'center',
   },
   viewSubscriptionText: {
     fontSize: 16,
+    color: 'rgba(227, 242, 253, 0.9)',
     fontWeight: '600',
-    color: '#F7E7CE',
-    textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   thankYouContainer: {
     alignItems: 'center',
-    paddingHorizontal: 20,
   },
   thankYouText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#F7E7CE',
-    textAlign: 'center',
+    color: '#E3F2FD',
     marginBottom: 8,
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textAlign: 'center',
   },
   thankYouSubtext: {
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: 'rgba(227, 242, 253, 0.8)',
     textAlign: 'center',
     lineHeight: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    paddingHorizontal: 20,
   },
 });
 

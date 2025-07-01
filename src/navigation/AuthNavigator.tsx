@@ -8,6 +8,8 @@ import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
+import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
 import SubscriptionPlansScreen from '../screens/auth/SubscriptionPlansScreen';
 import PaymentScreen from '../screens/auth/PaymentScreen';
 import PaymentSuccessScreen from '../screens/auth/PaymentSuccessScreen';
@@ -84,7 +86,24 @@ const AuthNavigator: React.FC = () => {
         }}
       />
 
+      {/* Legal Screens */}
+      <Stack.Screen 
+        name="TermsOfService" 
+        component={TermsOfServiceScreen}
+        options={{
+          animation: 'slide_from_right',
+          gestureDirection: 'horizontal',
+        }}
+      />
 
+      <Stack.Screen 
+        name="PrivacyPolicy" 
+        component={PrivacyPolicyScreen}
+        options={{
+          animation: 'slide_from_right',
+          gestureDirection: 'horizontal',
+        }}
+      />
 
       {/* Subscription Screens */}
       <Stack.Screen 

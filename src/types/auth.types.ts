@@ -16,8 +16,8 @@ export enum AuthProvider {
 
 export enum SubscriptionPlan {
   MONTHLY = 'monthly',
-  QUARTERLY = 'quarterly', 
-  YEARLY = 'yearly'
+  QUARTERLY = 'quarterly',
+  YEARLY = 'yearly',
 }
 
 export enum SubscriptionStatus {
@@ -142,7 +142,7 @@ export interface AuthContextType {
   // Subscription management
   createSubscription: (planId: SubscriptionPlan, paymentMethodId: string) => Promise<Subscription>;
   cancelSubscription: () => Promise<void>;
-  updateSubscription: (planId: SubscriptionPlan) => Promise<Subscription>;
+  updateSubscription: (planId: SubscriptionPlan) => Promise<void>;
   restorePurchases: () => Promise<Subscription[]>;
   setSubscription: (subscription: Subscription) => Promise<void>;
   
@@ -159,6 +159,8 @@ export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
   ForgotPassword: { email?: string };
+  TermsOfService: undefined;
+  PrivacyPolicy: undefined;
   SubscriptionPlans: { 
     reason?: 'new_user' | 'expired' | 'upgrade' | 'payment_failed';
     previousPlan?: SubscriptionPlan;
