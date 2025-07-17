@@ -8,11 +8,12 @@ import {
   StatusBar,
   Animated,
   Platform,
+  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AuthStackParamList, SubscriptionPlan } from '../../types/auth.types';
+import { AuthStackParamList, SubscriptionPlan, SubscriptionStatus, UserState } from '../../types/auth.types';
 import { formatPrice } from '../../config/subscription.config';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -22,7 +23,7 @@ type PaymentSuccessScreenRouteProp = RouteProp<AuthStackParamList, 'PaymentSucce
 const PaymentSuccessScreen: React.FC = () => {
   const navigation = useNavigation<PaymentSuccessScreenNavigationProp>();
   const route = useRoute<PaymentSuccessScreenRouteProp>();
-  const { authState, setSubscription } = useAuth();
+  const { authState, setSubscription, refreshAuthState } = useAuth();
 
   const { subscription } = route.params;
 
@@ -139,15 +140,72 @@ const PaymentSuccessScreen: React.FC = () => {
 
   const handleContinue = async () => {
     try {
-      // Update auth context with the subscription
-      // This will automatically trigger navigation to main app via AppNavigator
-      console.log('Activating subscription and navigating to main app...');
-      await setSubscription(subscription);
-      console.log('Subscription set successfully, navigation should happen automatically');
-    } catch (error) {
-      console.error('Failed to set subscription:', error);
-      // Even if setting fails, the subscription object indicates success
-      // so we could still navigate or show an alert to try again
+      console.log('[PaymentSuccessScreen] Starting activation process...');
+      console.log('[PaymentSuccessScreen] Subscription object:', subscription);
+      console.log('[PaymentSuccessScreen] Current authState:', authState);
+      
+      // Ensure subscription has active status
+      const activeSubscription = {
+        ...subscription,
+        status: SubscriptionStatus.ACTIVE, // Ensure status is ACTIVE
+      };
+      
+      console.log('[PaymentSuccessScreen] Setting subscription in context...');
+      await setSubscription(activeSubscription);
+      
+      console.log('[PaymentSuccessScreen] Subscription set successfully. Checking navigation...');
+      
+      // Wait for state to propagate and check multiple times
+      let attempts = 0;
+      const maxAttempts = 10;
+      const checkInterval = 200; // Check every 200ms
+      
+      const checkAndNavigate = () => {
+        attempts++;
+        console.log(`[PaymentSuccessScreen] Navigation check attempt ${attempts}/${maxAttempts}`);
+        console.log(`[PaymentSuccessScreen] Current userState: ${authState.userState}`);
+        
+        if (authState.userState === UserState.ACTIVE_SUBSCRIBER) {
+          console.log('[PaymentSuccessScreen] Navigation successful - user is now active subscriber');
+          // Navigation will happen automatically via AppNavigator
+          return;
+        }
+        
+        if (attempts >= maxAttempts) {
+          console.log('[PaymentSuccessScreen] Max attempts reached, showing manual navigation message');
+          Alert.alert(
+            'Абонаментът е активиран!',
+            'Моля, рестартирайте приложението за да влезете в основното меню.',
+            [
+              { 
+                text: 'Затвори приложението', 
+                onPress: () => {
+                  // User will need to restart the app
+                  console.log('[PaymentSuccessScreen] User requested app closure');
+                }
+              }
+            ]
+          );
+          return;
+        }
+        
+        // Schedule next check
+        setTimeout(checkAndNavigate, checkInterval);
+      };
+      
+      // Start checking
+      checkAndNavigate();
+      
+    } catch (error: any) {
+      console.error('[PaymentSuccessScreen] Failed to activate subscription:', error);
+      Alert.alert(
+        'Грешка при активиране', 
+        'Възникна проблем при активирането на абонамента. Моля, рестартирайте приложението. Ако проблемът продължава, свържете се с поддръжката.',
+        [
+          { text: 'Опитай отново', onPress: handleContinue },
+          { text: 'Затвори', style: 'cancel' }
+        ]
+      );
     }
   };
 
@@ -163,7 +221,7 @@ const PaymentSuccessScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#01579B', '#0288D1', '#00B4DB']}
+        colors={['#F8F4F0', '#DDD0C8', '#B0A89F']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -179,7 +237,7 @@ const PaymentSuccessScreen: React.FC = () => {
               {
                 left: 50 + (index * 60),
                 transform: [{ translateY: confetti }],
-                backgroundColor: ['#00B4DB', '#E3F2FD', '#40C4FF', '#80D8FF', '#B3E5FC'][index],
+                backgroundColor: ['#B0A89F', '#F8F4F0', '#DDD0C8', '#E8D5B7', '#C8B299'][index],
               },
             ]}
           />
@@ -213,7 +271,7 @@ const PaymentSuccessScreen: React.FC = () => {
             ]}
           >
             <LinearGradient
-              colors={['#00B4DB', '#E3F2FD']}
+              colors={['#B0A89F', '#F8F4F0']}
               style={styles.successIconGradient}
             >
               <Text style={styles.successIcon}>🎉</Text>
@@ -229,7 +287,7 @@ const PaymentSuccessScreen: React.FC = () => {
           </View>
 
           {/* Subscription Details */}
-          <View style={styles.subscriptionCard}>
+          <View style={styles.subscriptionInfoCard}>
             <View style={styles.subscriptionHeader}>
               <Text style={styles.subscriptionTitle}>Детайли на абонамента</Text>
               <View style={styles.activeBadge}>
@@ -341,7 +399,7 @@ const PaymentSuccessScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#01579B',
+    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -408,30 +466,30 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 12,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   successSubtitle: {
     fontSize: 18,
-    color: 'rgba(227, 242, 253, 0.9)',
+    color: '#6B5B57',
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: 'rgba(176, 168, 159, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  subscriptionCard: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+  subscriptionInfoCard: {
+    backgroundColor: 'rgba(234, 227, 219, 0.9)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.4)',
     width: '100%',
   },
   subscriptionHeader: {
@@ -443,10 +501,10 @@ const styles = StyleSheet.create({
   subscriptionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
   },
   activeBadge: {
-    backgroundColor: '#00B4DB',
+    backgroundColor: '#A89D93',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -454,7 +512,7 @@ const styles = StyleSheet.create({
   activeBadgeText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#FAF7F3',
   },
   subscriptionDetails: {
     gap: 12,
@@ -466,12 +524,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 16,
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
     fontWeight: '500',
   },
   detailValue: {
     fontSize: 16,
-    color: '#E3F2FD',
+    color: '#3D342F',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
@@ -479,28 +537,28 @@ const styles = StyleSheet.create({
   },
   detailValueSmall: {
     fontSize: 12,
-    color: '#E3F2FD',
+    color: '#3D342F',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
     marginLeft: 16,
   },
   featuresContainer: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(219, 208, 198, 0.9)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.4)',
     width: '100%',
   },
   featuresTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(45, 41, 40, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -518,7 +576,7 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 16,
-    color: 'rgba(227, 242, 253, 0.9)',
+    color: '#5D504B',
     flex: 1,
     fontWeight: '500',
   },
@@ -528,30 +586,31 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   continueButton: {
-    borderRadius: 20,
-    backgroundColor: '#00B4DB',
-    paddingVertical: 18,
-    paddingHorizontal: 40,
+    borderRadius: 30,
+    backgroundColor: 'rgba(139, 127, 120, 0.8)',
+    borderWidth: 2,
+    borderColor: 'rgba(139, 127, 120, 0.9)',
+    paddingVertical: 22,
+    paddingHorizontal: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Platform.OS === 'android' ? '#000' : '#00B4DB',
+    shadowColor: '#8B7F78',
     shadowOffset: {
       width: 0,
-      height: 10,
+      height: 6,
     },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 15,
-    borderWidth: 2,
-    borderColor: '#E3F2FD',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
     minHeight: 64,
+    overflow: 'hidden',
   },
   continueButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 180, 219, 0.5)',
+    color: '#FAF7F3',
+    letterSpacing: 0.6,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -559,14 +618,14 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(219, 208, 198, 0.8)',
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.4)',
     alignItems: 'center',
   },
   viewSubscriptionText: {
     fontSize: 16,
-    color: 'rgba(227, 242, 253, 0.9)',
+    color: '#5D504B',
     fontWeight: '600',
   },
   thankYouContainer: {
@@ -575,13 +634,13 @@ const styles = StyleSheet.create({
   thankYouText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#3D342F',
     marginBottom: 8,
     textAlign: 'center',
   },
   thankYouSubtext: {
     fontSize: 14,
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 20,

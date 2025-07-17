@@ -68,6 +68,7 @@ export interface AuthState {
   isLoading: boolean;
   isInitialized: boolean;
   error: AuthError | null;
+  shouldShowWelcome?: boolean;
 }
 
 export interface AuthError {

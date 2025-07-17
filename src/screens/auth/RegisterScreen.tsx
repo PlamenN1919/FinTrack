@@ -189,7 +189,12 @@ const RegisterScreen: React.FC = () => {
 
       await signUpWithEmail(credentials);
       
-      // Navigation will be handled automatically by AuthNavigator based on user state
+      // Navigate directly to subscription plans after successful registration
+      console.log('[RegisterScreen] Registration successful, navigating to SubscriptionPlans...');
+      navigation.navigate('SubscriptionPlans', {
+        reason: 'new_user'
+      });
+      
     } catch (error: any) {
       // Log a cleaner error message to the console for debugging
       console.warn(`Registration failed: ${error.message}`);
@@ -259,7 +264,7 @@ const RegisterScreen: React.FC = () => {
       
       {/* Premium Background */}
       <LinearGradient
-        colors={['#0A0A0A', '#1A1A1A', '#2A2020', '#1A1A1A', '#0A0A0A']}
+        colors={['#F8F4F0', '#DDD0C8', '#B0A89F', '#DDD0C8', '#F8F4F0']}
         locations={[0, 0.25, 0.5, 0.75, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -306,7 +311,7 @@ const RegisterScreen: React.FC = () => {
                 resizeMode="contain"
               />
               <LinearGradient
-                colors={['rgba(0, 180, 219, 0.4)', 'rgba(64, 196, 255, 0.2)']}
+                colors={['rgba(180, 170, 160, 0.4)', 'rgba(168, 157, 147, 0.2)']}
                 style={styles.logoGlow}
               />
             </View>
@@ -329,7 +334,7 @@ const RegisterScreen: React.FC = () => {
                 ref={emailRef}
                 style={styles.textInput}
                 placeholder="example@email.com"
-                placeholderTextColor="rgba(227, 242, 253, 0.5)"
+                placeholderTextColor="rgba(0, 0, 0, 0.5)"
                 value={email}
                 onChangeText={handleEmailChange}
                 keyboardType="email-address"
@@ -352,7 +357,7 @@ const RegisterScreen: React.FC = () => {
                 ref={passwordRef}
                 style={styles.textInput}
                 placeholder="Въведете сигурна парола"
-                placeholderTextColor="rgba(227, 242, 253, 0.5)"
+                placeholderTextColor="rgba(0, 0, 0, 0.5)"
                 value={password}
                 onChangeText={handlePasswordChange}
                 secureTextEntry={!showPassword}
@@ -401,7 +406,7 @@ const RegisterScreen: React.FC = () => {
                 ref={confirmPasswordRef}
                 style={styles.textInput}
                 placeholder="Въведете паролата отново"
-                placeholderTextColor="rgba(227, 242, 253, 0.5)"
+                placeholderTextColor="rgba(0, 0, 0, 0.5)"
                 value={confirmPassword}
                 onChangeText={handleConfirmPasswordChange}
                 secureTextEntry={!showConfirmPassword}
@@ -463,7 +468,7 @@ const RegisterScreen: React.FC = () => {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#1A1A1A" size="small" />
+              <ActivityIndicator color="#FAF7F3" size="small" />
             ) : (
               <Text style={styles.registerButtonText}>Създай акаунт</Text>
             )}
@@ -492,7 +497,7 @@ const RegisterScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -512,24 +517,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
-    color: '#E3F2FD',
+    color: '#2D2928',
     fontWeight: 'bold',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.5)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -557,13 +562,13 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#F8F4F0',
     borderWidth: 3,
-    borderColor: '#00B4DB',
+    borderColor: '#B0A89F',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    shadowColor: '#00B4DB',
+    shadowColor: '#B0A89F',
     shadowOffset: {
       width: 0,
       height: 8,
@@ -594,20 +599,20 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 8,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.5)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
     letterSpacing: 1,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
     textAlign: 'center',
     lineHeight: 22,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: 'rgba(176, 168, 159, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
     paddingHorizontal: 10,
@@ -618,19 +623,19 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: 'rgba(176, 168, 159, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
     paddingHorizontal: 16,
     height: 56,
   },
@@ -641,9 +646,10 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#E3F2FD',
+    color: '#000000',
     paddingVertical: 0,
     paddingLeft: 12,
+    fontWeight: '500',
   },
   inputIcon: {
     fontSize: 20,
@@ -706,8 +712,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#00B4DB',
-    borderColor: '#00B4DB',
+    backgroundColor: '#B0A89F',
+    borderColor: '#B0A89F',
   },
   checkmark: {
     color: '#1A1A1A',
@@ -719,32 +725,35 @@ const styles = StyleSheet.create({
   },
   termsMainText: {
     fontSize: 14,
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
     lineHeight: 20,
     fontWeight: '400',
   },
   termsLink: {
-    color: '#00B4DB',
+    color: '#B0A89F',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   registerButton: {
     marginBottom: 24,
-    borderRadius: 25,
-    backgroundColor: '#00B4DB',
-    paddingVertical: 20,
-    paddingHorizontal: 40,
+    borderRadius: 30,
+    backgroundColor: 'rgba(139, 127, 120, 0.8)',
+    borderWidth: 2,
+    borderColor: 'rgba(139, 127, 120, 0.9)',
+    paddingVertical: 24,
+    paddingHorizontal: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#00B4DB',
+    shadowColor: '#8B7F78',
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 6,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
     minHeight: 64,
+    overflow: 'hidden',
   },
   registerButtonDisabled: {
     opacity: 0.6,
@@ -752,11 +761,11 @@ const styles = StyleSheet.create({
   registerButtonText: {
     fontSize: 19,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#FAF7F3',
     letterSpacing: 0.8,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 2,
   },
   buttonIcon: {
     fontSize: 20,
@@ -775,7 +784,7 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     fontSize: 16,
-    color: '#00B4DB',
+    color: '#B0A89F',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

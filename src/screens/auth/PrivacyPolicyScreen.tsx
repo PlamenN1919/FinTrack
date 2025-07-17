@@ -55,7 +55,7 @@ const PrivacyPolicyScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#0A0A0A', '#1A1A1A', '#2A2020', '#1A1A1A', '#0A0A0A']}
+        colors={['#FAF7F3', '#EFE8E2', '#DFD6CF', '#EFE8E2', '#FAF7F3']}
         locations={[0, 0.25, 0.5, 0.75, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -192,7 +192,7 @@ const PrivacyPolicyScreen: React.FC = () => {
             <View style={styles.bulletContainer}>
               <Text style={styles.bulletPoint}>• Достъп до вашите лични данни</Text>
               <Text style={styles.bulletPoint}>• Поправка на неточни данни</Text>
-              <Text style={styles.bulletPoint}>• Изтриване на данни ("правото да бъдете забравени")</Text>
+              <Text style={styles.bulletPoint}>• Изтриване на данни ("правото да бъдете забранени")</Text>
               <Text style={styles.bulletPoint}>• Ограничаване на обработката</Text>
               <Text style={styles.bulletPoint}>• Преносимост на данни</Text>
               <Text style={styles.bulletPoint}>• Възражение срещу обработката</Text>
@@ -249,7 +249,7 @@ const PrivacyPolicyScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#FAF7F3',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -269,24 +269,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(180, 170, 160, 0.8)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(168, 157, 147, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#FAF7F3',
   },
   headerTitle: {
     flex: 1,
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#3D342F',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(180, 170, 160, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -302,37 +302,38 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   contentContainer: {
-    flex: 1,
-    paddingTop: 20,
+    backgroundColor: 'rgba(248, 244, 240, 0.9)',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(180, 170, 160, 0.3)',
+    width: '100%',
   },
   lastUpdatedContainer: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(239, 232, 226, 0.8)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.3)',
   },
   lastUpdatedText: {
     fontSize: 14,
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
     textAlign: 'center',
     fontStyle: 'italic',
   },
   sectionContainer: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
-    marginBottom: 12,
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    color: '#3D342F',
+    marginBottom: 16,
+    textAlign: 'center',
+    textShadowColor: 'rgba(180, 170, 160, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -344,36 +345,35 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionText: {
-    fontSize: 15,
-    color: 'rgba(227, 242, 253, 0.9)',
-    lineHeight: 22,
-    fontWeight: '400',
+    fontSize: 16,
+    color: '#5D504B',
+    lineHeight: 24,
+    marginBottom: 16,
   },
   bulletContainer: {
-    marginTop: 8,
-    paddingLeft: 8,
+    marginLeft: 20,
+    marginBottom: 12,
   },
   bulletPoint: {
     fontSize: 15,
-    color: 'rgba(227, 242, 253, 0.9)',
+    color: '#6B5B57',
     lineHeight: 22,
     marginBottom: 6,
-    fontWeight: '400',
   },
   footerContainer: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(219, 208, 198, 0.8)',
     borderRadius: 12,
-    padding: 16,
-    marginTop: 10,
+    padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.3)',
+    alignItems: 'center',
   },
   footerText: {
     fontSize: 14,
-    color: 'rgba(227, 242, 253, 0.7)',
+    color: '#5D504B',
     textAlign: 'center',
-    fontStyle: 'italic',
     lineHeight: 20,
+    fontStyle: 'italic',
   },
 });
 

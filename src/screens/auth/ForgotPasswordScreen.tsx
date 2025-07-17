@@ -72,7 +72,7 @@ const ForgotPasswordScreen: React.FC = () => {
 
   // Cooldown timer effect
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: number;
     if (resendCooldown > 0) {
       timer = setTimeout(() => {
         setResendCooldown(resendCooldown - 1);
@@ -193,7 +193,7 @@ const ForgotPasswordScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#1A1A1A', '#2A2A2A', '#1A1A1A']}
+        colors={['#F8F4F0', '#DDD0C8', '#B0A89F']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -295,21 +295,16 @@ const ForgotPasswordScreen: React.FC = () => {
                   onPress={handleSendResetEmail}
                   disabled={isLoading}
                 >
-                  <LinearGradient
-                    colors={isLoading ? ['#999', '#666'] : ['#4CAF50', '#45a049']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.primaryButtonGradient}
-                  >
+                  <View style={styles.primaryButtonInner}>
                     {isLoading ? (
-                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <ActivityIndicator color="#FAF7F3" size="small" />
                     ) : (
                       <>
                         <Text style={styles.primaryButtonText}>Изпрати инструкции</Text>
                         <Text style={styles.primaryButtonIcon}>📤</Text>
                       </>
                     )}
-                  </LinearGradient>
+                  </View>
                 </TouchableOpacity>
               </>
             )}
@@ -393,7 +388,7 @@ const ForgotPasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -413,24 +408,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
-    color: '#F7E7CE',
+    color: '#2D2928',
     fontWeight: 'bold',
   },
   headerTitle: {
     flex: 1,
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#2D2928',
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(45, 41, 40, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -460,8 +455,8 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#D4AF37',
-    shadowColor: '#D4AF37',
+    backgroundColor: '#B0A89F',
+    shadowColor: '#B0A89F',
     shadowOffset: {
       width: 0,
       height: 8,
@@ -481,21 +476,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#2D2928',
     marginBottom: 12,
     textAlign: 'center',
-    textShadowColor: 'rgba(212, 175, 55, 0.3)',
+    textShadowColor: 'rgba(45, 41, 40, 0.2)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: '#5D504B',
     textAlign: 'center',
     marginBottom: 30,
     lineHeight: 22,
     paddingHorizontal: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: 'rgba(93, 80, 75, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -506,30 +501,30 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F7E7CE',
+    color: '#3D342F',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: 'rgba(61, 52, 47, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.5)',
     paddingHorizontal: 16,
     height: 56,
   },
   inputWrapperError: {
-    borderColor: '#F44336',
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    borderColor: '#B85450',
+    backgroundColor: 'rgba(184, 84, 80, 0.1)',
   },
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#F7E7CE',
+    color: '#3D342F',
     paddingVertical: 0,
   },
   inputIcon: {
@@ -537,74 +532,81 @@ const styles = StyleSheet.create({
   },
   inputIconText: {
     fontSize: 20,
+    color: '#6B5B57',
   },
   errorText: {
     fontSize: 12,
-    color: '#F44336',
+    color: '#B85450',
     marginTop: 4,
     marginLeft: 4,
     fontWeight: '500',
   },
   primaryButton: {
     marginBottom: 24,
-    borderRadius: 12,
-    shadowColor: Platform.OS === 'android' ? '#000' : '#D4AF37',
+    borderRadius: 30,
+    backgroundColor: 'rgba(139, 127, 120, 0.8)',
+    borderWidth: 2,
+    borderColor: 'rgba(139, 127, 120, 0.9)',
+    shadowColor: '#8B7F78',
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 6,
     },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
     minHeight: 56,
+    overflow: 'hidden',
   },
   primaryButtonDisabled: {
     opacity: 0.6,
   },
-  primaryButtonGradient: {
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+  primaryButtonInner: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    backgroundColor: '#D4AF37',
+    paddingVertical: 20,
+    paddingHorizontal: 40,
   },
   primaryButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1A1A1A',
+    color: '#FAF7F3',
     marginRight: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   primaryButtonIcon: {
     fontSize: 18,
+    color: '#FAF7F3',
   },
   emailSentContainer: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(239, 232, 226, 0.8)',
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.5)',
     alignItems: 'center',
   },
   emailSentText: {
     fontSize: 16,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: '#5D504B',
     marginBottom: 8,
     textAlign: 'center',
   },
   emailAddressText: {
     fontSize: 16,
-    color: '#D4AF37',
+    color: '#3D342F',
     fontWeight: 'bold',
     textAlign: 'center',
   },
   secondaryButton: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(234, 227, 219, 0.8)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.5)',
     paddingVertical: 16,
     paddingHorizontal: 32,
     alignItems: 'center',
@@ -621,27 +623,27 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontSize: 16,
-    color: '#D4AF37',
+    color: '#6B5B57',
     fontWeight: '600',
     marginRight: 8,
   },
   secondaryButtonIcon: {
     fontSize: 16,
-    color: '#D4AF37',
+    color: '#6B5B57',
   },
   helpSection: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(234, 227, 219, 0.8)',
     borderRadius: 12,
     padding: 20,
     marginBottom: 30,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.5)',
     width: '100%',
   },
   helpTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#F7E7CE',
+    color: '#3D342F',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -656,11 +658,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
     width: 24,
     textAlign: 'center',
+    color: '#6B5B57',
   },
   helpText: {
     flex: 1,
     fontSize: 14,
-    color: 'rgba(247, 231, 206, 0.8)',
+    color: '#5D504B',
     lineHeight: 18,
   },
   navigationContainer: {
@@ -668,30 +671,30 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   navigationButton: {
-    backgroundColor: 'rgba(26, 26, 26, 0.6)',
+    backgroundColor: 'rgba(239, 232, 226, 0.8)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.5)',
     paddingVertical: 16,
     paddingHorizontal: 24,
     alignItems: 'center',
   },
   navigationButtonText: {
     fontSize: 16,
-    color: '#D4AF37',
+    color: '#6B5B57',
     fontWeight: '600',
   },
   errorContainer: {
     marginTop: 16,
     padding: 16,
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    backgroundColor: 'rgba(184, 84, 80, 0.1)',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(244, 67, 54, 0.3)',
+    borderColor: 'rgba(184, 84, 80, 0.3)',
   },
   errorDisplayText: {
     fontSize: 14,
-    color: '#F44336',
+    color: '#B85450',
     textAlign: 'center',
     fontWeight: '500',
   },

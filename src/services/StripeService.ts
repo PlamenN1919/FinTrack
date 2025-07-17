@@ -1,4 +1,4 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { functions } from '../config/firebase.config';
 import { SubscriptionPlan } from '../types/auth.types';
 
 /**
@@ -12,18 +12,22 @@ export interface CreatePaymentIntentResponse {
  * Calls the backend endpoint to create a Stripe Payment Intent.
  *
  * @param planId The ID of the selected subscription plan.
+ * @param userId The user ID for the payment intent.
  * @returns A promise that resolves to the server response containing the clientSecret.
  */
 export const createPaymentIntent = async (
-  planId: SubscriptionPlan
+  planId: SubscriptionPlan,
+  userId: string
 ): Promise<CreatePaymentIntentResponse> => {
-  const functions = getFunctions();
-  const createPaymentIntentCallable = httpsCallable(functions, 'createPaymentIntent');
-
-  console.log(`[StripeService] Calling createPaymentIntent for plan: ${planId}`);
+  console.log(`[StripeService] Calling createPaymentIntent for plan: ${planId}, user: ${userId}`);
 
   try {
-    const result = await createPaymentIntentCallable({ planId });
+    const createPaymentIntentCallable = functions().httpsCallable('createPaymentIntent');
+    const result = await createPaymentIntentCallable({ 
+      planId,
+      userId 
+    });
+    
     const data = result.data as CreatePaymentIntentResponse;
     
     if (!data || !data.clientSecret) {

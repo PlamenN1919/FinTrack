@@ -15,6 +15,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import NetInfo from '@react-native-community/netinfo';
 
 // Types
 import { AuthStackParamList, SubscriptionPlan, SubscriptionStatus } from '../../types/auth.types';
@@ -23,6 +24,7 @@ import { AuthStackParamList, SubscriptionPlan, SubscriptionStatus } from '../../
 import { useAuth } from '../../contexts/AuthContext';
 import { SUBSCRIPTION_PLANS } from '../../config/subscription.config';
 import { stripeService } from '../../services/StripeService';
+import { auth, createStripeSubscriptionCallable, functions } from '../../config/firebase.config';
 
 // Components
 import StripeCardForm from '../../components/payment/StripeCardForm';
@@ -50,22 +52,106 @@ const PaymentScreen: React.FC = () => {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const headerAnim = useRef(new Animated.Value(-100)).current;
 
+  // Helper function to calculate subscription period end date
+  const calculatePeriodEndDate = (planId: SubscriptionPlan, startDate: Date = new Date()): Date => {
+    const endDate = new Date(startDate);
+    
+    switch (planId) {
+      case SubscriptionPlan.MONTHLY:
+        endDate.setMonth(endDate.getMonth() + 1);
+        break;
+      case SubscriptionPlan.QUARTERLY:
+        endDate.setMonth(endDate.getMonth() + 3);
+        break;
+      case SubscriptionPlan.YEARLY:
+        endDate.setFullYear(endDate.getFullYear() + 1);
+        break;
+      default:
+        // Fallback to monthly if unknown plan
+        endDate.setMonth(endDate.getMonth() + 1);
+        break;
+    }
+    
+    return endDate;
+  };
+
   useEffect(() => {
     clearError();
 
     const preparePayment = async () => {
-      if (!authState.user) {
-        Alert.alert('Грешка', 'Трябва да сте влезли, за да направите плащане.');
-        navigation.goBack();
-        return;
-      }
+      // The outer try-catch handles all errors in the process
       try {
         setIsPreparingPayment(true);
-        const response = await stripeService.createPaymentIntent(planId, authState.user.uid);
-        setClientSecret(response.clientSecret);
+
+        // 1. Check network state first (more lenient check)
+        const netState = await NetInfo.fetch();
+        console.log('[PaymentScreen] Network State:', JSON.stringify(netState, null, 2));
+        
+        // Be more lenient - only fail if we're definitely offline
+        if (netState.isConnected === false) {
+          throw new Error('Няма връзка с интернет. Моля, проверете връзката си и опитайте отново.');
+        }
+        
+        // Log network details for debugging
+        console.log('[PaymentScreen] Network check passed - isConnected:', netState.isConnected, 'isInternetReachable:', netState.isInternetReachable);
+        
+        // Even if NetInfo is uncertain, let's try the Firebase call - it will fail properly if there's no connection
+
+        // 2. Check for authenticated user
+        const currentUser = auth().currentUser;
+        if (!currentUser) {
+          // This case should ideally not happen if navigation is correct, but as a safeguard:
+          Alert.alert('Грешка', 'Моля, влезте отново в профила си.');
+          navigation.navigate('Login');
+          return;
+        }
+
+        // 3. Get a fresh auth token
+        console.log('[PaymentScreen] Getting fresh Firebase Auth token...');
+        await currentUser.getIdToken(true);
+        console.log('[PaymentScreen] Firebase Auth token obtained');
+
+        // 4. Call the Firebase Function
+        console.log(`[PaymentScreen] Calling createStripeSubscriptionCallable for plan: ${planId}`);
+        const response = await createStripeSubscriptionCallable({ planId });
+        console.log('[PaymentScreen] Successfully received response from function.');
+
+        const data = response.data as { clientSecret: string };
+        if (!data || !data.clientSecret) {
+          throw new Error('Невалиден отговор от сървъра при подготовка на плащането.');
+        }
+
+        console.log('[PaymentScreen] Client secret received.');
+        setClientSecret(data.clientSecret);
+
       } catch (error: any) {
-        Alert.alert('Грешка при подготовка на плащането', error.message);
-        navigation.goBack();
+        console.error('[PaymentScreen] Error preparing payment:', error);
+        console.error('[PaymentScreen] Error details:', JSON.stringify({
+          message: error.message,
+          code: error.code,
+          stack: error.stack
+        }, null, 2));
+
+        // Centralized error handling with better diagnostics
+        if (error.code === 'functions/unauthenticated') {
+           Alert.alert('Сесията е изтекла', 'Моля, влезте отново в профила си.');
+           navigation.navigate('Login');
+        } else if (error.code === 'functions/unavailable') {
+          Alert.alert('Недостъпни сървъри', 'Firebase сървърите са недостъпни. Моля, проверете интернет връзката си и опитайте отново.');
+          navigation.goBack();
+        } else if (error.message && error.message.includes('Няма връзка с интернет')) {
+          // This is our custom NetInfo error
+          Alert.alert('Няма връзка с интернет', 'Моля, проверете връзката си и опитайте отново.');
+          navigation.goBack();
+        } else if (error.message && (error.message.includes('Could not connect') || error.message.includes('Network request failed'))) {
+          Alert.alert('Мрежова грешка', 'Неуспешна връзка със сървърите. Моля, проверете интернет връзката си и опитайте отново.');
+          navigation.goBack();
+        } else {
+          // For any other error, show detailed message for debugging
+          const errorMessage = error.message || 'Възникна неочаквана грешка при подготовка на плащането.';
+          Alert.alert('Грешка', `${errorMessage}\n\nError code: ${error.code || 'unknown'}`);
+          navigation.goBack();
+        }
       } finally {
         setIsPreparingPayment(false);
       }
@@ -111,40 +197,28 @@ const PaymentScreen: React.FC = () => {
   };
 
   const handlePaymentSuccess = async (paymentMethodId: string) => {
-    try {
-      await createSubscription(planId, paymentMethodId);
-      navigation.navigate('PaymentSuccess', { 
-        subscription: {
-          id: 'temp-id',
-          userId: authState.user?.uid || '',
-          plan: planId,
-          status: SubscriptionStatus.ACTIVE,
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          cancelAtPeriodEnd: false,
-          stripeCustomerId: '',
-          stripeSubscriptionId: '',
-          priceId: '',
-          amount,
-          currency,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      });
-    } catch (error: any) {
-      Alert.alert('Грешка при създаване на абонамент', error.message);
-      // Navigate to a failed state, or allow retry
-      navigation.navigate('PaymentFailed', {
-        error: {
-          code: 'subscription/creation-failed',
-          message: error.message,
-          timestamp: new Date(),
-          recoverable: true,
-        },
-        planId,
-        retryCount: 0,
-      });
-    }
+    console.log('[PaymentScreen] Subscription payment successful! PaymentMethod ID:', paymentMethodId);
+    
+    // Payment is successful, subscription webhook will handle the rest
+    // Navigate directly to success screen with ACTIVE status
+    navigation.navigate('PaymentSuccess', { 
+      subscription: {
+        id: paymentMethodId, // Use payment method ID as temporary ID
+        userId: authState.user?.uid || '',
+        plan: planId,
+        status: SubscriptionStatus.ACTIVE, // Payment successful = active subscription
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: calculatePeriodEndDate(planId),
+        cancelAtPeriodEnd: false,
+        stripeCustomerId: '',
+        stripeSubscriptionId: '',
+        priceId: '',
+        amount,
+        currency,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    });
   };
 
   const handlePaymentError = (errorMessage: string) => {
@@ -169,7 +243,7 @@ const PaymentScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#01579B', '#0288D1', '#00B4DB']}
+        colors={['#F8F4F0', '#DDD0C8', '#B0A89F']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -226,7 +300,7 @@ const PaymentScreen: React.FC = () => {
 
           {/* Payment Form */}
           {isPreparingPayment ? (
-            <ActivityIndicator size="large" color="#00B4DB" style={{ marginVertical: 40 }}/>
+                          <ActivityIndicator size="large" color="#B0A89F" style={{ marginVertical: 40 }}/>
           ) : clientSecret ? (
             <StripeCardForm
               clientSecret={clientSecret}
@@ -248,13 +322,13 @@ const PaymentScreen: React.FC = () => {
               </Text>
             </View>
             <View style={styles.securityItem}>
-              <Text style={styles.securityIcon}>💰</Text>
+              <Text style={styles.securityIcon}>🔄</Text>
               <Text style={styles.securityText}>
-                Автоматично подновяване в края на периода
+                Автоматично подновяване - няма прекъсване на услугата
               </Text>
             </View>
             <View style={styles.securityItem}>
-              <Text style={styles.securityIcon}>🔄</Text>
+              <Text style={styles.securityIcon}>❌</Text>
               <Text style={styles.securityText}>
                 Можете да отмените абонамента по всяко време
               </Text>
@@ -276,7 +350,7 @@ const PaymentScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#01579B',
+    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -296,24 +370,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -339,117 +413,118 @@ const styles = StyleSheet.create({
   planSummaryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   planSummaryCard: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 16,
     padding: 24,
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
   },
   planName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 8,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   planPrice: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#00B4DB',
+    color: '#B0A89F',
     textAlign: 'center',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   planPeriod: {
     fontSize: 16,
     fontWeight: 'normal',
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
   },
   planDescription: {
     fontSize: 14,
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
     textAlign: 'center',
     lineHeight: 18,
   },
   paymentFormContainer: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 16,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
   },
   paymentFormTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 20,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   mockCardInput: {
-    backgroundColor: 'rgba(1, 87, 155, 0.8)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
   },
   mockCardText: {
     fontSize: 16,
-    color: '#E3F2FD',
+    color: '#2D2928',
     fontWeight: '600',
     marginBottom: 4,
   },
   mockCardInfo: {
     fontSize: 12,
-    color: 'rgba(227, 242, 253, 0.7)',
+    color: '#6B5B57',
     fontStyle: 'italic',
   },
   payButton: {
     marginBottom: 24,
-    borderRadius: 20,
-    backgroundColor: '#00B4DB',
-    paddingVertical: 18,
-    paddingHorizontal: 40,
+    borderRadius: 30,
+    backgroundColor: 'rgba(139, 127, 120, 0.8)',
+    borderWidth: 2,
+    borderColor: 'rgba(139, 127, 120, 0.9)',
+    paddingVertical: 22,
+    paddingHorizontal: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Platform.OS === 'android' ? '#000' : '#00B4DB',
+    shadowColor: '#8B7F78',
     shadowOffset: {
       width: 0,
-      height: 10,
+      height: 6,
     },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 15,
-    borderWidth: 2,
-    borderColor: '#E3F2FD',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
     minHeight: 64,
+    overflow: 'hidden',
   },
   payButtonDisabled: {
     opacity: 0.6,
   },
   payButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 180, 219, 0.5)',
+    color: '#FAF7F3',
+    letterSpacing: 0.6,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -457,31 +532,32 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(219, 208, 198, 0.8)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(180, 170, 160, 0.4)',
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 14,
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
     fontWeight: '500',
   },
   securitySection: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 16,
     padding: 20,
+    marginTop: 30,
     marginBottom: 20,
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
   },
   securityTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -497,7 +573,7 @@ const styles = StyleSheet.create({
   },
   securityText: {
     fontSize: 14,
-    color: 'rgba(227, 242, 253, 0.9)',
+    color: '#6B5B57',
     flex: 1,
     fontWeight: '500',
   },

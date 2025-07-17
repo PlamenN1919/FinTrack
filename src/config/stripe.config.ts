@@ -8,7 +8,7 @@ export interface StripeConfig {
 }
 
 // Test keys от Stripe Dashboard (безопасни за споделяне)
-const STRIPE_TEST_PUBLISHABLE_KEY = 'pk_test_51H5BdL7F8M2mIQLUOCMfr1K3bHXcPL3Fv8RbNXhPr4TnP4dP2k4j1hYbGnV3dMq8RgY1rP5xW6sK9tA7cE2fZ0k4L8nU'; // Заместете с вашия тестови ключ
+const STRIPE_TEST_PUBLISHABLE_KEY = 'pk_test_51RHUZh4dsTm22ri7eRMIa1ynvEQEiqilfZRiNgmZHVss0KoXdJ6d3rwheOsiaVr18w5jm6H3EGfifuzuGxnwEySy00vg5ierve';
 
 const getStripeConfig = (): StripeConfig => {
   const config: StripeConfig = {
@@ -99,6 +99,8 @@ export const getCardType = (cardNumber: string): string => {
 export const STRIPE_ERROR_MESSAGES: Record<string, string> = {
   // Card errors
   'card_declined': 'Картата беше отхвърлена. Моля, опитайте с друга карта.',
+  'card_not_supported': 'Тази карта не е поддържана. За тестване използвайте: 4242 4242 4242 4242',
+  'test_mode_live_card': 'Не можете да използвате реална карта в тестови режим! Използвайте тестова карта: 4242 4242 4242 4242',
   'expired_card': 'Картата е изтекла. Моля, обновете данните си.',
   'insufficient_funds': 'Недостатъчно средства по картата.',
   'incorrect_cvc': 'Невалиден CVC код.',
@@ -118,6 +120,7 @@ export const STRIPE_ERROR_MESSAGES: Record<string, string> = {
   // Generic errors
   'unknown_error': 'Възникна неочаквана грешка. Моля, опитайте отново.',
   'authentication_required': 'Изисква се допълнително потвърждение от банката ви.',
+  'Failed': 'Плащането е неуспешно. Проверете данните на картата.',
 };
 
 // Utility функции

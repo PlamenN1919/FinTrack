@@ -21,15 +21,23 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
 const AuthNavigator: React.FC = () => {
   const { authState } = useAuth();
 
-  // Determine initial route based on user state
+  // Dynamic initial route based on user state
   const getInitialRouteName = (): keyof AuthStackParamList => {
+    console.log('[AuthNavigator] Determining initial route for userState:', authState.userState);
+    
     switch (authState.userState) {
       case UserState.REGISTERED_NO_SUBSCRIPTION:
-      case UserState.EXPIRED_SUBSCRIBER:
       case UserState.PAYMENT_FAILED:
+        console.log('[AuthNavigator] Starting with SubscriptionPlans - user needs subscription');
         return 'SubscriptionPlans';
+      
+      case UserState.EXPIRED_SUBSCRIBER:
+        console.log('[AuthNavigator] Starting with SubscriptionPlans - subscription expired');
+        return 'SubscriptionPlans';
+      
       case UserState.UNREGISTERED:
       default:
+        console.log('[AuthNavigator] Starting with Welcome - unregistered user');
         return 'Welcome';
     }
   };

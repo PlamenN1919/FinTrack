@@ -28,6 +28,7 @@ const StripeCardForm: React.FC<StripeCardFormProps> = ({
     }
 
     setIsLoading(true);
+    console.log('[StripeCardForm] Starting payment confirmation with clientSecret:', clientSecret.substring(0, 20) + '...');
     try {
       const { paymentIntent, error } = await confirmPayment(clientSecret, {
         paymentMethodType: 'Card',
@@ -37,13 +38,30 @@ const StripeCardForm: React.FC<StripeCardFormProps> = ({
           },
         },
       });
+      
+      console.log('[StripeCardForm] Payment confirmation response:', { 
+        paymentIntent: paymentIntent ? { id: paymentIntent.id, status: paymentIntent.status } : null, 
+        error: error ? { code: error.code, message: error.message, declineCode: error.declineCode } : null 
+      });
 
       if (error) {
         console.error('Stripe payment confirmation error:', error);
-        const errorMessage = getStripeErrorMessage(error.code);
+        // Handle different error types
+        let errorMessage = '';
+        if (error.declineCode) {
+          // Check decline code first (most specific)
+          errorMessage = getStripeErrorMessage(error.declineCode);
+        } else if (error.code) {
+          errorMessage = getStripeErrorMessage(error.code);
+        } else if (error.message) {
+          errorMessage = getStripeErrorMessage('Failed');
+        } else {
+          errorMessage = getStripeErrorMessage('unknown_error');
+        }
         onPaymentError(errorMessage);
       } else if (paymentIntent) {
         console.log('Payment successful!', paymentIntent);
+        // Payment successful - pass the payment intent ID
         onPaymentSuccess(paymentIntent.id);
       }
     } catch (e: any) {
@@ -66,6 +84,16 @@ const StripeCardForm: React.FC<StripeCardFormProps> = ({
       />
       
       <Text style={styles.label}>Данни на картата</Text>
+      <View style={styles.testCardContainer}>
+        <Text style={styles.testCardTitle}>⚠️ ВАЖНО: Използвайте САМО тестови карти!</Text>
+        <Text style={styles.testCardInfo}>
+          Номер: 4242 4242 4242 4242{'\n'}
+          CVC: 123, Дата: 12/{new Date().getFullYear() + 2}
+        </Text>
+        <Text style={styles.testCardWarning}>
+          Реални карти ще бъдат отхвърлени!
+        </Text>
+      </View>
       <CardField
         postalCodeEnabled={false}
         style={styles.cardField}
@@ -115,6 +143,33 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.5)',
+  },
+  testCardContainer: {
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+  },
+  testCardTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#D4AF37',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  testCardInfo: {
+    fontSize: 12,
+    color: '#F7E7CE',
+    marginBottom: 6,
+    fontFamily: 'monospace',
+  },
+  testCardWarning: {
+    fontSize: 11,
+    color: '#FF6B6B',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   cardField: {
     height: 50,

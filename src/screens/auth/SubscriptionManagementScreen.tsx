@@ -159,21 +159,7 @@ const SubscriptionManagementScreen: React.FC = () => {
     );
   };
 
-  const handleUpdatePaymentMethod = () => {
-    Alert.alert(
-      'Промяна на начин на плащане',
-      'Тази функционалност ще бъде добавена скоро',
-      [{ text: 'OK' }]
-    );
-  };
 
-  const handleViewPaymentHistory = () => {
-    Alert.alert(
-      'История на плащанията',
-      'Тази функционалност ще бъде добавена скоро',
-      [{ text: 'OK' }]
-    );
-  };
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -185,7 +171,7 @@ const SubscriptionManagementScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#01579B', '#0288D1', '#00B4DB']}
+        colors={['#F8F4F0', '#DDD0C8', '#B0A89F']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -278,6 +264,25 @@ const SubscriptionManagementScreen: React.FC = () => {
           <View style={styles.actionsContainer}>
             <Text style={styles.actionsTitle}>Бързи действия</Text>
             
+            {/* Enter Main App Button */}
+            <TouchableOpacity
+              style={[styles.actionButton, styles.enterAppButton]}
+              onPress={() => {
+                Alert.alert(
+                  'Влизане в приложението',
+                  'За да влезете в основното приложение, натиснете бутона "← Обратно към началото" в Main App Screen-а.',
+                  [{ text: 'Разбрах' }]
+                );
+              }}
+            >
+              <Text style={styles.actionIcon}>🏠</Text>
+              <View style={styles.actionContent}>
+                <Text style={styles.actionTitle}>Влезте в приложението</Text>
+                <Text style={styles.actionSubtitle}>Достъп до основните функции</Text>
+              </View>
+              <Text style={styles.actionArrow}>→</Text>
+            </TouchableOpacity>
+            
             <TouchableOpacity
               style={styles.actionButton}
               onPress={handleChangePlan}
@@ -290,29 +295,7 @@ const SubscriptionManagementScreen: React.FC = () => {
               <Text style={styles.actionArrow}>→</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleUpdatePaymentMethod}
-            >
-              <Text style={styles.actionIcon}>💳</Text>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionTitle}>Начин на плащане</Text>
-                <Text style={styles.actionSubtitle}>Промяна на картата за плащане</Text>
-              </View>
-              <Text style={styles.actionArrow}>→</Text>
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleViewPaymentHistory}
-            >
-              <Text style={styles.actionIcon}>📋</Text>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionTitle}>История на плащанията</Text>
-                <Text style={styles.actionSubtitle}>Преглед на всички плащания</Text>
-              </View>
-              <Text style={styles.actionArrow}>→</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Features Section */}
@@ -356,7 +339,7 @@ const SubscriptionManagementScreen: React.FC = () => {
                 disabled={cancellingSubscription}
               >
                 {cancellingSubscription ? (
-                  <ActivityIndicator color="#FFF" />
+                  <ActivityIndicator color="#B0A89F" />
                 ) : (
                   <Text style={styles.cancelButtonText}>Отмяна на абонамента</Text>
                 )}
@@ -375,7 +358,7 @@ const SubscriptionManagementScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#01579B',
+    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -395,24 +378,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
-    color: '#E3F2FD',
+    color: '#2D2928',
     fontWeight: 'bold',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -432,12 +415,12 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   subscriptionCard: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
   },
   subscriptionHeader: {
     flexDirection: 'row',
@@ -448,7 +431,7 @@ const styles = StyleSheet.create({
   subscriptionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -458,7 +441,7 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: '#F8F4F0',
   },
   subscriptionDetails: {
     gap: 12,
@@ -470,12 +453,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 16,
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
     fontWeight: '500',
   },
   detailValue: {
     fontSize: 16,
-    color: '#E3F2FD',
+    color: '#2D2928',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
@@ -483,7 +466,7 @@ const styles = StyleSheet.create({
   },
   detailValueSmall: {
     fontSize: 12,
-    color: '#E3F2FD',
+    color: '#2D2928',
     fontWeight: 'bold',
     textAlign: 'right',
     flex: 1,
@@ -508,21 +491,25 @@ const styles = StyleSheet.create({
   actionsTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 16,
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 16,
     padding: 20,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.2)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
+  },
+  enterAppButton: {
+    backgroundColor: 'rgba(176, 168, 159, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.6)',
   },
   actionIcon: {
     fontSize: 24,
@@ -534,33 +521,33 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 4,
   },
   actionSubtitle: {
     fontSize: 14,
-    color: 'rgba(227, 242, 253, 0.7)',
+    color: '#6B5B57',
   },
   actionArrow: {
     fontSize: 18,
-    color: '#00B4DB',
+    color: '#B0A89F',
     fontWeight: 'bold',
   },
   featuresContainer: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 30,
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
   },
   featuresTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 20,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -577,7 +564,7 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 16,
-    color: 'rgba(227, 242, 253, 0.9)',
+    color: '#6B5B57',
     fontWeight: '500',
     flex: 1,
   },
@@ -608,7 +595,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFF',
+    color: '#F8F4F0',
   },
   cancelWarning: {
     fontSize: 12,

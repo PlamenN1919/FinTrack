@@ -227,7 +227,7 @@ const PaymentFailedScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#F44336', '#D32F2F', '#B71C1C']}
+        colors={['#F8F4F0', '#DDD0C8', '#B0A89F']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -260,7 +260,7 @@ const PaymentFailedScreen: React.FC = () => {
             ]}
           >
             <LinearGradient
-              colors={['#FFCDD2', '#FFEBEE']}
+              colors={['#DDD0C8', '#F8F4F0']}
               style={styles.errorIconGradient}
             >
               <Text style={styles.errorIcon}>❌</Text>
@@ -364,7 +364,7 @@ const PaymentFailedScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F44336',
+    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -416,10 +416,10 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#2D2928',
     marginBottom: 12,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },

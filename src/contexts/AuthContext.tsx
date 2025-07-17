@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
 import AsyncStorageWrapper from '../utils/AsyncStorageWrapper';
 import { Platform, Alert } from 'react-native';
-import { auth, db, functions } from '../config/firebase.config';
+import { auth, db, functions, checkExpiredSubscriptionsCallable } from '../config/firebase.config';
 import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 // import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { 
@@ -38,6 +38,7 @@ const initialState: AuthState = {
   isLoading: true, // Start loading initially
   isInitialized: false, // Start as not initialized
   error: null,
+  shouldShowWelcome: true, // Always start with Welcome screen
 };
 
 // Action types
@@ -48,6 +49,7 @@ type AuthAction =
   | { type: 'SET_USER_STATE'; payload: UserState }
   | { type: 'SET_ERROR'; payload: AuthError | null }
   | { type: 'SET_INITIALIZED'; payload: boolean }
+  | { type: 'SET_SHOULD_SHOW_WELCOME'; payload: boolean }
   | { type: 'CLEAR_ERROR' }
   | { type: 'RESET_STATE' };
 
@@ -66,6 +68,8 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return { ...state, error: action.payload };
     case 'SET_INITIALIZED':
       return { ...state, isInitialized: action.payload };
+    case 'SET_SHOULD_SHOW_WELCOME':
+      return { ...state, shouldShowWelcome: action.payload };
     case 'CLEAR_ERROR':
       return { ...state, error: null };
     case 'RESET_STATE':
@@ -99,6 +103,10 @@ const handleFirebaseError = (error: any): AuthError => {
         code = AuthErrorCode.INVALID_EMAIL;
         message = 'Имейл адресът не е валиден.';
         break;
+      case 'auth/invalid-credential':
+        code = AuthErrorCode.WRONG_PASSWORD;
+        message = 'Невалидни данни за вход. Моля, проверете имейла и паролата си.';
+        break;
       case 'auth/user-disabled':
         code = AuthErrorCode.USER_DISABLED;
         message = 'Този потребителски акаунт е деактивиран.';
@@ -123,8 +131,18 @@ const handleFirebaseError = (error: any): AuthError => {
         code = AuthErrorCode.WEAK_PASSWORD;
         message = 'Паролата е твърде слаба. Трябва да е поне 6 символа.';
         break;
+      case 'auth/too-many-requests':
+        code = AuthErrorCode.TOO_MANY_REQUESTS;
+        message = 'Твърде много неуспешни опити. Моля, изчакайте малко преди да опитате отново.';
+        break;
+      case 'auth/network-request-failed':
+        code = AuthErrorCode.NETWORK_ERROR;
+        message = 'Проблем с мрежовата връзка. Моля, проверете интернет връзката си.';
+        break;
       default:
         console.error('[AuthContext] Unhandled Firebase Error:', error);
+        // Keep the default message and code for unknown errors
+        break;
     }
   }
 
@@ -150,23 +168,68 @@ const mapFirebaseUser = (firebaseUser: FirebaseAuthTypes.User): User => {
   };
 };
 
-const determineUserState = (user: User | null, subscription: Subscription | null): UserState => {
-  if (!user) {
-    return UserState.UNREGISTERED;
+// NEW: Helper function to check if subscription has expired
+const isSubscriptionExpired = (subscription: Subscription): boolean => {
+  if (!subscription || !subscription.currentPeriodEnd) return true;
+  
+  const now = new Date();
+  let endDate: Date;
+  
+  if (subscription.currentPeriodEnd instanceof Date) {
+    endDate = subscription.currentPeriodEnd;
+  } else if (subscription.currentPeriodEnd && typeof subscription.currentPeriodEnd === 'object' && 'toDate' in subscription.currentPeriodEnd) {
+    // Firestore Timestamp
+    endDate = (subscription.currentPeriodEnd as any).toDate();
+  } else {
+    // Fallback - treat as expired
+    return true;
   }
   
+  return now > endDate;
+};
+
+// NEW: Helper function to get correct user state based on subscription
+const getUserStateFromSubscription = (subscription: Subscription | null): UserState => {
   if (!subscription) {
     return UserState.REGISTERED_NO_SUBSCRIPTION;
   }
-  
-  // Check subscription status
-  if (subscription.status === SubscriptionStatus.ACTIVE) {
-    return UserState.ACTIVE_SUBSCRIBER;
-  } else if (subscription.status === SubscriptionStatus.FAILED) {
-    return UserState.PAYMENT_FAILED;
-  } else {
+
+  // Check if subscription has expired first (regardless of status)
+  if (isSubscriptionExpired(subscription)) {
     return UserState.EXPIRED_SUBSCRIBER;
   }
+
+  // Check actual status
+  switch (subscription.status) {
+    case SubscriptionStatus.ACTIVE:
+      return UserState.ACTIVE_SUBSCRIBER;
+    case SubscriptionStatus.FAILED:
+      return UserState.PAYMENT_FAILED;
+    case SubscriptionStatus.EXPIRED:
+      return UserState.EXPIRED_SUBSCRIBER;
+    default:
+      return UserState.REGISTERED_NO_SUBSCRIPTION;
+  }
+};
+
+const determineUserState = (user: User | null, subscription: Subscription | null): UserState => {
+  console.log('[AuthContext] determineUserState called with:', { 
+    user: user?.uid || 'null', 
+    userEmail: user?.email || 'null',
+    subscriptionStatus: subscription?.status || 'null',
+    subscription: subscription 
+  });
+  
+  if (!user) {
+    console.log('[AuthContext] No user -> UNREGISTERED');
+    return UserState.UNREGISTERED;
+  }
+  
+  // Use the new helper function with expiration checking
+  const userState = getUserStateFromSubscription(subscription);
+  console.log('[AuthContext] Determined user state:', userState);
+  
+  return userState;
 };
 
 // Create context
@@ -321,13 +384,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           'Failed to handle authentication state change.'
         )});
       } finally {
-        // Ensure loading is set to false after the first auth state is received.
-        if (!state.isInitialized) {
-          dispatch({ type: 'SET_INITIALIZED', payload: true });
-        }
-        if (state.isLoading) {
-          dispatch({ type: 'SET_LOADING', payload: false });
-        }
+        // Always ensure loading is set to false and initialized is true after auth state change
+        dispatch({ type: 'SET_INITIALIZED', payload: true });
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
     });
 
@@ -337,10 +396,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Update user state when user or subscription changes
   useEffect(() => {
+    console.log('[AuthContext] useEffect triggered for UserState update:', {
+      currentUserState: state.userState,
+      hasUser: !!state.user,
+      userEmail: state.user?.email || 'null',
+      subscriptionStatus: state.subscription?.status || 'null',
+      isInitialized: state.isInitialized,
+      isLoading: state.isLoading,
+    });
+    
     const newUserState = determineUserState(state.user, state.subscription);
     if (newUserState !== state.userState) {
+      console.log('[AuthContext] User state changing from', state.userState, 'to', newUserState);
       dispatch({ type: 'SET_USER_STATE', payload: newUserState });
       console.log('[AuthContext] User state changed to:', newUserState);
+    } else {
+      console.log('[AuthContext] User state remains:', state.userState);
     }
   }, [state.user, state.subscription, state.userState]);
 
@@ -587,8 +658,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setSubscription = useCallback(async (subscription: Subscription): Promise<void> => {
     try {
       console.log('[AuthContext] Setting subscription:', subscription);
+      console.log('[AuthContext] Current state before setting subscription:', { 
+        user: state.user?.uid, 
+        currentSubscription: state.subscription?.status,
+        userState: state.userState 
+      });
+      
       dispatch({ type: 'SET_SUBSCRIPTION', payload: subscription });
       await persistState(state.user, subscription);
+      
+      console.log('[AuthContext] Subscription set successfully');
     } catch (error: any) {
       console.error('[AuthContext] Failed to set subscription:', error);
       const authError = createAuthError(

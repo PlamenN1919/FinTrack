@@ -1,0 +1,140 @@
+# FinTrack Project Intelligence (.cursorrules)
+
+## Firebase SDK Patterns ⚠️ CRITICAL
+
+**ALWAYS use React Native Firebase SDK, NEVER web Firebase SDK:**
+```typescript
+// ✅ CORRECT - React Native Firebase
+import { functions } from '../config/firebase.config';
+const callable = functions().httpsCallable('functionName');
+
+// ❌ WRONG - Web Firebase SDK (causes "Firebase App not created" error)
+import { getFunctions, httpsCallable } from 'firebase/functions';
+```
+
+**Key Firebase Patterns:**
+- All Firebase imports go through `src/config/firebase.config.ts`
+- Firebase auto-initializes via native config files (GoogleService-Info.plist, google-services.json)
+- Never call `initializeApp()` manually in React Native
+- Project ID: `fintrack-bef0a`
+
+## Firebase Authentication Patterns ⚠️ CRITICAL
+
+**Always validate Firebase Auth token before calling Functions:**
+```typescript
+// ✅ CORRECT - Check for valid Firebase Auth token
+const currentUser = auth().currentUser;
+if (!currentUser) {
+  // Redirect to login
+  return;
+}
+const token = await currentUser.getIdToken(true); // Force refresh
+```
+
+**Common Auth Errors:**
+- `Error: UNAUTHENTICATED` = Firebase Auth token missing or invalid
+- Check `authState.user` AND `auth().currentUser`
+- Local state doesn't guarantee valid Firebase token
+- Always refresh token before critical operations
+
+## Stripe Configuration Patterns ⚠️ CRITICAL
+
+**Firebase Functions Stripe Setup:**
+```bash
+# Set CORRECT secret key (starts with sk_test_ not pk_test_)
+firebase functions:config:set stripe.secret="sk_test_..."
+firebase deploy --only functions
+```
+
+**Common Stripe Errors:**
+- `Error: NOT_FOUND` = Usually wrong Stripe key in Firebase config
+- Use `sk_test_` for secret key, not `pk_test_` (publishable key)
+- Always redeploy functions after config changes
+
+## Firebase Functions Deployment Patterns
+
+**Deployment Issues:**
+- v1 vs v2 functions conflicts: Delete old functions first
+- CPU setting errors on GCF gen 1: Remove `setGlobalOptions`
+- Lint errors blocking deploy: Temporarily remove lint from firebase.json predeploy
+
+**Deployment Commands:**
+```bash
+# Delete old functions if conflicts
+firebase functions:delete functionName --force
+
+# Deploy without lint (emergency)
+# Remove "npm run lint" from firebase.json predeploy
+
+# Normal deployment
+firebase deploy --only functions
+```
+
+## Code Organization Patterns
+
+**Authentication Flow:**
+- Uses Context API for state management (`AuthContext`)
+- TypeScript strict typing throughout
+- Navigation via React Navigation with proper type safety
+- Payment flow: Plans → Payment → Success/Failed screens
+
+**Firebase Functions Integration:**
+- All functions calls require userId parameter
+- Always handle errors gracefully with user-friendly messages
+- Use httpsCallable pattern from React Native Firebase SDK
+- Validate Firebase Auth token before calling functions
+
+## UI/UX Patterns
+
+**Language:** Bulgarian language throughout UI
+**Design:** Modern gradient-based design with animations
+**Colors:** Blue gradient theme (#00B4DB primary)
+**Navigation:** Stack navigation with proper animations
+
+## Development Patterns
+
+**Error Handling:**
+- Always show user-friendly error messages in Bulgarian
+- Use Alert.alert for critical errors
+- Log detailed errors to console for debugging
+
+**TypeScript:**
+- Strict typing enabled
+- Proper interface definitions for all data structures
+- Never use `any` type without good reason
+
+## Critical Learnings
+
+1. **Firebase SDK Mixing**: The #1 source of runtime errors is mixing web and React Native Firebase SDKs
+2. **Stripe Configuration**: Secret vs publishable keys - always verify correct key type
+3. **Functions Deployment**: v1/v2 conflicts require function deletion and recreation
+4. **Authentication State**: Local state ≠ valid Firebase token - always validate both
+5. **Payment Flow**: Always include userId in payment intent creation
+6. **Context State**: AuthContext is the source of truth for user state
+7. **Memory Bank**: Keep documentation updated for session continuity
+
+## Known Issues Fixed
+
+- ✅ Firebase SDK conflict in StripeService.ts resolved
+- ✅ Stripe secret key configuration corrected (was using publishable key)
+- ✅ Functions v1/v2 deployment conflicts resolved
+- ✅ Payment flow properly integrated with React Native Firebase
+- ✅ Type safety maintained throughout payment screens
+- 🔧 Authentication token validation added to PaymentScreen
+- ✅ Stripe Price IDs corrected in subscription.config.ts (invalid IDs replaced with working ones)
+- ✅ Payment Intent extraction fixed (added fallback when Stripe expand fails)
+
+## Testing Patterns
+
+- Always test payment flow end-to-end
+- Verify Firebase initialization on both iOS and Android
+- Check error messages are properly localized to Bulgarian
+- Test Stripe payment intent creation with console logs
+- Verify Firebase Auth token is valid before Functions calls
+
+## Deployment Notes
+
+- iOS: Requires GoogleService-Info.plist in bundle
+- Android: Requires google-services.json in app folder
+- Firebase Functions: Deployed separately with proper CORS and regions
+- Stripe: Requires proper secret key configuration in Firebase Functions config 

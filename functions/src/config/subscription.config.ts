@@ -57,6 +57,26 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlan, PlanConfig> = {
   },
 };
 
+// Helper function to get Stripe Price ID for a plan
+export const getStripePriceId = (planId: SubscriptionPlan): string => {
+  const plan = SUBSCRIPTION_PLANS[planId];
+  if (!plan) {
+    throw new Error(`Invalid plan ID: ${planId}`);
+  }
+  
+  // Get the appropriate price ID based on plan type
+  switch (planId) {
+    case SubscriptionPlan.MONTHLY:
+      return plan.stripePriceIds.monthly!;
+    case SubscriptionPlan.QUARTERLY:
+      return plan.stripePriceIds.quarterly!;
+    case SubscriptionPlan.YEARLY:
+      return plan.stripePriceIds.yearly!;
+    default:
+      throw new Error(`No price ID found for plan: ${planId}`);
+  }
+};
+
 // Помощни функции за изчисления
 export const getPlanPrice = (plan: SubscriptionPlan, period: 'monthly' | 'quarterly' | 'yearly' = 'monthly'): number => {
   const planConfig = SUBSCRIPTION_PLANS[plan];
@@ -110,7 +130,7 @@ export const STRIPE_PRICE_IDS = {
   YEARLY_BG: 'price_1RY1io4dsTm22ri7uNflBZqk',
 } as const;
 
-// Валидация на планове
+// Валидация на плановете
 export const isValidPlan = (planId: string): planId is SubscriptionPlan => {
   return Object.values(SubscriptionPlan).includes(planId as SubscriptionPlan);
 };

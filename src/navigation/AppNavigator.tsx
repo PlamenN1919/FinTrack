@@ -17,7 +17,7 @@ const AppNavigator: React.FC = () => {
   const { authState, isLoading } = useAuth();
   const navigationRef = useRef<NavigationContainerRef<any>>(null);
 
-  // Initialize deep link handler
+  // Initialize deep link handler and navigation listeners
   useEffect(() => {
     if (navigationRef.current) {
       deepLinkHandler.setNavigationRef(navigationRef.current);
@@ -34,19 +34,21 @@ const AppNavigator: React.FC = () => {
     return null; // Simple loading without styling for now
   }
 
-  // Route Guard Logic
+  // Route Guard Logic - Smart navigation based on UserState
   const shouldShowAuth = () => {
-    switch (authState.userState) {
-      case UserState.UNREGISTERED:
-      case UserState.REGISTERED_NO_SUBSCRIPTION:
-      case UserState.EXPIRED_SUBSCRIBER:
-      case UserState.PAYMENT_FAILED:
-        return true; // Show auth/subscription flow - users must complete payment
-      case UserState.ACTIVE_SUBSCRIBER:
-        return false; // Only active subscribers can access main app
-      default:
-        return true; // Default to auth if unknown state
+    console.log('[AppNavigator] Current userState:', authState.userState);
+    console.log('[AppNavigator] User:', authState.user?.uid || 'null');
+    console.log('[AppNavigator] Subscription:', authState.subscription?.status || 'null');
+    
+    // Show Main App only for active subscribers
+    if (authState.userState === UserState.ACTIVE_SUBSCRIBER) {
+      console.log('[AppNavigator] Showing Main App - user is active subscriber');
+      return false;
     }
+    
+    // Show Auth flow for all other states
+    console.log('[AppNavigator] Showing Auth flow for userState:', authState.userState);
+    return true;
   };
 
   return (

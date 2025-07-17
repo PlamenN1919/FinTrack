@@ -151,7 +151,7 @@ const SubscriptionPlansScreen: React.FC = () => {
       
       {/* Premium Background */}
       <LinearGradient
-        colors={['#01579B', '#0288D1', '#00B4DB']}
+        colors={['#F8F4F0', '#DDD0C8', '#B0A89F']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundGradient}
@@ -196,7 +196,7 @@ const SubscriptionPlansScreen: React.FC = () => {
                 resizeMode="contain"
               />
               <LinearGradient
-                colors={['rgba(0, 180, 219, 0.2)', 'rgba(227, 242, 253, 0.1)']}
+                colors={['rgba(180, 170, 160, 0.2)', 'rgba(248, 244, 240, 0.1)']}
                 style={styles.logoGlow}
               />
             </View>
@@ -268,7 +268,7 @@ const SubscriptionPlansScreen: React.FC = () => {
                 activeOpacity={0.8}
               >
                 <View style={styles.planHeader}>
-                  <View style={[styles.planIconContainer, { borderColor: 'rgba(0, 180, 219, 0.5)', backgroundColor: 'rgba(0, 180, 219, 0.1)' }]}>
+                  <View style={[styles.planIconContainer, { borderColor: 'rgba(180, 170, 160, 0.5)', backgroundColor: 'rgba(180, 170, 160, 0.1)' }]}>
                     <Text style={styles.planIcon}>🏆</Text>
                   </View>
                   <View style={styles.planInfo}>
@@ -400,7 +400,7 @@ const SubscriptionPlansScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#01579B',
+    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -420,24 +420,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
   },
   headerTitle: {
     flex: 1,
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -463,13 +463,13 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#F8F4F0',
     borderWidth: 3,
-    borderColor: '#00B4DB',
+    borderColor: '#B0A89F',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    shadowColor: '#00B4DB',
+    shadowColor: '#B0A89F',
     shadowOffset: {
       width: 0,
       height: 8,
@@ -500,21 +500,21 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 8,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 180, 219, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
     letterSpacing: 1,
   },
   heroSubtitle: {
     fontSize: 16,
-    color: 'rgba(227, 242, 253, 0.8)',
+    color: '#6B5B57',
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: 'rgba(176, 168, 159, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -523,17 +523,17 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   planCard: {
-    backgroundColor: 'rgba(1, 87, 155, 0.6)',
+    backgroundColor: 'rgba(248, 244, 240, 0.8)',
     borderRadius: 16,
     padding: 20,
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.3)',
+    borderColor: 'rgba(176, 168, 159, 0.5)',
     position: 'relative',
   },
   planCardSelected: {
-    borderColor: '#00B4DB',
-    backgroundColor: 'rgba(0, 180, 219, 0.1)',
-    shadowColor: '#00B4DB',
+    borderColor: '#B0A89F',
+    backgroundColor: 'rgba(176, 168, 159, 0.2)',
+    shadowColor: '#B0A89F',
     shadowOffset: {
       width: 0,
       height: 8,
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     left: 20,
-    backgroundColor: '#00B4DB',
+    backgroundColor: '#B0A89F',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
@@ -610,12 +610,12 @@ const styles = StyleSheet.create({
   planName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 4,
   },
   planDescription: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#6B5B57',
     lineHeight: 18,
   },
   pricingSection: {
@@ -630,17 +630,17 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    color: '#2D2928',
+    textShadowColor: 'rgba(176, 168, 159, 0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   currency: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#2D2928',
     marginLeft: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: 'rgba(176, 168, 159, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -672,13 +672,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   radioButtonSelected: {
-    borderColor: '#00B4DB',
+    borderColor: '#B0A89F',
   },
   radioButtonInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#00B4DB',
+    backgroundColor: '#B0A89F',
   },
   planCardInner: {
     flex: 1,
@@ -687,9 +687,9 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(1, 87, 155, 0.8)',
+    backgroundColor: 'rgba(180, 170, 160, 0.8)',
     borderWidth: 2,
-    borderColor: 'rgba(0, 180, 219, 0.5)',
+    borderColor: 'rgba(168, 157, 147, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -700,18 +700,18 @@ const styles = StyleSheet.create({
   planPrice: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 2,
   },
   planPeriod: {
     fontSize: 14,
-    color: 'rgba(227, 242, 253, 0.7)',
+    color: '#6B5B57',
   },
   selectedIndicator: {
     position: 'absolute',
     top: -10,
     right: -10,
-    backgroundColor: 'rgba(1, 87, 155, 0.9)',
+    backgroundColor: 'rgba(168, 157, 147, 0.9)',
     borderRadius: 12,
     padding: 2,
   },
@@ -737,14 +737,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   premiumPlanCard: {
-    borderColor: '#00B4DB',
-    backgroundColor: 'rgba(0, 180, 219, 0.05)',
+    borderColor: '#B0A89F',
+    backgroundColor: 'rgba(176, 168, 159, 0.1)',
   },
   premiumPlanName: {
-    color: '#00B4DB',
+    color: '#B0A89F',
   },
   premiumPlanPrice: {
-    color: '#00B4DB',
+    color: '#B0A89F',
   },
   buttonContainer: {
     marginBottom: 30,
@@ -752,13 +752,13 @@ const styles = StyleSheet.create({
   continueButton: {
     marginBottom: 24,
     borderRadius: 20,
-    backgroundColor: '#00B4DB',
+    backgroundColor: '#B0A89F',
     paddingVertical: 18,
     paddingHorizontal: 40,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    shadowColor: Platform.OS === 'android' ? '#000' : '#00B4DB',
+    shadowColor: Platform.OS === 'android' ? '#000' : '#B0A89F',
     shadowOffset: {
       width: 0,
       height: 10,
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 15,
     borderWidth: 2,
-    borderColor: '#E3F2FD',
+    borderColor: '#F8F4F0',
     minHeight: 64,
   },
   continueButtonDisabled: {
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 180, 219, 0.5)',
+    textShadowColor: 'rgba(180, 170, 160, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -811,7 +811,7 @@ const styles = StyleSheet.create({
   planIcon: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#00B4DB',
+    color: '#B0A89F',
   },
   featuresContainer: {
     marginBottom: 30,
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
   featuresTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E3F2FD',
+    color: '#2D2928',
     marginBottom: 12,
     textAlign: 'center',
   },
