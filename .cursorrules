@@ -18,6 +18,38 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 - Never call `initializeApp()` manually in React Native
 - Project ID: `fintrack-bef0a`
 
+## Subscription Data Consistency Patterns ⚠️ CRITICAL
+
+**ALWAYS use consistent field names between Firebase Functions and client code:**
+```typescript
+// ✅ CORRECT - Firebase Functions write 'plan' field
+await admin.firestore().collection('subscriptions').doc(userId).set({
+  plan: planId, // Use 'plan' to match interface
+  // ...
+});
+
+// ✅ CORRECT - Client code with backward compatibility
+const planValue = subscription.plan || (subscription as any).planId;
+switch (planValue) {
+  case SubscriptionPlan.YEARLY:
+  case 'yearly':
+    return 'yearly';
+  // ...
+}
+```
+
+**Subscription Price Display Rules:**
+- Always check both `subscription.plan` AND `subscription.planId` for compatibility
+- Use fallback logic to handle legacy data in Firestore
+- Firebase Functions write string values: 'monthly', 'quarterly', 'yearly'
+- These match SubscriptionPlan enum values exactly
+- **NEVER hardcode fallback prices** - always calculate dynamically based on plan
+
+**Common Subscription Errors:**
+- `subscription.plan` undefined = Legacy data uses `planId` field
+- Price showing 12.99 BGN for yearly plan = Field name mismatch
+- Always support both field names for smooth migrations
+
 ## Firebase Authentication Patterns ⚠️ CRITICAL
 
 **Always validate Firebase Auth token before calling Functions:**
@@ -112,6 +144,9 @@ firebase deploy --only functions
 5. **Payment Flow**: Always include userId in payment intent creation
 6. **Context State**: AuthContext is the source of truth for user state
 7. **Memory Bank**: Keep documentation updated for session continuity
+8. **Subscription Field Names**: Firebase Functions must write 'plan' not 'planId' to match client interface
+9. **Price Display Logic**: Always support both field names for backward compatibility
+10. **Referral Functions Auth**: ALL service methods calling Firebase Functions MUST validate auth token first
 
 ## Known Issues Fixed
 
@@ -123,6 +158,8 @@ firebase deploy --only functions
 - 🔧 Authentication token validation added to PaymentScreen
 - ✅ Stripe Price IDs corrected in subscription.config.ts (invalid IDs replaced with working ones)
 - ✅ Payment Intent extraction fixed (added fallback when Stripe expand fails)
+- ✅ Subscription price display fixed (field name consistency between Functions and client)
+- ✅ **Referral Functions Error**: Added Firebase Auth validation to all ReferralService methods
 
 ## Testing Patterns
 
@@ -131,10 +168,12 @@ firebase deploy --only functions
 - Check error messages are properly localized to Bulgarian
 - Test Stripe payment intent creation with console logs
 - Verify Firebase Auth token is valid before Functions calls
+- **Test subscription price display** for all plan types (monthly, quarterly, yearly)
 
 ## Deployment Notes
 
 - iOS: Requires GoogleService-Info.plist in bundle
 - Android: Requires google-services.json in app folder
 - Firebase Functions: Deployed separately with proper CORS and regions
-- Stripe: Requires proper secret key configuration in Firebase Functions config 
+- Stripe: Requires proper secret key configuration in Firebase Functions config
+- **Subscription Data**: Field name consistency critical for proper price display 

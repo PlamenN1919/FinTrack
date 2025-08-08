@@ -31,6 +31,9 @@ import AchievementCard from '../components/gamification/AchievementCard';
 import MissionCard from '../components/gamification/MissionCard';
 import gamificationService from '../services/GamificationService';
 
+// Referral компоненти
+import ReferralCard from '../components/referral/ReferralCard';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Примерно изображение за профил (в реално приложение бихме имали URL към изображение)
@@ -279,6 +282,11 @@ const ProfileScreen: React.FC = () => {
             </View>
           )}
         </View>
+
+        {/* Referral Card */}
+        <ReferralCard 
+          onPress={() => navigation.navigate(SCREENS.REFERRAL)}
+        />
 
         {/* Настройки */}
         <View style={[styles.settingsCard, { backgroundColor: theme.colors.card }]}>

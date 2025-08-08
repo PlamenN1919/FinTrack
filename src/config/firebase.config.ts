@@ -13,4 +13,9 @@ export { auth, firestore as db, functions };
 // Export callable functions with proper region - React Native Firebase automatically uses the default region
 export const createPaymentIntentCallable = functionsInstance.httpsCallable('createPaymentIntent');
 export const createStripeSubscriptionCallable = functionsInstance.httpsCallable('createStripeSubscription');
-export const checkExpiredSubscriptionsCallable = functionsInstance.httpsCallable('manualCheckExpiredSubscriptions'); 
+export const checkExpiredSubscriptionsCallable = functionsInstance.httpsCallable('manualCheckExpiredSubscriptions');
+
+// Referral system callable functions
+export const generateReferralLinkCallable = functionsInstance.httpsCallable('generateReferralLink');
+export const processReferralRewardCallable = functionsInstance.httpsCallable('processReferralReward');
+export const getReferralStatsCallable = functionsInstance.httpsCallable('getReferralStats'); 

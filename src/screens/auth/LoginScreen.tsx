@@ -5,13 +5,14 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
   Alert,
   Animated,
   ActivityIndicator,
+  Dimensions,
+  SafeAreaView,
   Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -19,54 +20,159 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList, LoginCredentials } from '../../types/auth.types';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../utils/ThemeContext';
+
+const { width, height } = Dimensions.get('window');
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const { signInWithEmail, authState, clearError } = useAuth();
+  const { theme, isDark } = useTheme();
 
   // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Validation states
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  // Animation values
+  // Enhanced Animation References
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const headerAnim = useRef(new Animated.Value(-100)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formTranslateY = useRef(new Animated.Value(60)).current;
+  const buttonsOpacity = useRef(new Animated.Value(0)).current;
+  const buttonsTranslateY = useRef(new Animated.Value(60)).current;
 
-  // Input refs for focus management
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
+  // Floating Elements Animation
+  const float1Y = useRef(new Animated.Value(0)).current;
+  const float2Y = useRef(new Animated.Value(0)).current;
+  const backgroundFloat1 = useRef(new Animated.Value(0)).current;
+  const backgroundFloat2 = useRef(new Animated.Value(0)).current;
+
+  // Enhanced Color Functions
+  const getBackgroundGradient = () => {
+    if (isDark) {
+      return [
+        '#1A1A1A', '#2D2A26', '#3D342F', '#4A3E36', '#38362E', '#2D2A26', '#1A1A1A'
+      ];
+    } else {
+      return [
+        '#FFFFFF', '#FEFEFE', '#FAF9F6', '#F5F4F1', '#DCD7CE', '#F8F7F4', '#FFFFFF'
+      ];
+    }
+  };
+
+  const getGlassmorphismStyle = () => {
+    if (isDark) {
+      return {
+        backgroundColor: 'rgba(166, 138, 100, 0.08)',
+        borderColor: 'rgba(248, 227, 180, 0.15)',
+        shadowColor: 'rgba(166, 138, 100, 0.3)',
+      };
+    } else {
+      return {
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        borderColor: 'rgba(128, 122, 92, 0.12)',
+        shadowColor: 'rgba(56, 54, 46, 0.15)',
+      };
+    }
+  };
+
+  const getTextColor = () => isDark ? '#F8E3B4' : '#2D2A26';
+  const getSecondaryTextColor = () => isDark ? '#DCD6C1' : '#6B6356';
 
   useEffect(() => {
-    // Clear any existing errors when component mounts
     clearError();
 
-    // Entrance animations
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(headerAnim, {
-        toValue: 0,
-        duration: 700,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Floating elements continuous animation
+    const createFloatingAnimation = (animatedValue: Animated.Value, duration: number, delay: number = 0) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay || 0),
+          Animated.timing(animatedValue, {
+            toValue: 1,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(animatedValue, {
+            toValue: 0,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    };
+
+    // Start floating animations
+    createFloatingAnimation(float1Y, 4000, 0).start();
+    createFloatingAnimation(float2Y, 3500, 1000).start();
+    createFloatingAnimation(backgroundFloat1, 6000, 0).start();
+    createFloatingAnimation(backgroundFloat2, 8000, 3000).start();
+
+    // Main entrance sequence
+    const entranceSequence = Animated.sequence([
+      // Logo entrance
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      Animated.delay(200),
+      
+      // Form entrance
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(formTranslateY, {
+          toValue: 0,
+          tension: 70,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      Animated.delay(200),
+      
+      // Buttons entrance
+      Animated.parallel([
+        Animated.timing(buttonsOpacity, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.spring(buttonsTranslateY, {
+          toValue: 0,
+          tension: 60,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]);
+
+    const timer = setTimeout(() => {
+      entranceSequence.start();
+    }, 400);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const validateEmail = (emailValue: string) => {
@@ -97,218 +203,272 @@ const LoginScreen: React.FC = () => {
     return true;
   };
 
-  const validateForm = (): boolean => {
+  const handleLogin = async () => {
     const isEmailValid = validateEmail(email);
     const isPasswordValid = validatePassword(password);
-    return isEmailValid && isPasswordValid;
-  };
 
-  const handleEmailLogin = async () => {
-    if (!validateForm()) return;
+    if (!isEmailValid || !isPasswordValid) {
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
-      setIsLoading(true);
-      clearError();
-
       const credentials: LoginCredentials = {
         email: email.trim().toLowerCase(),
-        password,
+        password: password
       };
 
       await signInWithEmail(credentials);
-      
-      // Navigation will be handled by the auth state change
+      console.log('[LoginScreen] Login successful');
     } catch (error: any) {
-      // The error will be displayed via authState.error, no need for an alert here.
-      console.error('Login error:', error.message);
+      console.error('[LoginScreen] Login error:', error);
+      Alert.alert(
+        'Грешка при влизане',
+        error.message || 'Възникна грешка. Моля, опитайте отново.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleForgotPassword = () => {
-    navigation.navigate('ForgotPassword', { email });
-  };
-
-  const handleRegister = () => {
-    navigation.navigate('Register');
-  };
-
-  const handleBack = () => {
-    navigation.goBack();
-  };
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor="transparent"
+        translucent
+      />
       
-      {/* Premium Background */}
+      {/* Enhanced Background */}
       <LinearGradient
-        colors={['#F8F4F0', '#DDD0C8', '#B0A89F', '#DDD0C8', '#F8F4F0']}
-        locations={[0, 0.25, 0.5, 0.75, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={getBackgroundGradient()}
+        locations={[0, 0.15, 0.3, 0.45, 0.6, 0.8, 1]}
         style={styles.backgroundGradient}
       />
 
-      {/* Header */}
+      {/* Floating Background Elements */}
       <Animated.View
         style={[
-          styles.header,
+          styles.floatingElement,
+          styles.floatingElement1,
           {
-            transform: [{ translateY: headerAnim }],
+            transform: [
+              {
+                translateY: backgroundFloat1.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -30],
+                }),
+              },
+            ],
           },
         ]}
       >
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Влизане</Text>
-        <View style={styles.headerSpacer} />
+        <LinearGradient
+          colors={isDark ? ['rgba(166, 138, 100, 0.1)', 'rgba(248, 227, 180, 0.05)'] : ['rgba(128, 122, 92, 0.08)', 'rgba(172, 166, 154, 0.05)']}
+          style={styles.floatingGradient}
+        />
       </Animated.View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <Animated.View
+        style={[
+          styles.floatingElement,
+          styles.floatingElement2,
+          {
+            transform: [
+              {
+                translateY: backgroundFloat2.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 40],
+                }),
+              },
+            ],
+          },
+        ]}
       >
-        <Animated.View
-          style={[
-            styles.formContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
+        <LinearGradient
+          colors={isDark ? ['rgba(220, 214, 193, 0.08)', 'rgba(166, 138, 100, 0.12)'] : ['rgba(245, 244, 241, 0.6)', 'rgba(220, 215, 206, 0.4)']}
+          style={styles.floatingGradient}
+        />
+      </Animated.View>
+
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.contentContainer}>
+          
           {/* Logo Section */}
-          <View style={styles.logoSection}>
-            <View style={styles.logoWrapper}>
+          <Animated.View
+            style={[
+              styles.logoSection,
+              {
+                opacity: logoOpacity,
+                transform: [{ scale: logoScale }],
+              },
+            ]}
+          >
+            <View style={[styles.logoContainer, { borderColor: isDark ? '#A68A64' : '#807A5C' }]}>
               <Image
                 source={require('../../assets/images/F.png')}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
-              <LinearGradient
-                colors={['rgba(180, 170, 160, 0.4)', 'rgba(168, 157, 147, 0.2)']}
-                style={styles.logoGlow}
-              />
             </View>
-          </View>
+          </Animated.View>
 
-          {/* Welcome Text */}
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>Добре дошли отново!</Text>
-            <Text style={styles.welcomeSubtitle}>
-              Влезте в акаунта си, за да продължите
+          {/* Title */}
+          <View style={styles.titleSection}>
+            <Text style={[styles.title, { color: getTextColor() }]}>
+              Добре дошли отново
+            </Text>
+            <Text style={[styles.subtitle, { color: getSecondaryTextColor() }]}>
+              Влезте в профила си
             </Text>
           </View>
 
-          {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Имейл адрес</Text>
-            <View style={[styles.inputWrapper, emailError && styles.inputWrapperError]}>
-              <Text style={styles.inputIcon}>📧</Text>
-              <TextInput
-                ref={emailRef}
-                style={styles.textInput}
-                placeholder="example@email.com"
-                placeholderTextColor="rgba(0, 0, 0, 0.5)"
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  validateEmail(text);
-                }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
-                editable={!isLoading}
-              />
-            </View>
-            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
-          </View>
+          {/* Form Section */}
+          <Animated.View
+            style={[
+              styles.formSection,
+              {
+                opacity: formOpacity,
+                transform: [{ translateY: formTranslateY }],
+              },
+            ]}
+          >
+            <View style={[styles.formWrapper, getGlassmorphismStyle()]}>
+              
+              {/* Email Input */}
+              <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: getTextColor() }]}>Имейл</Text>
+                <View style={[styles.inputWrapper, emailError ? styles.inputWrapperError : null]}>
+                  <TextInput
+                    style={[styles.textInput, { color: getTextColor() }]}
+                    placeholder="Въведете вашия имейл"
+                    placeholderTextColor={getSecondaryTextColor() + '80'}
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      if (emailError) setEmailError('');
+                    }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onBlur={() => validateEmail(email)}
+                  />
+                </View>
+                {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+              </View>
 
-          {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Парола</Text>
-            <View style={[styles.inputWrapper, passwordError && styles.inputWrapperError]}>
-              <Text style={styles.inputIcon}>🔒</Text>
-              <TextInput
-                ref={passwordRef}
-                style={styles.textInput}
-                placeholder="Въведете паролата си"
-                placeholderTextColor="rgba(0, 0, 0, 0.5)"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  validatePassword(text);
-                }}
-                secureTextEntry={!showPassword}
-                returnKeyType="done"
-                onSubmitEditing={handleEmailLogin}
-                editable={!isLoading}
-              />
-              <TouchableOpacity
-                style={styles.passwordToggle}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Text style={styles.passwordToggleText}>{showPassword ? '🙈' : '👁️'}</Text>
+              {/* Password Input */}
+              <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: getTextColor() }]}>Парола</Text>
+                <View style={[styles.inputWrapper, passwordError ? styles.inputWrapperError : null]}>
+                  <TextInput
+                    style={[styles.textInput, { color: getTextColor() }]}
+                    placeholder="Въведете вашата парола"
+                    placeholderTextColor={getSecondaryTextColor() + '80'}
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (passwordError) setPasswordError('');
+                    }}
+                    secureTextEntry={!showPassword}
+                    onBlur={() => validatePassword(password)}
+                  />
+                  <TouchableOpacity
+                    style={styles.passwordToggle}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Text style={[styles.passwordToggleText, { color: getSecondaryTextColor() }]}>
+                      {showPassword ? '🙈' : '👁️'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+              </View>
+
+              {/* Forgot Password */}
+                             <TouchableOpacity
+                 style={styles.forgotPasswordContainer}
+                 onPress={() => navigation.navigate('ForgotPassword', { email })}
+               >
+                <Text style={[styles.forgotPasswordText, { color: '#b2ac94' }]}>
+                  Забравена парола?
+                </Text>
+              </TouchableOpacity>
+              
+            </View>
+          </Animated.View>
+
+          {/* Buttons Section */}
+          <Animated.View
+            style={[
+              styles.buttonsSection,
+              {
+                opacity: buttonsOpacity,
+                transform: [{ translateY: buttonsTranslateY }],
+              },
+            ]}
+          >
+            {/* Login Button */}
+            <TouchableOpacity
+              onPress={handleLogin}
+              disabled={isLoading}
+              style={[
+                styles.primaryButton,
+                styles.glassMorphButton,
+                {
+                  backgroundColor: '#b2ac94',
+                  borderColor: 'transparent',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  opacity: isLoading ? 0.7 : 1,
+                },
+              ]}
+            >
+              <View style={[styles.buttonContent, { paddingHorizontal: 24 }]}>
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>
+                    Влизане
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            {/* Register Link */}
+            <View style={styles.registerContainer}>
+              <Text style={[styles.registerText, { color: getSecondaryTextColor() }]}>
+                Нямате акаунт?{' '}
+              </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                <Text style={[styles.registerLink, { color: '#b2ac94' }]}>
+                  Регистрирайте се
+                </Text>
               </TouchableOpacity>
             </View>
-            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
-          </View>
+          </Animated.View>
 
-          {/* Forgot Password Link */}
-          <View style={styles.optionsRow}>
-             <View style={{flex: 1}} />
-            <TouchableOpacity onPress={handleForgotPassword}>
-              <Text style={styles.forgotPasswordText}>Забравена парола?</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Login Button */}
-          <TouchableOpacity
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-            onPress={handleEmailLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#1A1A1A" size="small" />
-            ) : (
-              <Text style={styles.loginButtonText}>Влизане</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Register Link */}
-          <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>Нямате акаунт? </Text>
-            <TouchableOpacity onPress={handleRegister}>
-              <Text style={styles.registerLink}>Регистрирайте се</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Error Display */}
-          {authState.error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{authState.error.message}</Text>
-            </View>
-          )}
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+                     {/* Error Display */}
+           {authState.error && (
+             <View style={[styles.errorContainer, getGlassmorphismStyle()]}>
+               <Text style={styles.errorDisplayText}>{authState.error.message || 'Възникна грешка'}</Text>
+             </View>
+           )}
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -317,115 +477,99 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10,
-    paddingBottom: 10,
+  
+  // Floating Background Elements
+  floatingElement: {
+    position: 'absolute',
+    borderRadius: 100,
+    overflow: 'hidden',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
+  floatingElement1: {
+    width: 200,
+    height: 200,
+    top: '10%',
+    right: '-10%',
+  },
+  floatingElement2: {
+    width: 150,
+    height: 150,
+    bottom: '20%',
+    left: '-8%',
+  },
+  floatingGradient: {
+    flex: 1,
+    borderRadius: 100,
+  },
+
+  keyboardContainer: {
+    flex: 1,
+  },
+  contentContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 20,
-    color: '#2D2928',
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    textAlign: 'center',
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 32,
+    paddingTop: 20,
     paddingBottom: 40,
   },
-  formContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 600,
-  },
+
+  // Logo Section
   logoSection: {
+    marginBottom: 25,
+    marginTop: 10,
+  },
+  logoContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    zIndex: 10,
+  },
+
+  // Title Section
+  titleSection: {
     alignItems: 'center',
     marginBottom: 30,
   },
-  logoWrapper: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#F8F4F0',
-    borderWidth: 3,
-    borderColor: '#B0A89F',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    shadowColor: '#B0A89F',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  logoImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    zIndex: 2,
-  },
-  logoGlow: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: 52,
-    zIndex: 1,
-  },
-  welcomeSection: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2D2928',
+  title: {
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -1,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Black' : 'sans-serif-black',
+    textAlign: 'center',
     marginBottom: 8,
-    textAlign: 'center',
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-    letterSpacing: 1,
   },
-  welcomeSubtitle: {
+  subtitle: {
     fontSize: 16,
-    color: '#6B5B57',
+    fontWeight: '500',
     textAlign: 'center',
-    lineHeight: 22,
-    textShadowColor: 'rgba(176, 168, 159, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    opacity: 0.8,
+  },
+
+  // Form Section
+  formSection: {
+    width: '100%',
+    marginBottom: 30,
+  },
+  formWrapper: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.08)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   inputContainer: {
     marginBottom: 20,
@@ -433,21 +577,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2D2928',
     marginBottom: 8,
-    textShadowColor: 'rgba(176, 168, 159, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
-    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
+    borderColor: 'rgba(166, 138, 100, 0.3)',
+    borderRadius: 12,
     paddingHorizontal: 16,
-    height: 56,
+    height: 50,
   },
   inputWrapperError: {
     borderColor: '#F44336',
@@ -455,94 +594,92 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
     paddingVertical: 0,
-    paddingLeft: 12,
     fontWeight: '500',
-  },
-  inputIcon: {
-    fontSize: 20,
-    marginRight: 8,
   },
   passwordToggle: {
     padding: 4,
     marginLeft: 8,
   },
   passwordToggleText: {
-    fontSize: 20,
-    color: 'rgba(227, 242, 253, 0.6)',
+    fontSize: 18,
   },
-  optionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
+  errorText: {
+    fontSize: 12,
+    color: '#F44336',
+    marginTop: 4,
+  },
+  forgotPasswordContainer: {
+    alignItems: 'flex-end',
+    marginTop: 8,
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#B0A89F',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
-  loginButton: {
-    marginBottom: 24,
-    borderRadius: 30,
-    backgroundColor: 'rgba(139, 127, 120, 0.8)',
-    borderWidth: 2,
-    borderColor: 'rgba(139, 127, 120, 0.9)',
-    paddingVertical: 24,
-    paddingHorizontal: 50,
+
+  // Buttons Section
+  buttonsSection: {
+    width: '100%',
+    gap: 20,
+  },
+  primaryButton: {
+    height: 62,
+    borderRadius: 31,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  glassMorphButton: {
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.05)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  buttonContent: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#8B7F78',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-    minHeight: 64,
-    overflow: 'hidden',
   },
-  loginButtonDisabled: {
-    opacity: 0.6,
+  primaryButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif',
+    textAlign: 'center',
   },
-  loginButtonText: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: '#FAF7F3',
-    letterSpacing: 0.8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
   },
   registerText: {
     fontSize: 16,
-    color: '#6B5B57',
+    fontWeight: '500',
   },
   registerLink: {
     fontSize: 16,
-    color: '#B0A89F',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
+
+  // Error Display
   errorContainer: {
-    marginTop: 16,
+    marginTop: 20,
     padding: 16,
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(244, 67, 54, 0.3)',
+    width: '100%',
   },
-  errorText: {
+  errorDisplayText: {
     fontSize: 14,
     color: '#F44336',
     textAlign: 'center',

@@ -1,6 +1,158 @@
 # Active Context - FinTrack
 
 ## НОВА грешка - РЕШЕНА ✅ 
+**Referral Functions Error**: "Error: INTERNAL" в ReferralService и ReferralScreen
+
+## Проблем - РЕШЕН ✅
+Потребителят получаваше "Error: INTERNAL" грешки при:
+1. Зареждане на referral статистики (`getReferralStats`)
+2. Генериране на referral линк (`generateReferralLink`)
+
+## Причина - ИДЕНТИФИЦИРАНА ✅
+**Липсваше Firebase Auth валидация** в ReferralService методите:
+- `generateReferralLink()` - НЕ валидираше Auth токен
+- `getReferralStats()` - НЕ валидираше Auth токен  
+- `processReferralReward()` - НЕ валидираше Auth токен
+
+Firebase Functions изискват валиден Auth токен, но клиентският код не го проверяваше/обновяваше.
+
+## Решение - ПРИЛОЖЕНО ✅
+
+### 1. Добавен Auth import ✅
+```typescript
+import { 
+  generateReferralLinkCallable, 
+  processReferralRewardCallable, 
+  getReferralStatsCallable,
+  auth // ДОБАВЕНО
+} from '../config/firebase.config';
+```
+
+### 2. Auth валидация в generateReferralLink() ✅
+```typescript
+async generateReferralLink(): Promise<ReferralLink> {
+  try {
+    // Validate Firebase Auth token
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('Моля, влезте отново в профила си.');
+    }
+    await currentUser.getIdToken(true); // Force refresh token
+
+    const result = await generateReferralLinkCallable() as FirebaseFunctionResponse;
+    // ...
+  }
+}
+```
+
+### 3. Auth валидация в getReferralStats() ✅
+```typescript
+async getReferralStats(): Promise<ReferralStats> {
+  try {
+    // Validate Firebase Auth token
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('Моля, влезте отново в профила си.');
+    }
+    await currentUser.getIdToken(true); // Force refresh token
+
+    const result = await getReferralStatsCallable() as FirebaseFunctionResponse;
+    // ...
+  }
+}
+```
+
+### 4. Auth валидация в processReferralReward() ✅
+```typescript
+async processReferralReward(referrerId: string): Promise<void> {
+  try {
+    // Validate Firebase Auth token
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('Моля, влезте отново в профила си.');
+    }
+    await currentUser.getIdToken(true); // Force refresh token
+
+    // Get device info for anti-fraud checks
+    // ...
+  }
+}
+```
+
+### 5. Firebase Functions статус ✅
+Проверени и деплойнати referral функции:
+- ✅ `generateReferralLink` - деплойната и работи
+- ✅ `getReferralStats` - деплойната и работи  
+- ✅ `processReferralReward` - деплойната и работи
+- ✅ `sendReferralReminders` - scheduler функция
+
+### 6. Callable функции конфигурация ✅
+```typescript
+// src/config/firebase.config.ts
+export const generateReferralLinkCallable = functionsInstance.httpsCallable('generateReferralLink');
+export const processReferralRewardCallable = functionsInstance.httpsCallable('processReferralReward');
+export const getReferralStatsCallable = functionsInstance.httpsCallable('getReferralStats');
+```
+
+## Статус: ГОТОВО ЗА ТЕСТВАНЕ ✅
+
+ReferralScreen и ReferralService сега трябва да работят без "Error: INTERNAL" грешки! 🎉
+
+## ПРЕДИШНА грешка - РЕШЕНА ✅ 
+**Subscription Price Display Error**: Показваше се неправилна цена в детайлите на абонамента
+
+## Проблем - РЕШЕН ✅
+Потребителят имаше годишен абонамент, но в екраните за управление на абонамента се показваше цена за месечен абонамент (12.99 BGN) вместо правилната цена според плана.
+
+## Причина - ИДЕНТИФИЦИРАНА ✅
+Несъответствие между Firebase Functions и клиентския код:
+1. **Firebase Functions** записваха `planId` в базата данни
+2. **Клиентският код** търсеше `subscription.plan` 
+3. Функциите `getPlanPeriodForPrice()` получаваха undefined и падаха в fallback режим (месечна цена)
+
+## Решение - ПРИЛОЖЕНО ✅
+
+### 1. Поправка на Firebase Functions ✅
+```typescript
+// ПРЕДИ: записваше planId
+planId: planId,
+
+// СЛЕД: записва plan за съответствие с интерфейса
+plan: planId, // Changed from planId to plan to match interface
+```
+
+### 2. Добавена Backward Compatibility ✅
+```typescript
+// Support both 'plan' and 'planId' for backward compatibility
+const planValue = subscription.plan || (subscription as any).planId;
+
+switch (planValue) {
+  case SubscriptionPlan.YEARLY:
+  case 'yearly':
+    return 'yearly';
+  // ...
+}
+```
+
+### 3. Файлове променени ✅
+- `functions/src/index.ts` - поправени subscription create/update функции
+- `src/screens/auth/SubscriptionManagementScreen.tsx` - добавена fallback логика
+- `src/screens/auth/PaymentSuccessScreen.tsx` - добавена fallback логика
+
+### 4. Деплойнати Changes ✅
+```bash
+firebase deploy --only functions
+✔ Deploy complete!
+```
+
+## Статус: ГОТОВО ✅
+
+Сега цената ще се показва правилно според реалния абонамент:
+- **Месечен план**: 12.99 BGN месечно
+- **Тримесечен план**: 29.99 BGN тримесечно (9.99 BGN/месец)
+- **Годишен план**: 99.99 BGN годишно (8.33 BGN/месец)
+
+## НОВА грешка - РЕШЕНА ✅ 
 **PaymentScreen Error: INTERNAL**: Грешка при създаване на Stripe subscription
 
 ## Проблем 1 - РЕШЕН ✅

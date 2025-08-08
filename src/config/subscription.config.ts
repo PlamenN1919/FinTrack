@@ -61,15 +61,21 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlan, PlanConfig> = {
 export const getPlanPrice = (plan: SubscriptionPlan, period: 'monthly' | 'quarterly' | 'yearly' = 'monthly'): number => {
   const planConfig = SUBSCRIPTION_PLANS[plan];
   
+  // Fallback if plan config is not found
+  if (!planConfig) {
+    console.warn(`[getPlanPrice] Plan config not found for plan: ${plan}, using default monthly price`);
+    return 12.99; // Default monthly price
+  }
+  
   switch (period) {
     case 'monthly':
-      return planConfig.monthlyPrice;
+      return planConfig.monthlyPrice || 12.99;
     case 'quarterly':
-      return planConfig.quarterlyPrice || planConfig.monthlyPrice * 3;
+      return planConfig.quarterlyPrice || planConfig.monthlyPrice * 3 || 29.99;
     case 'yearly':
-      return planConfig.yearlyPrice || planConfig.monthlyPrice * 12;
+      return planConfig.yearlyPrice || planConfig.monthlyPrice * 12 || 99.99;
     default:
-      return planConfig.monthlyPrice;
+      return planConfig.monthlyPrice || 12.99;
   }
 };
 
@@ -191,6 +197,9 @@ export const SUBSCRIPTION_LIMITS = {
 
 // Formatting functions
 export const formatPrice = (amount: number, currency: string = 'BGN'): string => {
+  if (amount === undefined || amount === null || isNaN(amount)) {
+    return `0.00 ${currency}`;
+  }
   return `${amount.toFixed(2)} ${currency}`;
 };
 

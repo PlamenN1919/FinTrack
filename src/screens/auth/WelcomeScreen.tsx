@@ -8,14 +8,16 @@ import {
   TouchableOpacity,
   Animated,
   Platform,
+  SafeAreaView,
   Image,
-  ImageBackground,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AuthStackParamList, UserState } from '../../types/auth.types';
-import { useAuth } from '../../contexts/AuthContext';
+import { AuthStackParamList } from '../../types/auth.types';
+import { useTheme } from '../../utils/ThemeContext';
+import TimelineCard from '../../components/ui/TimelineCard';
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,782 +25,509 @@ type WelcomeScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList,
 
 const WelcomeScreen: React.FC = () => {
   const navigation = useNavigation<WelcomeScreenNavigationProp>();
-  const { authState, logout } = useAuth();
+  const { theme, isDark } = useTheme();
   
-  // Enhanced Animation values
-  const logoScale = useRef(new Animated.Value(0.8)).current;
+  // Enhanced Animation References
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoRotate = useRef(new Animated.Value(0)).current;
-  const titleTranslateY = useRef(new Animated.Value(80)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
+  const logoRotation = useRef(new Animated.Value(0)).current;
+  
   const titleOpacity = useRef(new Animated.Value(0)).current;
-  const titleScale = useRef(new Animated.Value(0.9)).current;
-  const subtitleTranslateY = useRef(new Animated.Value(50)).current;
+  const titleTranslateY = useRef(new Animated.Value(60)).current;
+  const titleScale = useRef(new Animated.Value(0.8)).current;
+  
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
-  const buttonsTranslateY = useRef(new Animated.Value(60)).current;
+  const subtitleTranslateY = useRef(new Animated.Value(40)).current;
+  
+  const timelineOpacity = useRef(new Animated.Value(0)).current;
+  const timelineTranslateY = useRef(new Animated.Value(50)).current;
+  
   const buttonsOpacity = useRef(new Animated.Value(0)).current;
-  const decorativeOpacity = useRef(new Animated.Value(0)).current;
+  const buttonsTranslateY = useRef(new Animated.Value(60)).current;
   
-  // Advanced animations for premium effects
-  const logoPulse = useRef(new Animated.Value(1)).current;
-  const logoGlow = useRef(new Animated.Value(0.5)).current;
-  const particleAnimations = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
-  const gradientRotation = useRef(new Animated.Value(0)).current;
-  const meshAnimation = useRef(new Animated.Value(0)).current;
-  const buttonScale1 = useRef(new Animated.Value(1)).current;
-  const buttonScale2 = useRef(new Animated.Value(1)).current;
-  const glassOpacity = useRef(new Animated.Value(0)).current;
-  const cardFloat = useRef(new Animated.Value(0)).current;
-  const orbAnimation = useRef(new Animated.Value(0)).current;
+  // Floating Elements Animation
+  const float1Y = useRef(new Animated.Value(0)).current;
+  const float1Rotation = useRef(new Animated.Value(0)).current;
+  const float2Y = useRef(new Animated.Value(0)).current;
+  const float2Scale = useRef(new Animated.Value(1)).current;
+  const float3Y = useRef(new Animated.Value(0)).current;
   
-  // Feature card animations
-  const featureCard1 = useRef(new Animated.Value(0)).current;
-  const featureCard2 = useRef(new Animated.Value(0)).current;
-  const featureCard3 = useRef(new Animated.Value(0)).current;
+  // Button interaction animations
+  const registerButtonScale = useRef(new Animated.Value(1)).current;
+  const loginButtonScale = useRef(new Animated.Value(1)).current;
+  
+  // Parallax Background Elements
+  const backgroundFloat1 = useRef(new Animated.Value(0)).current;
+  const backgroundFloat2 = useRef(new Animated.Value(0)).current;
 
+  // Enhanced Color Functions
+  const getBackgroundGradient = () => {
+    if (isDark) {
+      return [
+        '#1A1A1A', // Deep black
+        '#2D2A26', // Rich dark brown
+        '#3D342F', // Warm dark brown
+        '#4A3E36', // Medium brown
+        '#38362E', // Dark olive
+        '#2D2A26', // Rich dark brown
+        '#1A1A1A', // Deep black
+      ];
+    } else {
+      return [
+        '#FFFFFF', // Pure white
+        '#FEFEFE', // Off white
+        '#FAF9F6', // Cream white
+        '#F5F4F1', // Light cream
+        '#DCD7CE', // Light beige
+        '#F8F7F4', // Warm white
+        '#FFFFFF', // Pure white
+      ];
+    }
+  };
+
+  const getGlassmorphismStyle = () => {
+    if (isDark) {
+      return {
+        backgroundColor: 'rgba(166, 138, 100, 0.08)',
+        borderColor: 'rgba(248, 227, 180, 0.15)',
+        shadowColor: 'rgba(166, 138, 100, 0.3)',
+      };
+    } else {
+      return {
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        borderColor: 'rgba(128, 122, 92, 0.12)',
+        shadowColor: 'rgba(56, 54, 46, 0.15)',
+      };
+    }
+  };
+
+  const getButtonGradient = (isPrimary: boolean) => {
+    if (isPrimary) {
+      if (isDark) {
+        return ['#A68A64', '#C4A876', '#F8E3B4', '#DCD6C1']; // Enhanced golden
+      } else {
+        return ['#807A5C', '#9C8F72', '#A68A64', '#F8E3B4']; // Rich earth
+      }
+    } else {
+      if (isDark) {
+        return [
+          'rgba(166, 138, 100, 0.12)',
+          'rgba(220, 214, 193, 0.08)',
+          'rgba(248, 227, 180, 0.15)',
+          'rgba(166, 138, 100, 0.18)',
+        ];
+      } else {
+        return [
+          'rgba(255, 255, 255, 0.4)',
+          'rgba(248, 247, 244, 0.6)',
+          'rgba(245, 244, 241, 0.5)',
+          'rgba(255, 255, 255, 0.3)',
+        ];
+      }
+    }
+  };
+
+  const getTextColor = () => {
+    return isDark ? '#F8E3B4' : '#2D2A26';
+  };
+
+  const getSecondaryTextColor = () => {
+    return isDark ? '#DCD6C1' : '#6B6356';
+  };
+
+  const getAccentColor = () => {
+    return isDark ? '#C4A876' : '#A68A64';
+  };
+
+  // Enhanced Animation Sequences
   useEffect(() => {
-    // Debug logging for auth state changes
-    console.log('[WelcomeScreen] Auth state changed:', {
-      userState: authState.userState,
-      hasUser: !!authState.user,
-      userEmail: authState.user?.email,
-      isLoading: authState.isLoading,
-      isInitialized: authState.isInitialized,
-    });
+    // Floating elements continuous animation
+    const createFloatingAnimation = (animatedValue: Animated.Value, duration: number, delay: number = 0) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay || 0),
+          Animated.timing(animatedValue, {
+            toValue: 1,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(animatedValue, {
+            toValue: 0,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    };
+
+    // Start floating animations
+    createFloatingAnimation(float1Y, 4000, 0).start();
+    createFloatingAnimation(float2Y, 3500, 1000).start();
+    createFloatingAnimation(float3Y, 4500, 2000).start();
     
-    // Note: No auto-navigation here - RegisterScreen handles direct navigation
-    // This allows users to return to welcome and choose when to proceed
-  }, [authState.userState, authState.user, authState.isInitialized, authState.isLoading, navigation]);
+    // Rotation animations
+    Animated.loop(
+      Animated.timing(float1Rotation, {
+        toValue: 1,
+        duration: 20000,
+        useNativeDriver: true,
+      })
+    ).start();
 
-  useEffect(() => {
-    // Enhanced staggered entrance animations
-    const animationSequence = Animated.sequence([
-      // Logo entrance with rotation
+    // Scale pulse
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(float2Scale, {
+          toValue: 1.1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(float2Scale, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Background parallax
+    createFloatingAnimation(backgroundFloat1, 6000, 0).start();
+    createFloatingAnimation(backgroundFloat2, 8000, 3000).start();
+
+    // Main entrance sequence with staggered timing
+    const entranceSequence = Animated.sequence([
+      // Logo dramatic entrance
       Animated.parallel([
         Animated.timing(logoOpacity, {
           toValue: 1,
-          duration: 1200,
+          duration: 1000,
           useNativeDriver: true,
         }),
         Animated.spring(logoScale, {
           toValue: 1,
-          tension: 45,
+          tension: 40,
           friction: 8,
           useNativeDriver: true,
         }),
-        Animated.timing(logoRotate, {
+        Animated.timing(logoRotation, {
           toValue: 1,
           duration: 1200,
           useNativeDriver: true,
         }),
       ]),
       
-      // Title with scale and translate
+      // Staggered content entrance
+      Animated.delay(200),
+      
+      // Title with enhanced animation
       Animated.parallel([
         Animated.timing(titleOpacity, {
           toValue: 1,
-          duration: 900,
+          duration: 600,
           useNativeDriver: true,
         }),
         Animated.spring(titleTranslateY, {
           toValue: 0,
-          tension: 55,
-          friction: 9,
+          tension: 70,
+          friction: 8,
           useNativeDriver: true,
         }),
         Animated.spring(titleScale, {
           toValue: 1,
-          tension: 55,
-          friction: 9,
+          tension: 80,
+          friction: 8,
           useNativeDriver: true,
         }),
       ]),
       
-      // Subtitle animation
+      Animated.delay(150),
+      
+      // Subtitle
       Animated.parallel([
         Animated.timing(subtitleOpacity, {
           toValue: 1,
-          duration: 800,
+          duration: 500,
           useNativeDriver: true,
         }),
         Animated.spring(subtitleTranslateY, {
           toValue: 0,
-          tension: 55,
-          friction: 9,
+          tension: 90,
+          friction: 8,
           useNativeDriver: true,
         }),
       ]),
       
-      // Feature cards staggered
-      Animated.stagger(180, [
-        Animated.spring(featureCard1, {
+      Animated.delay(200),
+      
+      // Timeline cards
+      Animated.parallel([
+        Animated.timing(timelineOpacity, {
           toValue: 1,
-          tension: 55,
-          friction: 9,
+          duration: 600,
           useNativeDriver: true,
         }),
-        Animated.spring(featureCard2, {
-          toValue: 1,
-          tension: 55,
-          friction: 9,
-          useNativeDriver: true,
-        }),
-        Animated.spring(featureCard3, {
-          toValue: 1,
-          tension: 55,
-          friction: 9,
+        Animated.spring(timelineTranslateY, {
+          toValue: 0,
+          tension: 80,
+          friction: 8,
           useNativeDriver: true,
         }),
       ]),
       
-      // Buttons with glass effect
+      Animated.delay(250),
+      
+      // Buttons finale
       Animated.parallel([
         Animated.timing(buttonsOpacity, {
           toValue: 1,
-          duration: 900,
+          duration: 700,
           useNativeDriver: true,
         }),
         Animated.spring(buttonsTranslateY, {
           toValue: 0,
-          tension: 55,
-          friction: 9,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glassOpacity, {
-          toValue: 1,
-          duration: 900,
+          tension: 60,
+          friction: 8,
           useNativeDriver: true,
         }),
       ]),
-      
-      // Decorative elements
-      Animated.timing(decorativeOpacity, {
-        toValue: 1,
-        duration: 1100,
-        useNativeDriver: true,
-      }),
     ]);
 
-    // Start animation after a short delay
     const timer = setTimeout(() => {
-      animationSequence.start();
-      
-      // Start continuous animations
-      startAdvancedAnimations();
-    }, 300);
+      entranceSequence.start();
+    }, 400);
 
     return () => clearTimeout(timer);
   }, []);
 
-  const startAdvancedAnimations = () => {
-    // Enhanced logo pulse with glow
-    Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(logoPulse, {
-            toValue: 1.06,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(logoPulse, {
-            toValue: 1,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.timing(logoGlow, {
-            toValue: 0.9,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(logoGlow, {
-            toValue: 0.4,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-        ]),
-      ])
-    ).start();
-
-    // Gradient rotation
-    Animated.loop(
-      Animated.timing(gradientRotation, {
-        toValue: 1,
-        duration: 35000,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    // Enhanced mesh animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(meshAnimation, {
-          toValue: 1,
-          duration: 15000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(meshAnimation, {
-          toValue: 0,
-          duration: 15000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Floating card effect
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(cardFloat, {
-          toValue: 1,
-          duration: 5000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(cardFloat, {
-          toValue: 0,
-          duration: 5000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Orb animation
-    Animated.loop(
-      Animated.timing(orbAnimation, {
-        toValue: 1,
-        duration: 10000,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    // Enhanced particle animations
-    particleAnimations.forEach((anim, index) => {
-      const delay = index * 900;
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 4500 + Math.random() * 2500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim, {
-            toValue: 0,
-            duration: 1200,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    });
-  };
-
-  const handleLogin = () => {
+  // Enhanced Button Press Handlers
+  const handleRegisterPress = () => {
     Animated.sequence([
-      Animated.timing(buttonScale2, {
-        toValue: 0.95,
-        duration: 120,
+      Animated.spring(registerButtonScale, {
+        toValue: 0.92,
+        tension: 150,
+        friction: 4,
         useNativeDriver: true,
       }),
-      Animated.spring(buttonScale2, {
+      Animated.spring(registerButtonScale, {
+        toValue: 1.02,
+        tension: 200,
+        friction: 6,
+        useNativeDriver: true,
+      }),
+      Animated.spring(registerButtonScale, {
         toValue: 1,
-        tension: 120,
-        friction: 7,
+        tension: 180,
+        friction: 8,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      navigation.navigate('Login');
-    });
-  };
-
-  const handleRegister = () => {
-    Animated.sequence([
-      Animated.timing(buttonScale1, {
-        toValue: 0.95,
-        duration: 120,
-        useNativeDriver: true,
-      }),
-      Animated.spring(buttonScale1, {
-        toValue: 1,
-        tension: 120,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
+    ]).start();
+    
+    setTimeout(() => {
       navigation.navigate('Register');
-    });
+    }, 300);
   };
 
-  const handleChoosePlan = () => {
+  const handleLoginPress = () => {
     Animated.sequence([
-      Animated.timing(buttonScale1, {
-        toValue: 0.95,
-        duration: 120,
+      Animated.spring(loginButtonScale, {
+        toValue: 0.92,
+        tension: 150,
+        friction: 4,
         useNativeDriver: true,
       }),
-      Animated.spring(buttonScale1, {
+      Animated.spring(loginButtonScale, {
+        toValue: 1.02,
+        tension: 200,
+        friction: 6,
+        useNativeDriver: true,
+      }),
+      Animated.spring(loginButtonScale, {
         toValue: 1,
-        tension: 120,
-        friction: 7,
+        tension: 180,
+        friction: 8,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      navigation.navigate('SubscriptionPlans', {
-        reason: 'new_user'
-      });
-    });
-  };
-
-  const handleEnterApp = () => {
-    Animated.sequence([
-      Animated.timing(buttonScale1, {
-        toValue: 0.95,
-        duration: 120,
-        useNativeDriver: true,
-      }),
-      Animated.spring(buttonScale1, {
-        toValue: 1,
-        tension: 120,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Navigate to SubscriptionManagement to trigger app navigation
-      if (authState.subscription) {
-        navigation.navigate('SubscriptionManagement', {
-          subscription: authState.subscription,
-        });
-      }
-    });
-  };
-
-  const handleLogout = () => {
-    Animated.sequence([
-      Animated.timing(buttonScale2, {
-        toValue: 0.95,
-        duration: 120,
-        useNativeDriver: true,
-      }),
-      Animated.spring(buttonScale2, {
-        toValue: 1,
-        tension: 120,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start(async () => {
-      await logout();
-    });
+    ]).start();
+    
+    setTimeout(() => {
+      navigation.navigate('Login');
+    }, 300);
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor="transparent"
+        translucent
+      />
       
-      {/* Enhanced Multi-layer Premium Background */}
+      {/* Enhanced Background with Multiple Layers */}
       <LinearGradient
-        colors={['#FAF7F3', '#F5F1ED', '#E8DDD6', '#D4C5B8', '#E8DDD6', '#F5F1ED', '#FAF7F3']}
-        locations={[0, 0.15, 0.35, 0.5, 0.65, 0.85, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={getBackgroundGradient()}
+        locations={[0, 0.15, 0.3, 0.45, 0.6, 0.8, 1]}
         style={styles.backgroundGradient}
       />
 
-      {/* Enhanced Dynamic Mesh Background */}
-      <Animated.View style={[
-        styles.meshGradient,
-        {
-          opacity: meshAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0.3, 0.08],
-          }),
-          transform: [{
-            rotate: gradientRotation.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['0deg', '360deg'],
-            }),
-          }, {
-            scale: meshAnimation.interpolate({
-              inputRange: [0, 1],
-              outputRange: [1, 1.15],
-            }),
-          }],
-        }
-      ]}>
+      {/* Floating Background Elements */}
+      <Animated.View
+        style={[
+          styles.floatingElement,
+          styles.floatingElement1,
+          {
+            transform: [
+              {
+                translateY: backgroundFloat1.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -30],
+                }),
+              },
+              {
+                translateX: backgroundFloat1.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 20],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <LinearGradient
-          colors={[
-            'rgba(180, 170, 160, 0.12)', 
-            'rgba(212, 197, 184, 0.06)', 
-            'transparent', 
-            'rgba(168, 157, 147, 0.08)',
-            'rgba(245, 241, 237, 0.04)'
-          ]}
-          locations={[0, 0.25, 0.5, 0.75, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.meshGradientInner}
+          colors={isDark ? ['rgba(166, 138, 100, 0.1)', 'rgba(248, 227, 180, 0.05)'] : ['rgba(128, 122, 92, 0.08)', 'rgba(172, 166, 154, 0.05)']}
+          style={styles.floatingGradient}
         />
       </Animated.View>
 
-      {/* Enhanced Geometric Pattern */}
-      <View style={styles.geometricPattern}>
-        {[...Array(6)].map((_, index) => (
-          <Animated.View
-            key={`pattern-${index}`}
-            style={[
-              styles.geometricLine,
+      <Animated.View
+        style={[
+          styles.floatingElement,
+          styles.floatingElement2,
+          {
+            transform: [
               {
-                left: `${index * 16.66}%`,
-                opacity: decorativeOpacity.interpolate({
+                translateY: backgroundFloat2.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0, 0.12],
+                  outputRange: [0, 40],
                 }),
-                transform: [{
-                  translateY: meshAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 25],
-                  }),
-                }, {
-                  scaleY: meshAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, 1.08],
-                  }),
-                }],
               },
-            ]}
-          />
-        ))}
-      </View>
-      
-      {/* Enhanced Floating Orbs */}
-      <Animated.View style={[styles.orb1, {
-        transform: [{
-          translateX: orbAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 35],
-          }),
-        }, {
-          translateY: orbAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, -25],
-          }),
-        }, {
-          scale: orbAnimation.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [1, 1.05, 1],
-          }),
-        }],
-        opacity: decorativeOpacity.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, 0.6],
-        }),
-      }]} />
-      
-      <Animated.View style={[styles.orb2, {
-        transform: [{
-          translateX: orbAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, -30],
-          }),
-        }, {
-          translateY: orbAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 20],
-          }),
-        }, {
-          scale: orbAnimation.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [1, 0.95, 1],
-          }),
-        }],
-        opacity: decorativeOpacity.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, 0.45],
-        }),
-      }]} />
+              {
+                translateX: backgroundFloat2.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -25],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={isDark ? ['rgba(220, 214, 193, 0.08)', 'rgba(166, 138, 100, 0.12)'] : ['rgba(245, 244, 241, 0.6)', 'rgba(220, 215, 206, 0.4)']}
+          style={styles.floatingGradient}
+        />
+      </Animated.View>
 
-      <Animated.View style={[styles.orb3, {
-        transform: [{
-          rotate: orbAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', '180deg'],
-          }),
-        }, {
-          scale: orbAnimation.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [1, 1.1, 1],
-          }),
-        }],
-        opacity: decorativeOpacity.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, 0.35],
-        }),
-      }]} />
-
-      {/* Enhanced Animated Particles */}
-      {particleAnimations.map((anim, index) => (
+      {/* Main Content with Enhanced Layout */}
+      <View style={styles.contentContainer}>
+        
+        {/* Clean Logo Section with Single Ring */}
         <Animated.View
-          key={index}
           style={[
-            styles.particle,
+            styles.logoSection,
             {
-              left: (Math.random() * width),
-              opacity: anim.interpolate({
-                inputRange: [0, 0.3, 0.7, 1],
-                outputRange: [0, 0.8, 0.8, 0],
-              }),
+              opacity: logoOpacity,
               transform: [
+                { scale: logoScale },
                 {
-                  translateY: anim.interpolate({
+                  rotate: logoRotation.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [height + 60, -120],
-                  }),
-                },
-                {
-                  translateX: anim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, (Math.random() - 0.5) * 80],
-                  }),
-                },
-                {
-                  scale: anim.interpolate({
-                    inputRange: [0, 0.3, 0.7, 1],
-                    outputRange: [0, 1.2, 1.2, 0],
+                    outputRange: ['0deg', '360deg'],
                   }),
                 },
               ],
             },
           ]}
-        />
-      ))}
-      
-      {/* Content Container with Enhanced Glass Effect */}
-      <View style={styles.contentContainer}>
-        
-        {/* Enhanced Logo Section */}
-        <View style={styles.logoSection}>
-          <Animated.View
-            style={[
-              styles.logoContainer,
-              {
-                opacity: logoOpacity,
-                transform: [
-                  { scale: Animated.multiply(logoScale, logoPulse) },
-                  { 
-                    rotate: logoRotate.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['0deg', '360deg'],
-                    })
-                  }
-                ],
-              },
-            ]}
-          >
-            <View style={styles.logoWrapper}>
-              {/* Enhanced multiple glow layers */}
-              <Animated.View style={[styles.logoGlowOuter, {
-                opacity: logoGlow.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.1, 0.4],
-                }),
-                transform: [{ scale: logoPulse }],
-              }]} />
-              <Animated.View style={[styles.logoGlowMiddle, {
-                opacity: logoGlow.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.2, 0.6],
-                }),
-                transform: [{ scale: Animated.multiply(logoPulse, 0.92) }],
-              }]} />
-              
-              <LinearGradient
-                colors={['rgba(180, 170, 160, 0.3)', 'rgba(168, 157, 147, 0.15)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.logoGlow}
-              />
-              
-              <Image
-                source={require('../../assets/images/F.png')}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-              
-              {/* Enhanced inner glow */}
-              <Animated.View style={[styles.logoInnerGlow, {
-                opacity: logoGlow.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.15, 0.4],
-                }),
-              }]} />
-            </View>
-          </Animated.View>
-          
-          <Animated.View
-            style={[
-              styles.appNameContainer,
-              {
-                opacity: titleOpacity,
-                transform: [
-                  { translateY: titleTranslateY },
-                  { scale: titleScale }
-                ],
-              },
-            ]}
-          >
-            <Text style={[styles.appName, styles.appNameFin]}>Fin</Text>
-            <Text style={[styles.appName, styles.appNameTrack]}>Track</Text>
-          </Animated.View>
-          
-          <Animated.Text
-            style={[
-              styles.tagline,
-              {
-                opacity: subtitleOpacity,
-                transform: [{ translateY: subtitleTranslateY }],
-              },
-            ]}
-          >
-            Управлявайте финансите си умно
-          </Animated.Text>
-        </View>
-        
-        {/* Enhanced Features Section */}
-        <View style={styles.featuresSection}>
-          <Animated.View
-            style={[
-              styles.featureItem,
-              {
-                opacity: featureCard1,
-                transform: [
-                  {
-                    translateY: featureCard1.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [40, 0],
-                    }),
-                  },
-                  {
-                    scale: featureCard1.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.85, 1],
-                    }),
-                  },
-                  {
-                    translateY: cardFloat.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, -8],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.featureIcon}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.05)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.featureGradient}
-              >
-                <View style={styles.glassOverlay} />
-                <Text style={styles.featureEmoji}>📊</Text>
-              </LinearGradient>
-            </View>
-            <Text style={styles.featureText}>Детайлни анализи</Text>
-          </Animated.View>
-          
-          <Animated.View
-            style={[
-              styles.featureItem,
-              {
-                opacity: featureCard2,
-                transform: [
-                  {
-                    translateY: featureCard2.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [40, 0],
-                    }),
-                  },
-                  {
-                    scale: featureCard2.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.85, 1],
-                    }),
-                  },
-                  {
-                    translateY: cardFloat.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, -12],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.featureIcon}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.05)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.featureGradient}
-              >
-                <View style={styles.glassOverlay} />
-                <Text style={styles.featureEmoji}>🎯</Text>
-              </LinearGradient>
-            </View>
-            <Text style={styles.featureText}>Умни бюджети</Text>
-          </Animated.View>
-          
-          <Animated.View
-            style={[
-              styles.featureItem,
-              {
-                opacity: featureCard3,
-                transform: [
-                  {
-                    translateY: featureCard3.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [40, 0],
-                    }),
-                  },
-                  {
-                    scale: featureCard3.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.85, 1],
-                    }),
-                  },
-                  {
-                    translateY: cardFloat.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, -6],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.featureIcon}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.05)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.featureGradient}
-              >
-                <View style={styles.glassOverlay} />
-                <Text style={styles.featureEmoji}>🔒</Text>
-              </LinearGradient>
-            </View>
-            <Text style={styles.featureText}>Пълна сигурност</Text>
-          </Animated.View>
-        </View>
-        
-        {/* Enhanced Buttons Section */}
+        >
+          <View style={[styles.logoContainer, { borderColor: isDark ? '#A68A64' : '#807A5C' }]}>
+            <Image
+              source={require('../../assets/images/F.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
+        </Animated.View>
+
+        {/* Enhanced Hero Section */}
+        <Animated.View
+          style={[
+            styles.heroSection,
+            {
+              opacity: titleOpacity,
+              transform: [
+                { translateY: titleTranslateY },
+                { scale: titleScale },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.titleContainer}>
+            <Text style={[styles.modernTextPrimary, { color: getTextColor() }]}>
+              Fin
+            </Text>
+            <Text style={[styles.modernTextPrimary, { color: '#b2ac94' }]}>
+              Track
+            </Text>
+          </View>
+        </Animated.View>
+
+        {/* Enhanced Subtitle */}
+        <Animated.View
+          style={[
+            styles.subtitleSection,
+            {
+              opacity: subtitleOpacity,
+              transform: [{ translateY: subtitleTranslateY }],
+            },
+          ]}
+        >
+          <Text style={[styles.heroSubtitle, { color: getSecondaryTextColor() }]}>
+            Вашият път към финансова свобода
+          </Text>
+        </Animated.View>
+
+        {/* Enhanced Timeline with Glassmorphism */}
+        <Animated.View
+          style={[
+            styles.timelineContainer,
+            {
+              opacity: timelineOpacity,
+              transform: [{ translateY: timelineTranslateY }],
+            },
+          ]}
+        >
+          <View style={[styles.timelineWrapper, getGlassmorphismStyle()]}>
+            <TimelineCard
+              steps={[
+                {
+                  icon: 'analytics',
+                  title: 'ПЛАНИРАЙ',
+                  description: 'Създай цели и бюджети'
+                },
+                {
+                  icon: 'visibility',
+                  title: 'КОНТРОЛИРАЙ',
+                  description: 'Следи разходите в реално време'
+                },
+                {
+                  icon: 'trending-up',
+                  title: 'РАСТЕШ',
+                  description: 'Постигай целите си и спестявай'
+                }
+              ]}
+            />
+          </View>
+        </Animated.View>
+
+        {/* Enhanced Premium Buttons */}
         <Animated.View
           style={[
             styles.buttonsSection,
@@ -808,143 +537,146 @@ const WelcomeScreen: React.FC = () => {
             },
           ]}
         >
-          {authState.userState === UserState.ACTIVE_SUBSCRIBER ? (
-            // Buttons for active subscribers
-            <>
-              <Animated.View style={{ transform: [{ scale: buttonScale1 }] }}>
-                <TouchableOpacity
-                  onPress={handleEnterApp}
-                  activeOpacity={0.8}
-                  style={styles.primaryButton}
-                >
-                  <View style={styles.primaryButtonInner}>
-                    <Text style={styles.primaryButtonText}>Управление на абонамента</Text>
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-              
-              <Animated.View style={{ transform: [{ scale: buttonScale2 }] }}>
-                <TouchableOpacity
-                  onPress={handleLogout}
-                  activeOpacity={0.8}
-                  style={styles.secondaryButton}
-                >
-                  <View style={styles.secondaryButtonInner}>
-                    <Text style={styles.secondaryButtonText}>Излизане от профила</Text>
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-            </>
-          ) : authState.userState === UserState.REGISTERED_NO_SUBSCRIPTION ? (
-            // Buttons for registered users without subscription
-            <>
-              {/* Enhanced Info message for registered users */}
-              <Animated.View style={[styles.infoContainer, {
-                opacity: buttonsOpacity,
-              }]}>
-                <LinearGradient
-                  colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.05)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.infoGradient}
-                >
-                  <View style={styles.infoGlassOverlay} />
-                  <Text style={styles.infoText}>
-                    Добре дошли, {authState.user?.email || 'потребител'}!
+          {/* Enhanced Register Button */}
+          <Animated.View
+            style={[
+              styles.buttonContainer,
+              { transform: [{ scale: registerButtonScale }] }
+            ]}
+          >
+            <TouchableOpacity
+              onPress={handleRegisterPress}
+              activeOpacity={0.85}
+              style={[styles.primaryButton, styles.glassMorphButton, { 
+                backgroundColor: '#b2ac94',
+                borderColor: 'transparent',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }]}
+            >
+              <View style={[styles.buttonContent, { paddingHorizontal: 24 }]}>
+                <Text style={[styles.primaryButtonText, { color: '#FFFFFF', marginLeft: 30 }]}>
+                  Започнете пътуването
+                </Text>
+                <View style={[styles.buttonIcon, { backgroundColor: 'rgba(255, 255, 255, 0.3)' }]}>
+                  <Text style={[styles.buttonIconText, { color: '#FFFFFF' }]}>→</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Enhanced Login Button */}
+          <Animated.View
+            style={[
+              styles.buttonContainer,
+              { transform: [{ scale: loginButtonScale }] }
+            ]}
+          >
+            <TouchableOpacity
+              onPress={handleLoginPress}
+              activeOpacity={0.85}
+              style={[styles.secondaryButton, getGlassmorphismStyle(), styles.glassMorphButton]}
+            >
+              <LinearGradient
+                colors={getButtonGradient(false)}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.buttonGradient}
+              >
+                <View style={styles.buttonContent}>
+                  <Text style={[styles.secondaryButtonText, { color: getTextColor() }]}>
+                    Вече имам акаунт
                   </Text>
-                  <Text style={styles.infoSubtext}>
-                    Изберете абонамент, за да започнете да следите финансите си
-                  </Text>
-                </LinearGradient>
-              </Animated.View>
-              
-              <Animated.View style={{ transform: [{ scale: buttonScale1 }] }}>
-                <TouchableOpacity
-                  onPress={handleChoosePlan}
-                  activeOpacity={0.8}
-                  style={styles.primaryButton}
-                >
-                  <View style={styles.primaryButtonInner}>
-                    <Text style={styles.primaryButtonText}>Изберете абонамент</Text>
+                  <View style={[styles.buttonIconSecondary, { borderColor: getTextColor() + '40' }]}>
+                    <Text style={[styles.buttonIconText, { color: getTextColor() }]}>→</Text>
                   </View>
-                </TouchableOpacity>
-              </Animated.View>
-              
-              <Animated.View style={{ transform: [{ scale: buttonScale2 }] }}>
-                <TouchableOpacity
-                  onPress={handleLogout}
-                  activeOpacity={0.8}
-                  style={styles.secondaryButton}
-                >
-                  <View style={styles.secondaryButtonInner}>
-                    <Text style={styles.secondaryButtonText}>Излизане от профила</Text>
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-            </>
-          ) : (
-            // Default buttons for unregistered users
-            <>
-              <Animated.View style={{ transform: [{ scale: buttonScale1 }] }}>
-                <TouchableOpacity
-                  onPress={handleRegister}
-                  activeOpacity={0.8}
-                  style={styles.primaryButton}
-                >
-                  <View style={styles.primaryButtonInner}>
-                    <Text style={styles.primaryButtonText}>Започнете сега</Text>
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-              
-              <Animated.View style={{ transform: [{ scale: buttonScale2 }] }}>
-                <TouchableOpacity
-                  onPress={handleLogin}
-                  activeOpacity={0.8}
-                  style={styles.secondaryButton}
-                >
-                  <View style={styles.secondaryButtonInner}>
-                    <Text style={styles.secondaryButtonText}>Вече имам акаунт</Text>
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-            </>
-          )}
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
         </Animated.View>
-        
-        {/* Enhanced Footer */}
+
+        {/* Decorative Floating Elements */}
         <Animated.View
           style={[
-            styles.footer,
+            styles.decorativeFloat,
+            styles.decorativeFloat1,
             {
-              opacity: decorativeOpacity.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 0.85],
-              }),
+              transform: [
+                {
+                  translateY: float1Y.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -20],
+                  }),
+                },
+                {
+                  rotate: float1Rotation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  }),
+                },
+              ],
             },
           ]}
         >
           <LinearGradient
-            colors={['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.footerGradient}
-          >
-            <View style={styles.footerGlassOverlay} />
-            <Text style={styles.footerText}>
-              Присъединете се към хиляди потребители, които вече управляват финансите си умно
-            </Text>
-          </LinearGradient>
+            colors={isDark ? ['rgba(248, 227, 180, 0.1)', 'rgba(166, 138, 100, 0.05)'] : ['rgba(166, 138, 100, 0.08)', 'rgba(128, 122, 92, 0.04)']}
+            style={styles.decorativeGradient}
+          />
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            styles.decorativeFloat,
+            styles.decorativeFloat2,
+            {
+              transform: [
+                {
+                  translateY: float2Y.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 15],
+                  }),
+                },
+                { scale: float2Scale },
+              ],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={isDark ? ['rgba(220, 214, 193, 0.08)', 'rgba(248, 227, 180, 0.12)'] : ['rgba(245, 244, 241, 0.4)', 'rgba(220, 215, 206, 0.6)']}
+            style={styles.decorativeGradient}
+          />
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            styles.decorativeFloat,
+            styles.decorativeFloat3,
+            {
+              transform: [
+                {
+                  translateY: float3Y.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -10],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={isDark ? ['rgba(166, 138, 100, 0.06)', 'rgba(220, 214, 193, 0.10)'] : ['rgba(172, 166, 154, 0.3)', 'rgba(245, 244, 241, 0.5)']}
+            style={styles.decorativeGradient}
+          />
         </Animated.View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF7F3',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -953,404 +685,278 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
-  meshGradient: {
+  
+  // Floating Background Elements
+  floatingElement: {
     position: 'absolute',
-    left: -width * 0.4,
-    right: -width * 0.4,
-    top: -height * 0.25,
-    bottom: -height * 0.25,
+    borderRadius: 100,
+    overflow: 'hidden',
   },
-  meshGradientInner: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+  floatingElement1: {
+    width: 200,
+    height: 200,
+    top: '10%',
+    right: '-10%',
   },
-  // Enhanced Orbs with better shadows and colors
-  orb1: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: 'rgba(180, 170, 160, 0.12)',
-    top: -80,
-    right: -80,
-    shadowColor: '#B4A498',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 35,
+  floatingElement2: {
+    width: 150,
+    height: 150,
+    bottom: '20%',
+    left: '-8%',
   },
-  orb2: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    backgroundColor: 'rgba(168, 157, 147, 0.1)',
-    bottom: 120,
-    left: -40,
-    shadowColor: '#A89D93',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 25,
+  floatingGradient: {
+    flex: 1,
+    borderRadius: 100,
   },
-  orb3: {
-    position: 'absolute',
+
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+
+  // Enhanced Logo Section
+  logoSection: {
+    marginBottom: 25,
+    marginTop: 10,
+  },
+  logoWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 70,
+    borderWidth: 1,
+    padding: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 12,
+      },
+    }),
+  },
+  logoContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImage: {
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: 'rgba(154, 141, 130, 0.08)',
-    top: height * 0.4,
-    right: 40,
-    shadowColor: '#9A8D82',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 18,
-  },
-  particle: {
-    position: 'absolute',
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#B4A498',
-    shadowColor: '#B4A498',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-  },
-  geometricPattern: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
-  geometricLine: {
-    position: 'absolute',
-    width: 0.8,
-    height: '100%',
-    backgroundColor: 'rgba(168, 157, 147, 0.18)',
-    transform: [{ skewY: '25deg' }],
-    shadowColor: '#A89D93',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-  },
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: 28,
-    paddingTop: Platform.OS === 'ios' ? 75 : (StatusBar.currentHeight || 0) + 55,
-    paddingBottom: 55,
-    justifyContent: 'space-between',
-  },
-  logoSection: {
-    alignItems: 'center',
-    marginTop: 35,
-  },
-  logoContainer: {
-    marginBottom: 35,
-  },
-  logoWrapper: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#FAF7F3',
-    borderWidth: 3,
-    borderColor: 'rgba(180, 170, 160, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    shadowColor: '#B4A498',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 15,
-  },
-  logoImage: {
-    width: 95,
-    height: 95,
-    borderRadius: 47.5,
-    zIndex: 3,
+    zIndex: 10,
   },
   logoGlow: {
     position: 'absolute',
-    top: -3,
-    left: -3,
-    right: -3,
-    bottom: -3,
-    borderRadius: 78,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    top: -10,
+    left: -10,
+    zIndex: 5,
+  },
+  logoRing: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    top: -15,
+    left: -15,
     zIndex: 1,
   },
-  logoGlowOuter: {
-    position: 'absolute',
-    top: -25,
-    left: -25,
-    right: -25,
-    bottom: -25,
-    borderRadius: 100,
-    backgroundColor: 'rgba(180, 170, 160, 0.12)',
-    zIndex: 0,
+  logoRingGradient: {
+    flex: 1,
+    borderRadius: 70,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  logoGlowMiddle: {
-    position: 'absolute',
-    top: -12,
-    left: -12,
-    right: -12,
-    bottom: -12,
-    borderRadius: 87,
-    backgroundColor: 'rgba(180, 170, 160, 0.15)',
-    zIndex: 1,
+
+  // Enhanced Hero Section
+  heroSection: {
+    marginBottom: 5,
+    alignItems: 'center',
   },
-  logoInnerGlow: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    right: 8,
-    bottom: 8,
-    borderRadius: 67,
-    backgroundColor: 'rgba(180, 170, 160, 0.08)',
-    zIndex: 2,
-  },
-  appNameContainer: {
+  titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
+    marginBottom: 5,
   },
-  appName: {
+  modernTextPrimary: {
     fontSize: 56,
     fontWeight: '900',
-    textAlign: 'center',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 8,
-    letterSpacing: 1.8,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Black' : 'sans-serif-condensed',
-  },
-  appNameFin: {
-    color: '#2D2928',
-    textShadowColor: 'rgba(45, 41, 40, 0.25)',
-  },
-  appNameTrack: {
-    color: '#A89D93',
-    textShadowColor: 'rgba(168, 157, 147, 0.4)',
-  },
-  tagline: {
-    fontSize: 22,
-    color: '#6B5B57',
-    textAlign: 'center',
-    lineHeight: 30,
-    fontWeight: '600',
-    textShadowColor: 'rgba(168, 157, 147, 0.2)',
-    textShadowOffset: { width: 0, height: 1.5 },
-    textShadowRadius: 3,
-    letterSpacing: 0.4,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif',
-  },
-  featuresSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 50,
-    paddingHorizontal: 15,
-  },
-  featureItem: {
-    alignItems: 'center',
-    marginHorizontal: 20,
-    minWidth: 70,
-  },
-  featureIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#B4A498',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  featureGradient: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 30,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  glassOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '35%',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    zIndex: 1,
-  },
-  featureEmoji: {
-    fontSize: 28,
+    letterSpacing: -3,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Black' : 'sans-serif-black',
     textShadowColor: 'rgba(0, 0, 0, 0.15)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    zIndex: 2,
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 6,
   },
-  featureText: {
-    fontSize: 14,
-    color: '#6B5B57',
+
+  // Enhanced Subtitle
+  subtitleSection: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  heroSubtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif',
     textAlign: 'center',
-    fontWeight: '700',
-    textShadowColor: 'rgba(168, 157, 147, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    lineHeight: 18,
-    letterSpacing: 0.2,
-    marginTop: 2,
-    maxWidth: 80,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif-medium',
+    opacity: 0.9,
   },
+
+  // Enhanced Timeline
+  timelineContainer: {
+    width: '100%',
+    marginBottom: 35,
+    paddingHorizontal: 8,
+  },
+  timelineWrapper: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.08)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+
+  // Enhanced Buttons
   buttonsSection: {
-    marginBottom: 55,
-    paddingHorizontal: 15,
+    width: '100%',
+    gap: 18,
+  },
+  buttonContainer: {
+    width: '100%',
   },
   primaryButton: {
-    borderRadius: 30,
-    marginBottom: 22,
-    backgroundColor: 'rgba(139, 127, 120, 0.8)',
-    borderWidth: 2,
-    borderColor: 'rgba(139, 127, 120, 0.9)',
-    shadowColor: '#8B7F78',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
+    height: 62,
+    borderRadius: 31,
     overflow: 'hidden',
+    borderWidth: 1,
   },
-  primaryButtonInner: {
-    paddingVertical: 24,
-    paddingHorizontal: 50,
-    alignItems: 'center',
-    backgroundColor: 'rgba(139, 127, 120, 0.3)',
-  },
-  primaryButtonText: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: '#FAF7F3',
-    letterSpacing: 0.8,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Black' : 'sans-serif-medium',
+  enhancedShadow: {
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(166, 138, 100, 0.4)',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 16,
+      },
+    }),
   },
   secondaryButton: {
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 2,
-    borderColor: 'rgba(168, 157, 147, 0.4)',
-    shadowColor: '#B4A498',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    height: 62,
+    borderRadius: 31,
     overflow: 'hidden',
+    borderWidth: 1,
   },
-  secondaryButtonInner: {
-    paddingVertical: 24,
-    paddingHorizontal: 50,
+  glassMorphButton: {
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.05)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  buttonGradient: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 24,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  primaryButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif',
+    flex: 1,
+    textAlign: 'center',
   },
   secondaryButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#8B7F78',
+    fontSize: 18,
+    fontWeight: '600',
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(139, 127, 120, 0.3)',
-    textShadowOffset: { width: 0, height: 0.5 },
-    textShadowRadius: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif',
+    flex: 1,
+    textAlign: 'center',
   },
-  footer: {
+  buttonIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 15,
+    marginLeft: 12,
   },
-  footerGradient: {
-    borderRadius: 18,
-    padding: 22,
-    alignItems: 'center',
-    overflow: 'hidden',
+  buttonIconSecondary: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
   },
-  footerGlassOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '25%',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  footerText: {
+  buttonIconText: {
     fontSize: 16,
-    color: '#8B7F78',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontWeight: '500',
-    textShadowColor: 'rgba(139, 127, 120, 0.2)',
-    textShadowOffset: { width: 0, height: 0.5 },
-    textShadowRadius: 1.5,
-    letterSpacing: 0.2,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif',
+    fontWeight: '600',
   },
-  infoContainer: {
-    marginBottom: 25,
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#B4A498',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  infoGradient: {
-    paddingHorizontal: 25,
-    paddingVertical: 20,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  infoGlassOverlay: {
+
+  // Decorative Elements
+  decorativeFloat: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '30%',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 50,
+    overflow: 'hidden',
   },
-  infoText: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#3D342F',
-    textAlign: 'center',
-    marginBottom: 6,
-    textShadowColor: 'rgba(61, 52, 47, 0.15)',
-    textShadowOffset: { width: 0, height: 0.5 },
-    textShadowRadius: 1,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif-medium',
+  decorativeFloat1: {
+    width: 80,
+    height: 80,
+    top: '25%',
+    left: '8%',
   },
-  infoSubtext: {
-    fontSize: 17,
-    color: '#6B5B57',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontWeight: '500',
-    textShadowColor: 'rgba(107, 91, 87, 0.2)',
-    textShadowOffset: { width: 0, height: 0.5 },
-    textShadowRadius: 1,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif',
+  decorativeFloat2: {
+    width: 60,
+    height: 60,
+    top: '60%',
+    right: '12%',
+  },
+  decorativeFloat3: {
+    width: 100,
+    height: 100,
+    bottom: '15%',
+    left: '15%',
+  },
+  decorativeGradient: {
+    flex: 1,
+    borderRadius: 50,
   },
 });
 

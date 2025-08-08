@@ -11,6 +11,9 @@ import {
   KeyboardAvoidingView,
   Animated,
   ActivityIndicator,
+  Dimensions,
+  SafeAreaView,
+  Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -25,12 +28,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { SUBSCRIPTION_PLANS } from '../../config/subscription.config';
 import { stripeService } from '../../services/StripeService';
 import { auth, createStripeSubscriptionCallable, functions } from '../../config/firebase.config';
+import { useTheme } from '../../utils/ThemeContext';
 
 // Components
 import StripeCardForm from '../../components/payment/StripeCardForm';
 
-// Utils
-// formatPrice utility can be added later when needed
+const { width, height } = Dimensions.get('window');
 
 type PaymentScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Payment'>;
 type PaymentScreenRouteProp = RouteProp<AuthStackParamList, 'Payment'>;
@@ -39,18 +42,63 @@ const PaymentScreen: React.FC = () => {
   const navigation = useNavigation<PaymentScreenNavigationProp>();
   const route = useRoute<PaymentScreenRouteProp>();
   const { createSubscription, authState, clearError } = useAuth();
+  const { theme, isDark } = useTheme();
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isPreparingPayment, setIsPreparingPayment] = useState(true);
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
 
   // Route params
   const { planId, amount, currency } = route.params;
   const selectedPlan = SUBSCRIPTION_PLANS[planId];
 
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const headerAnim = useRef(new Animated.Value(-100)).current;
+  // Enhanced Animation References
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateY = useRef(new Animated.Value(60)).current;
+  const planOpacity = useRef(new Animated.Value(0)).current;
+  const planTranslateY = useRef(new Animated.Value(60)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formTranslateY = useRef(new Animated.Value(60)).current;
+  const buttonOpacity = useRef(new Animated.Value(0)).current;
+  const buttonTranslateY = useRef(new Animated.Value(60)).current;
+
+  // Floating Elements Animation
+  const backgroundFloat1 = useRef(new Animated.Value(0)).current;
+  const backgroundFloat2 = useRef(new Animated.Value(0)).current;
+
+  // Enhanced Color Functions
+  const getBackgroundGradient = () => {
+    if (isDark) {
+      return [
+        '#1A1A1A', '#2D2A26', '#3D342F', '#4A3E36', '#38362E', '#2D2A26', '#1A1A1A'
+      ];
+    } else {
+      return [
+        '#FFFFFF', '#FEFEFE', '#FAF9F6', '#F5F4F1', '#DCD7CE', '#F8F7F4', '#FFFFFF'
+      ];
+    }
+  };
+
+  const getGlassmorphismStyle = () => {
+    if (isDark) {
+      return {
+        backgroundColor: 'rgba(166, 138, 100, 0.08)',
+        borderColor: 'rgba(248, 227, 180, 0.15)',
+        shadowColor: 'rgba(166, 138, 100, 0.3)',
+      };
+    } else {
+      return {
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        borderColor: 'rgba(128, 122, 92, 0.12)',
+        shadowColor: 'rgba(56, 54, 46, 0.15)',
+      };
+    }
+  };
+
+  const getTextColor = () => isDark ? '#F8E3B4' : '#2D2A26';
+  const getSecondaryTextColor = () => isDark ? '#DCD6C1' : '#6B6356';
 
   // Helper function to calculate subscription period end date
   const calculatePeriodEndDate = (planId: SubscriptionPlan, startDate: Date = new Date()): Date => {
@@ -67,7 +115,6 @@ const PaymentScreen: React.FC = () => {
         endDate.setFullYear(endDate.getFullYear() + 1);
         break;
       default:
-        // Fallback to monthly if unknown plan
         endDate.setMonth(endDate.getMonth() + 1);
         break;
     }
@@ -78,279 +125,496 @@ const PaymentScreen: React.FC = () => {
   useEffect(() => {
     clearError();
 
+    // Floating elements continuous animation
+    const createFloatingAnimation = (animatedValue: Animated.Value, duration: number, delay: number = 0) => {
+      const safeDelay = delay || 0;
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(safeDelay),
+          Animated.timing(animatedValue, {
+            toValue: 1,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(animatedValue, {
+            toValue: 0,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    };
+
+    // Start floating animations
+    createFloatingAnimation(backgroundFloat1, 6000, 0).start();
+    createFloatingAnimation(backgroundFloat2, 8000, 3000).start();
+
+    // Main entrance sequence
+    const entranceSequence = Animated.sequence([
+      // Logo entrance
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      Animated.delay(200),
+      
+      // Title entrance
+      Animated.parallel([
+        Animated.timing(titleOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(titleTranslateY, {
+          toValue: 0,
+          tension: 70,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      Animated.delay(200),
+      
+      // Plan info entrance
+      Animated.parallel([
+        Animated.timing(planOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(planTranslateY, {
+          toValue: 0,
+          tension: 70,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.delay(200),
+      
+      // Form entrance
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.spring(formTranslateY, {
+          toValue: 0,
+          tension: 60,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.delay(200),
+      
+      // Button entrance
+      Animated.parallel([
+        Animated.timing(buttonOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(buttonTranslateY, {
+          toValue: 0,
+          tension: 60,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]);
+
     const preparePayment = async () => {
-      // The outer try-catch handles all errors in the process
       try {
         setIsPreparingPayment(true);
 
-        // 1. Check network state first (more lenient check)
+        // Check network state
         const netState = await NetInfo.fetch();
         console.log('[PaymentScreen] Network State:', JSON.stringify(netState, null, 2));
         
-        // Be more lenient - only fail if we're definitely offline
         if (netState.isConnected === false) {
           throw new Error('Няма връзка с интернет. Моля, проверете връзката си и опитайте отново.');
         }
-        
-        // Log network details for debugging
-        console.log('[PaymentScreen] Network check passed - isConnected:', netState.isConnected, 'isInternetReachable:', netState.isInternetReachable);
-        
-        // Even if NetInfo is uncertain, let's try the Firebase call - it will fail properly if there's no connection
 
-        // 2. Check for authenticated user
+        // Check for authenticated user
         const currentUser = auth().currentUser;
         if (!currentUser) {
-          // This case should ideally not happen if navigation is correct, but as a safeguard:
           Alert.alert('Грешка', 'Моля, влезте отново в профила си.');
           navigation.navigate('Login');
           return;
         }
 
-        // 3. Get a fresh auth token
-        console.log('[PaymentScreen] Getting fresh Firebase Auth token...');
-        await currentUser.getIdToken(true);
-        console.log('[PaymentScreen] Firebase Auth token obtained');
+        // Refresh token to ensure it's valid
+        const token = await currentUser.getIdToken(true);
+        console.log('[PaymentScreen] Firebase Auth token refreshed successfully');
 
-        // 4. Call the Firebase Function
-        console.log(`[PaymentScreen] Calling createStripeSubscriptionCallable for plan: ${planId}`);
-        const response = await createStripeSubscriptionCallable({ planId });
-        console.log('[PaymentScreen] Successfully received response from function.');
+        // Create Stripe subscription
+        console.log('[PaymentScreen] Calling createStripeSubscription with:', {
+          planId,
+          userId: currentUser.uid
+        });
 
-        const data = response.data as { clientSecret: string };
-        if (!data || !data.clientSecret) {
-          throw new Error('Невалиден отговор от сървъра при подготовка на плащането.');
-        }
+        const result = await createStripeSubscriptionCallable({
+          planId
+        });
 
-        console.log('[PaymentScreen] Client secret received.');
-        setClientSecret(data.clientSecret);
+                 console.log('[PaymentScreen] Stripe subscription created successfully:', result.data);
+
+         const data = result.data as { clientSecret?: string; planId?: string; amount?: number; currency?: string; subscriptionId?: string; status?: string };
+         if (data && data.clientSecret) {
+           setClientSecret(data.clientSecret);
+           setSubscriptionData(data); // Save subscription data for later use
+           console.log('[PaymentScreen] Client secret set, payment ready. Subscription data saved:', data);
+         } else {
+           throw new Error('Не може да се създаде плащане. Моля, опитайте отново.');
+         }
 
       } catch (error: any) {
         console.error('[PaymentScreen] Error preparing payment:', error);
-        console.error('[PaymentScreen] Error details:', JSON.stringify({
-          message: error.message,
-          code: error.code,
-          stack: error.stack
-        }, null, 2));
-
-        // Centralized error handling with better diagnostics
+        let errorMessage = 'Възникна грешка при подготовката на плащането.';
+        
         if (error.code === 'functions/unauthenticated') {
-           Alert.alert('Сесията е изтекла', 'Моля, влезте отново в профила си.');
-           navigation.navigate('Login');
-        } else if (error.code === 'functions/unavailable') {
-          Alert.alert('Недостъпни сървъри', 'Firebase сървърите са недостъпни. Моля, проверете интернет връзката си и опитайте отново.');
-          navigation.goBack();
-        } else if (error.message && error.message.includes('Няма връзка с интернет')) {
-          // This is our custom NetInfo error
-          Alert.alert('Няма връзка с интернет', 'Моля, проверете връзката си и опитайте отново.');
-          navigation.goBack();
-        } else if (error.message && (error.message.includes('Could not connect') || error.message.includes('Network request failed'))) {
-          Alert.alert('Мрежова грешка', 'Неуспешна връзка със сървърите. Моля, проверете интернет връзката си и опитайте отново.');
-          navigation.goBack();
-        } else {
-          // For any other error, show detailed message for debugging
-          const errorMessage = error.message || 'Възникна неочаквана грешка при подготовка на плащането.';
-          Alert.alert('Грешка', `${errorMessage}\n\nError code: ${error.code || 'unknown'}`);
-          navigation.goBack();
+          errorMessage = 'Моля, влезте отново в профила си.';
+          navigation.navigate('Login');
+        } else if (error.message) {
+          errorMessage = error.message;
         }
+
+        Alert.alert('Грешка при плащането', errorMessage, [
+          {
+            text: 'Опитай отново',
+            onPress: () => preparePayment()
+          },
+          {
+            text: 'Отказ',
+            style: 'cancel',
+            onPress: () => navigation.goBack()
+          }
+        ]);
       } finally {
         setIsPreparingPayment(false);
       }
     };
 
-    preparePayment();
+    const timer = setTimeout(() => {
+      entranceSequence.start();
+      preparePayment();
+    }, 400);
 
-    // Entrance animations
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(headerAnim, {
-        toValue: 0,
-        duration: 700,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+    return () => clearTimeout(timer);
+  }, [planId, amount, currency]);
 
-  const handleBack = () => {
-    navigation.goBack();
-  };
-
-  const getPlanDisplayName = () => {
-    switch (planId) {
-      case SubscriptionPlan.MONTHLY:
-        return 'Месечен план';
-      case SubscriptionPlan.QUARTERLY:
-        return 'Тримесечен план';
-      case SubscriptionPlan.YEARLY:
-        return 'Годишен план';
-      default:
-        return 'Абонаментен план';
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
+    try {
+      console.log('[PaymentScreen] Payment successful, paymentIntentId:', paymentIntentId);
+      console.log('[PaymentScreen] Using saved subscription data:', subscriptionData);
+      
+      // Use the saved subscription data from createStripeSubscription
+      const subscription = {
+        id: subscriptionData?.subscriptionId || paymentIntentId,
+        planId: subscriptionData?.planId || planId,
+        amount: subscriptionData?.amount || amount,
+        currency: subscriptionData?.currency || currency,
+        status: subscriptionData?.status || 'active',
+        ...subscriptionData
+      };
+      
+      console.log('[PaymentScreen] Final subscription object to pass:', subscription);
+      
+      // Navigate to success screen
+      navigation.navigate('PaymentSuccess', { subscription });
+    } catch (error) {
+      console.error('[PaymentScreen] Error handling payment success:', error);
+      Alert.alert('Грешка', 'Възникна грешка. Моля, опитайте отново.');
     }
   };
 
-  const handlePaymentSuccess = async (paymentMethodId: string) => {
-    console.log('[PaymentScreen] Subscription payment successful! PaymentMethod ID:', paymentMethodId);
+  const handlePaymentError = (error: any) => {
+    console.error('[PaymentScreen] Payment error:', error);
+    let errorMessage = 'Плащането беше неуспешно. Моля, опитайте отново.';
     
-    // Payment is successful, subscription webhook will handle the rest
-    // Navigate directly to success screen with ACTIVE status
-    navigation.navigate('PaymentSuccess', { 
-      subscription: {
-        id: paymentMethodId, // Use payment method ID as temporary ID
-        userId: authState.user?.uid || '',
-        plan: planId,
-        status: SubscriptionStatus.ACTIVE, // Payment successful = active subscription
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: calculatePeriodEndDate(planId),
-        cancelAtPeriodEnd: false,
-        stripeCustomerId: '',
-        stripeSubscriptionId: '',
-        priceId: '',
-        amount,
-        currency,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
+    if (error?.message) {
+      errorMessage = error.message;
+    }
+
+    navigation.navigate('PaymentFailed', { 
+      error: {
+        code: error?.code || 'payment_failed',
+        message: errorMessage,
+        details: error,
+        timestamp: new Date(),
+        recoverable: true
+      },
+      planId,
+      retryCount: 0
     });
   };
 
-  const handlePaymentError = (errorMessage: string) => {
-    navigation.navigate('PaymentFailed', {
-      error: {
-        code: 'payment/failed',
-        message: errorMessage,
-        timestamp: new Date(),
-        recoverable: true,
-      },
-      planId,
-      retryCount: 0,
-    });
+  // Format price for display
+  const formatPrice = (price: number, currency: string) => {
+    if (price === undefined || price === null || isNaN(price)) {
+      return `0.00 ${currency === 'BGN' ? 'лв' : currency}`;
+    }
+    return `${price.toFixed(2)} ${currency === 'BGN' ? 'лв' : currency}`;
+  };
+
+  // Get plan period text
+  const getPlanPeriodText = (plan: SubscriptionPlan) => {
+    switch (plan) {
+      case SubscriptionPlan.MONTHLY:
+        return 'месечно';
+      case SubscriptionPlan.QUARTERLY:
+        return 'тримесечно';
+      case SubscriptionPlan.YEARLY:
+        return 'годишно';
+      default:
+        return '';
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor="transparent"
+        translucent
+      />
       
-      {/* Background Gradient */}
+      {/* Enhanced Background */}
       <LinearGradient
-        colors={['#F8F4F0', '#DDD0C8', '#B0A89F']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={getBackgroundGradient()}
+        locations={[0, 0.15, 0.3, 0.45, 0.6, 0.8, 1]}
         style={styles.backgroundGradient}
       />
 
-      {/* Header */}
+      {/* Floating Background Elements */}
       <Animated.View
         style={[
-          styles.header,
+          styles.floatingElement,
+          styles.floatingElement1,
           {
-            transform: [{ translateY: headerAnim }],
+            transform: [
+              {
+                translateY: backgroundFloat1.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -30],
+                }),
+              },
+            ],
           },
         ]}
       >
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Плащане</Text>
-        <View style={styles.headerSpacer} />
+        <LinearGradient
+          colors={isDark ? ['rgba(166, 138, 100, 0.1)', 'rgba(248, 227, 180, 0.05)'] : ['rgba(128, 122, 92, 0.08)', 'rgba(172, 166, 154, 0.05)']}
+          style={styles.floatingGradient}
+        />
       </Animated.View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <Animated.View
+        style={[
+          styles.floatingElement,
+          styles.floatingElement2,
+          {
+            transform: [
+              {
+                translateY: backgroundFloat2.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 40],
+                }),
+              },
+            ],
+          },
+        ]}
       >
-        <Animated.View
-          style={[
-            styles.contentContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
+        <LinearGradient
+          colors={isDark ? ['rgba(220, 214, 193, 0.08)', 'rgba(166, 138, 100, 0.12)'] : ['rgba(245, 244, 241, 0.6)', 'rgba(220, 215, 206, 0.4)']}
+          style={styles.floatingGradient}
+        />
+      </Animated.View>
+
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Plan Summary */}
-          <View style={styles.planSummaryContainer}>
-            <Text style={styles.planSummaryTitle}>Избран план</Text>
-            <View style={styles.planSummaryCard}>
-              <Text style={styles.planName}>{getPlanDisplayName()}</Text>
-              <Text style={styles.planPrice}>
-                {`${amount.toFixed(2)} ${currency}`}
-                <Text style={styles.planPeriod}>
-                  {planId === SubscriptionPlan.MONTHLY ? '/месец' : 
-                   planId === SubscriptionPlan.QUARTERLY ? '/3 месеца' : '/година'}
-                </Text>
-              </Text>
-              <Text style={styles.planDescription}>
-                Пълен достъп до всички функции на FinTrack
-              </Text>
+          
+          {/* Logo Section */}
+          <Animated.View
+            style={[
+              styles.logoSection,
+              {
+                opacity: logoOpacity,
+                transform: [{ scale: logoScale }],
+              },
+            ]}
+          >
+            <View style={[styles.logoContainer, { borderColor: isDark ? '#A68A64' : '#807A5C' }]}>
+              <Image
+                source={require('../../assets/images/F.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
-          </View>
+          </Animated.View>
+
+          {/* Title Section */}
+          <Animated.View
+            style={[
+              styles.titleSection,
+              {
+                opacity: titleOpacity,
+                transform: [{ translateY: titleTranslateY }],
+              },
+            ]}
+          >
+            <Text style={[styles.title, { color: getTextColor() }]}>
+              Плащане
+            </Text>
+            <Text style={[styles.subtitle, { color: getSecondaryTextColor() }]}>
+              Завършете абонамента си
+            </Text>
+          </Animated.View>
+
+          {/* Plan Summary */}
+          <Animated.View
+            style={[
+              styles.planSection,
+              {
+                opacity: planOpacity,
+                transform: [{ translateY: planTranslateY }],
+              },
+            ]}
+          >
+            <View style={[styles.planCard, getGlassmorphismStyle()]}>
+              <View style={styles.planHeader}>
+                <Text style={[styles.planTitle, { color: getTextColor() }]}>
+                  {selectedPlan.name}
+                </Text>
+                <Text style={[styles.planDescription, { color: getSecondaryTextColor() }]}>
+                  {selectedPlan.description}
+                </Text>
+              </View>
+              
+              <View style={styles.planPricing}>
+                <Text style={[styles.planPrice, { color: getTextColor() }]}>
+                  {formatPrice(amount, currency)}
+                </Text>
+                <Text style={[styles.planPeriod, { color: getSecondaryTextColor() }]}>
+                  {getPlanPeriodText(planId)}
+                </Text>
+              </View>
+
+              <View style={styles.planFeatures}>
+                <View style={styles.featureItem}>
+                  <Text style={[styles.featureIcon, { color: '#b2ac94' }]}>✓</Text>
+                  <Text style={[styles.featureText, { color: getSecondaryTextColor() }]}>
+                    Неограничени транзакции
+                  </Text>
+                </View>
+                <View style={styles.featureItem}>
+                  <Text style={[styles.featureIcon, { color: '#b2ac94' }]}>✓</Text>
+                  <Text style={[styles.featureText, { color: getSecondaryTextColor() }]}>
+                    Разширени отчети
+                  </Text>
+                </View>
+                <View style={styles.featureItem}>
+                  <Text style={[styles.featureIcon, { color: '#b2ac94' }]}>✓</Text>
+                  <Text style={[styles.featureText, { color: getSecondaryTextColor() }]}>
+                    Приоритетна поддръжка
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
 
           {/* Payment Form */}
-          {isPreparingPayment ? (
-                          <ActivityIndicator size="large" color="#B0A89F" style={{ marginVertical: 40 }}/>
-          ) : clientSecret ? (
-            <StripeCardForm
-              clientSecret={clientSecret}
-              onPaymentSuccess={handlePaymentSuccess}
-              onPaymentError={handlePaymentError}
-              onPaymentCancel={() => navigation.goBack()}
-            />
-          ) : (
-            <Text style={styles.errorText}>Не успяхме да подготвим плащането. Моля, опитайте отново.</Text>
-          )}
+          <Animated.View
+            style={[
+              styles.formSection,
+              {
+                opacity: formOpacity,
+                transform: [{ translateY: formTranslateY }],
+              },
+            ]}
+          >
+            <View style={[styles.formWrapper, getGlassmorphismStyle()]}>
+              <Text style={[styles.formTitle, { color: getTextColor() }]}>
+                Данни за плащане
+              </Text>
+              
+              {isPreparingPayment ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#b2ac94" />
+                  <Text style={[styles.loadingText, { color: getSecondaryTextColor() }]}>
+                    Подготвяме плащането...
+                  </Text>
+                </View>
+              ) : clientSecret ? (
+                                 <StripeCardForm
+                   clientSecret={clientSecret}
+                   onPaymentSuccess={handlePaymentSuccess}
+                   onPaymentError={handlePaymentError}
+                   onPaymentCancel={() => navigation.goBack()}
+                 />
+              ) : (
+                <View style={styles.errorContainer}>
+                  <Text style={[styles.errorText, { color: '#F44336' }]}>
+                    Не може да се подготви плащането. Моля, опитайте отново.
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Animated.View>
 
-          {/* Security Info */}
-          <View style={styles.securitySection}>
-            <Text style={styles.securityTitle}>🔒 Сигурно плащане</Text>
-            <View style={styles.securityItem}>
-              <Text style={styles.securityIcon}>🛡️</Text>
-              <Text style={styles.securityText}>
-                Обработвано сигурно от Stripe
+          {/* Security Note */}
+          <Animated.View
+            style={[
+              styles.securitySection,
+              {
+                opacity: buttonOpacity,
+                transform: [{ translateY: buttonTranslateY }],
+              },
+            ]}
+          >
+            <View style={styles.securityNote}>
+              <Text style={[styles.securityIcon, { color: getSecondaryTextColor() }]}>🔒</Text>
+              <Text style={[styles.securityText, { color: getSecondaryTextColor() }]}>
+                Вашите данни са защитени с SSL криптиране
               </Text>
             </View>
-            <View style={styles.securityItem}>
-              <Text style={styles.securityIcon}>🔄</Text>
-              <Text style={styles.securityText}>
-                Автоматично подновяване - няма прекъсване на услугата
+            <View style={styles.securityNote}>
+              <Text style={[styles.securityIcon, { color: getSecondaryTextColor() }]}>💳</Text>
+              <Text style={[styles.securityText, { color: getSecondaryTextColor() }]}>
+                Powered by Stripe - банково ниво на сигурност
               </Text>
             </View>
-            <View style={styles.securityItem}>
-              <Text style={styles.securityIcon}>❌</Text>
-              <Text style={styles.securityText}>
-                Можете да отмените абонамента по всяко време
-              </Text>
-            </View>
-          </View>
-
-          {/* Error Display */}
-          {authState.error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{authState.error.message}</Text>
-            </View>
-          )}
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -359,237 +623,211 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10,
-    paddingBottom: 10,
+  
+  // Floating Background Elements
+  floatingElement: {
+    position: 'absolute',
+    borderRadius: 100,
+    overflow: 'hidden',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  floatingElement1: {
+    width: 200,
+    height: 200,
+    top: '10%',
+    right: '-10%',
   },
-  backButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2D2928',
+  floatingElement2: {
+    width: 150,
+    height: 150,
+    bottom: '20%',
+    left: '-8%',
   },
-  headerTitle: {
+  floatingGradient: {
     flex: 1,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    textAlign: 'center',
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    borderRadius: 100,
   },
-  headerSpacer: {
-    width: 40,
+
+  keyboardContainer: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
+  contentContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
+    paddingTop: 60,
     paddingBottom: 40,
   },
-  contentContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: 20,
+
+  // Logo Section
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: 25,
+    marginTop: 10,
   },
-  planSummaryContainer: {
+  logoContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    zIndex: 10,
+  },
+
+  // Title Section
+  titleSection: {
+    alignItems: 'center',
     marginBottom: 30,
   },
-  planSummaryTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    marginBottom: 16,
-    textAlign: 'center',
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  planSummaryCard: {
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 2,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
-  },
-  planName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    marginBottom: 8,
-    textAlign: 'center',
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  planPrice: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#B0A89F',
+  title: {
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -1,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Black' : 'sans-serif-black',
     textAlign: 'center',
     marginBottom: 8,
-    textShadowColor: 'rgba(176, 168, 159, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
-  planPeriod: {
+  subtitle: {
     fontSize: 16,
-    fontWeight: 'normal',
-    color: '#6B5B57',
+    fontWeight: '500',
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+
+  // Plan Section
+  planSection: {
+    marginBottom: 30,
+  },
+  planCard: {
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.08)',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  planHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  planTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   planDescription: {
     fontSize: 14,
-    color: '#6B5B57',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  paymentFormContainer: {
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 30,
-    borderWidth: 2,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
-  },
-  paymentFormTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    marginBottom: 20,
-    textAlign: 'center',
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  mockCardInput: {
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
-  },
-  mockCardText: {
-    fontSize: 16,
-    color: '#2D2928',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  mockCardInfo: {
-    fontSize: 12,
-    color: '#6B5B57',
-    fontStyle: 'italic',
-  },
-  payButton: {
-    marginBottom: 24,
-    borderRadius: 30,
-    backgroundColor: 'rgba(139, 127, 120, 0.8)',
-    borderWidth: 2,
-    borderColor: 'rgba(139, 127, 120, 0.9)',
-    paddingVertical: 22,
-    paddingHorizontal: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#8B7F78',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-    minHeight: 64,
-    overflow: 'hidden',
-  },
-  payButtonDisabled: {
-    opacity: 0.6,
-  },
-  payButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FAF7F3',
-    letterSpacing: 0.6,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  cancelButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(219, 208, 198, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(180, 170, 160, 0.4)',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    color: '#6B5B57',
     fontWeight: '500',
-  },
-  securitySection: {
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 30,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
-  },
-  securityTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
-  securityItem: {
+  planPricing: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  planPrice: {
+    fontSize: 36,
+    fontWeight: '900',
+    marginRight: 8,
+  },
+  planPeriod: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  planFeatures: {
+    gap: 12,
+  },
+  featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  securityIcon: {
+  featureIcon: {
     fontSize: 16,
+    fontWeight: 'bold',
     marginRight: 12,
     width: 20,
   },
-  securityText: {
-    fontSize: 14,
-    color: '#6B5B57',
-    flex: 1,
+  featureText: {
+    fontSize: 15,
     fontWeight: '500',
+    flex: 1,
+  },
+
+  // Form Section
+  formSection: {
+    marginBottom: 30,
+  },
+  formWrapper: {
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.08)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  formTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 16,
   },
   errorContainer: {
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(244, 67, 54, 0.3)',
+    alignItems: 'center',
+    paddingVertical: 20,
   },
   errorText: {
-    fontSize: 14,
-    color: '#F44336',
-    textAlign: 'center',
+    fontSize: 16,
     fontWeight: '500',
+    textAlign: 'center',
+  },
+
+  // Security Section
+  securitySection: {
+    gap: 12,
+  },
+  securityNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  securityIcon: {
+    fontSize: 16,
+  },
+  securityText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

@@ -53,6 +53,97 @@ type AuthAction =
   | { type: 'CLEAR_ERROR' }
   | { type: 'RESET_STATE' };
 
+// Helper function to check if subscription has expired
+const isSubscriptionExpired = (subscription: Subscription): boolean => {
+  console.log('[AuthContext] isSubscriptionExpired called with:', {
+    hasSubscription: !!subscription,
+    hasCurrentPeriodEnd: !!subscription?.currentPeriodEnd,
+    currentPeriodEnd: subscription?.currentPeriodEnd,
+    currentPeriodEndType: typeof subscription?.currentPeriodEnd
+  });
+
+  if (!subscription || !subscription.currentPeriodEnd) {
+    console.log('[AuthContext] No subscription or currentPeriodEnd -> EXPIRED (true)');
+    return true;
+  }
+  
+  const now = new Date();
+  let endDate: Date;
+  
+  if (subscription.currentPeriodEnd instanceof Date) {
+    endDate = subscription.currentPeriodEnd;
+    console.log('[AuthContext] currentPeriodEnd is Date:', endDate);
+  } else if (subscription.currentPeriodEnd && typeof subscription.currentPeriodEnd === 'object' && 'toDate' in subscription.currentPeriodEnd) {
+    // Firestore Timestamp
+    endDate = (subscription.currentPeriodEnd as any).toDate();
+    console.log('[AuthContext] currentPeriodEnd is Firestore Timestamp, converted to:', endDate);
+  } else {
+    // Fallback - treat as expired
+    console.log('[AuthContext] currentPeriodEnd is unknown type, treating as expired');
+    return true;
+  }
+  
+  const isExpired = now > endDate;
+  console.log('[AuthContext] Expiration comparison:', {
+    now: now.toISOString(),
+    endDate: endDate.toISOString(),
+    nowTimestamp: now.getTime(),
+    endDateTimestamp: endDate.getTime(),
+    isExpired
+  });
+  
+  return isExpired;
+};
+
+// Helper function to get correct user state based on subscription
+const getUserStateFromSubscription = (subscription: Subscription | null): UserState => {
+  console.log('[AuthContext] getUserStateFromSubscription called with:', {
+    hasSubscription: !!subscription,
+    subscriptionId: subscription?.id || 'null',
+    status: subscription?.status || 'null',
+    currentPeriodEnd: subscription?.currentPeriodEnd || 'null',
+    plan: subscription?.plan || 'null'
+  });
+
+  if (!subscription) {
+    console.log('[AuthContext] No subscription -> REGISTERED_NO_SUBSCRIPTION');
+    return UserState.REGISTERED_NO_SUBSCRIPTION;
+  }
+
+  // Check if subscription has expired first (regardless of status)
+  const expired = isSubscriptionExpired(subscription);
+  console.log('[AuthContext] Subscription expiration check:', {
+    expired,
+    currentPeriodEnd: subscription.currentPeriodEnd,
+    now: new Date()
+  });
+
+  if (expired) {
+    console.log('[AuthContext] Subscription is expired -> EXPIRED_SUBSCRIBER');
+    return UserState.EXPIRED_SUBSCRIBER;
+  }
+
+  // Check actual status
+  console.log('[AuthContext] Checking subscription status:', subscription.status);
+  console.log('[AuthContext] SubscriptionStatus.ACTIVE value:', SubscriptionStatus.ACTIVE);
+  console.log('[AuthContext] Status comparison:', subscription.status === SubscriptionStatus.ACTIVE);
+
+  switch (subscription.status) {
+    case SubscriptionStatus.ACTIVE:
+      console.log('[AuthContext] Status is ACTIVE -> ACTIVE_SUBSCRIBER');
+      return UserState.ACTIVE_SUBSCRIBER;
+    case SubscriptionStatus.FAILED:
+      console.log('[AuthContext] Status is FAILED -> PAYMENT_FAILED');
+      return UserState.PAYMENT_FAILED;
+    case SubscriptionStatus.EXPIRED:
+      console.log('[AuthContext] Status is EXPIRED -> EXPIRED_SUBSCRIBER');
+      return UserState.EXPIRED_SUBSCRIBER;
+    default:
+      console.log('[AuthContext] Status is OTHER (' + subscription.status + ') -> REGISTERED_NO_SUBSCRIPTION');
+      return UserState.REGISTERED_NO_SUBSCRIPTION;
+  }
+};
+
 // Auth reducer
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
@@ -61,7 +152,13 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case 'SET_USER':
       return { ...state, user: action.payload };
     case 'SET_SUBSCRIPTION':
-      return { ...state, subscription: action.payload };
+      const newUserState = getUserStateFromSubscription(action.payload);
+      console.log('[AuthContext] SET_SUBSCRIPTION - updating userState to:', newUserState);
+      return { 
+        ...state, 
+        subscription: action.payload,
+        userState: newUserState
+      };
     case 'SET_USER_STATE':
       return { ...state, userState: action.payload };
     case 'SET_ERROR':
@@ -168,49 +265,9 @@ const mapFirebaseUser = (firebaseUser: FirebaseAuthTypes.User): User => {
   };
 };
 
-// NEW: Helper function to check if subscription has expired
-const isSubscriptionExpired = (subscription: Subscription): boolean => {
-  if (!subscription || !subscription.currentPeriodEnd) return true;
-  
-  const now = new Date();
-  let endDate: Date;
-  
-  if (subscription.currentPeriodEnd instanceof Date) {
-    endDate = subscription.currentPeriodEnd;
-  } else if (subscription.currentPeriodEnd && typeof subscription.currentPeriodEnd === 'object' && 'toDate' in subscription.currentPeriodEnd) {
-    // Firestore Timestamp
-    endDate = (subscription.currentPeriodEnd as any).toDate();
-  } else {
-    // Fallback - treat as expired
-    return true;
-  }
-  
-  return now > endDate;
-};
 
-// NEW: Helper function to get correct user state based on subscription
-const getUserStateFromSubscription = (subscription: Subscription | null): UserState => {
-  if (!subscription) {
-    return UserState.REGISTERED_NO_SUBSCRIPTION;
-  }
 
-  // Check if subscription has expired first (regardless of status)
-  if (isSubscriptionExpired(subscription)) {
-    return UserState.EXPIRED_SUBSCRIBER;
-  }
 
-  // Check actual status
-  switch (subscription.status) {
-    case SubscriptionStatus.ACTIVE:
-      return UserState.ACTIVE_SUBSCRIBER;
-    case SubscriptionStatus.FAILED:
-      return UserState.PAYMENT_FAILED;
-    case SubscriptionStatus.EXPIRED:
-      return UserState.EXPIRED_SUBSCRIBER;
-    default:
-      return UserState.REGISTERED_NO_SUBSCRIPTION;
-  }
-};
 
 const determineUserState = (user: User | null, subscription: Subscription | null): UserState => {
   console.log('[AuthContext] determineUserState called with:', { 

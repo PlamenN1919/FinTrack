@@ -10,13 +10,19 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Dimensions,
+  SafeAreaView,
+  Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList, SubscriptionPlan, SubscriptionStatus } from '../../types/auth.types';
-import { formatPrice } from '../../config/subscription.config';
+import { formatPrice, getPlanPrice } from '../../config/subscription.config';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../utils/ThemeContext';
+
+const { width, height } = Dimensions.get('window');
 
 type SubscriptionManagementScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'SubscriptionManagement'>;
 type SubscriptionManagementScreenRouteProp = RouteProp<AuthStackParamList, 'SubscriptionManagement'>;
@@ -25,71 +31,260 @@ const SubscriptionManagementScreen: React.FC = () => {
   const navigation = useNavigation<SubscriptionManagementScreenNavigationProp>();
   const route = useRoute<SubscriptionManagementScreenRouteProp>();
   const { cancelSubscription, updateSubscription } = useAuth();
+  const { theme, isDark } = useTheme();
 
   const { subscription } = route.params;
+
+  // Debug subscription data
+  console.log('[SubscriptionManagementScreen] Subscription data:', {
+    amount: subscription?.amount,
+    currency: subscription?.currency,
+    plan: subscription?.plan,
+    status: subscription?.status
+  });
 
   // State
   const [isLoading, setIsLoading] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
 
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const headerAnim = useRef(new Animated.Value(-100)).current;
+  // Enhanced Animation References
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateY = useRef(new Animated.Value(60)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(new Animated.Value(60)).current;
+  const buttonOpacity = useRef(new Animated.Value(0)).current;
+  const buttonTranslateY = useRef(new Animated.Value(60)).current;
+
+  // Floating Elements Animation
+  const backgroundFloat1 = useRef(new Animated.Value(0)).current;
+  const backgroundFloat2 = useRef(new Animated.Value(0)).current;
+
+  // Enhanced Color Functions
+  const getBackgroundGradient = () => {
+    if (isDark) {
+      return [
+        '#1A1A1A', '#2D2A26', '#3D342F', '#4A3E36', '#38362E', '#2D2A26', '#1A1A1A'
+      ];
+    } else {
+      return [
+        '#FFFFFF', '#FEFEFE', '#FAF9F6', '#F5F4F1', '#DCD7CE', '#F8F7F4', '#FFFFFF'
+      ];
+    }
+  };
+
+  const getGlassmorphismStyle = () => {
+    if (isDark) {
+      return {
+        backgroundColor: 'rgba(166, 138, 100, 0.08)',
+        borderColor: 'rgba(248, 227, 180, 0.15)',
+        shadowColor: 'rgba(166, 138, 100, 0.3)',
+      };
+    } else {
+      return {
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        borderColor: 'rgba(128, 122, 92, 0.12)',
+        shadowColor: 'rgba(56, 54, 46, 0.15)',
+      };
+    }
+  };
+
+  const getTextColor = () => isDark ? '#F8E3B4' : '#2D2A26';
+  const getSecondaryTextColor = () => isDark ? '#DCD6C1' : '#6B6356';
 
   useEffect(() => {
-    // Entrance animations
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(headerAnim, {
-        toValue: 0,
-        duration: 700,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Floating elements continuous animation
+    const createFloatingAnimation = (animatedValue: Animated.Value, duration: number, delay: number = 0) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay || 0),
+          Animated.timing(animatedValue, {
+            toValue: 1,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(animatedValue, {
+            toValue: 0,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    };
+
+    // Start floating animations
+    createFloatingAnimation(backgroundFloat1, 6000, 0).start();
+    createFloatingAnimation(backgroundFloat2, 8000, 3000).start();
+
+    // Main entrance sequence
+    const entranceSequence = Animated.sequence([
+      // Logo entrance
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          tension: 40,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      Animated.delay(200),
+      
+      // Title entrance
+      Animated.parallel([
+        Animated.timing(titleOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(titleTranslateY, {
+          toValue: 0,
+          tension: 70,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      Animated.delay(200),
+      
+      // Content entrance
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.spring(contentTranslateY, {
+          toValue: 0,
+          tension: 60,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.delay(200),
+      
+      // Button entrance
+      Animated.parallel([
+        Animated.timing(buttonOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(buttonTranslateY, {
+          toValue: 0,
+          tension: 60,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]);
+
+    const timer = setTimeout(() => {
+      entranceSequence.start();
+    }, 400);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const getPlanDisplayName = () => {
-    switch (subscription.plan) {
+    if (!subscription) {
+      return 'Абонаментен план';
+    }
+    
+    // Firebase Functions return 'planId', so check that first, then 'plan' for backward compatibility
+    const planValue = (subscription as any).planId || subscription.plan;
+    
+    if (!planValue) {
+      return 'Абонаментен план';
+    }
+    
+    switch (planValue) {
       case SubscriptionPlan.MONTHLY:
+      case 'monthly':
         return 'Месечен план';
       case SubscriptionPlan.QUARTERLY:
+      case 'quarterly':
         return 'Тримесечен план';
       case SubscriptionPlan.YEARLY:
+      case 'yearly':
         return 'Годишен план';
       default:
         return 'Абонаментен план';
     }
   };
 
-  const getPlanPeriod = () => {
-    switch (subscription.plan) {
+  const getPlanPeriodForPrice = (): 'monthly' | 'quarterly' | 'yearly' => {
+    if (!subscription) {
+      console.warn('[SubscriptionManagementScreen] No subscription found, defaulting to monthly');
+      return 'monthly';
+    }
+    
+    // Firebase Functions return 'planId', so check that first, then 'plan' for backward compatibility
+    const planValue = (subscription as any).planId || subscription.plan;
+    
+    if (!planValue) {
+      console.warn('[SubscriptionManagementScreen] No subscription plan found, defaulting to monthly');
+      return 'monthly';
+    }
+    
+    console.log('[SubscriptionManagementScreen] Plan value found:', planValue);
+    
+    switch (planValue) {
       case SubscriptionPlan.MONTHLY:
-        return 'месец';
+      case 'monthly':
+        return 'monthly';
       case SubscriptionPlan.QUARTERLY:
-        return '3 месеца';
+      case 'quarterly':
+        return 'quarterly';
       case SubscriptionPlan.YEARLY:
-        return 'година';
+      case 'yearly':
+        return 'yearly';
+      default:
+        console.warn(`[SubscriptionManagementScreen] Unknown plan: ${planValue}, defaulting to monthly`);
+        return 'monthly';
+    }
+  };
+
+  const getPlanPeriod = () => {
+    if (!subscription) {
+      return 'период';
+    }
+    
+    // Support both 'plan' and 'planId' for backward compatibility
+    const planValue = subscription.plan || (subscription as any).planId;
+    
+    if (!planValue) {
+      return 'период';
+    }
+    
+    switch (planValue) {
+      case SubscriptionPlan.MONTHLY:
+      case 'monthly':
+        return 'месечно';
+      case SubscriptionPlan.QUARTERLY:
+      case 'quarterly':
+        return 'тримесечно';
+      case SubscriptionPlan.YEARLY:
+      case 'yearly':
+        return 'годишно';
       default:
         return 'период';
     }
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('bg-BG', {
-      day: 'numeric',
-      month: 'long',
+    return new Intl.DateTimeFormat('bg-BG', {
       year: 'numeric',
-    });
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
   };
 
   const getStatusColor = () => {
@@ -102,8 +297,6 @@ const SubscriptionManagementScreen: React.FC = () => {
         return '#F44336';
       case SubscriptionStatus.PENDING:
         return '#2196F3';
-      case SubscriptionStatus.FAILED:
-        return '#F44336';
       default:
         return '#9E9E9E';
     }
@@ -112,253 +305,394 @@ const SubscriptionManagementScreen: React.FC = () => {
   const getStatusText = () => {
     switch (subscription.status) {
       case SubscriptionStatus.ACTIVE:
-        return 'АКТИВЕН';
+        return 'Активен';
       case SubscriptionStatus.EXPIRED:
-        return 'ИЗТЕКЪЛ';
+        return 'Изтекъл';
       case SubscriptionStatus.CANCELLED:
-        return 'ОТМЕНЕН';
+        return 'Отменен';
       case SubscriptionStatus.PENDING:
-        return 'ЧАКАЩ';
-      case SubscriptionStatus.FAILED:
-        return 'НЕУСПЕШЕН';
+        return 'В процес';
       default:
-        return 'НЕИЗВЕСТЕН';
+        return 'Неизвестен';
     }
   };
 
-  const handleChangePlan = () => {
-    navigation.navigate('SubscriptionPlans', {
-      reason: 'upgrade',
-      previousPlan: subscription.plan,
-    });
-  };
-
-  const handleCancelSubscription = () => {
+  const handleCancelSubscription = async () => {
     Alert.alert(
       'Отмяна на абонамент',
-      'Сигурни ли сте, че искате да отмените абонамента си? Той ще остане активен до края на текущия период.',
+      'Сигурни ли сте, че искате да отмените абонамента си? Ще запазите достъп до края на текущия период.',
       [
-        { text: 'Не', style: 'cancel' },
-        { 
-          text: 'Да, отмени', 
+        {
+          text: 'Отказ',
+          style: 'cancel',
+        },
+        {
+          text: 'Отмени абонамента',
           style: 'destructive',
           onPress: async () => {
-            setCancellingSubscription(true);
             try {
+              setCancellingSubscription(true);
               await cancelSubscription();
-              Alert.alert('Успех', 'Абонаментът е отменен успешно');
-              navigation.goBack();
+              
+              Alert.alert(
+                'Абонаментът е отменен',
+                'Вашият абонамент е успешно отменен. Ще запазите достъп до края на текущия период.',
+                [
+                  { 
+                    text: 'OK', 
+                    onPress: () => navigation.goBack() 
+                  }
+                ]
+              );
             } catch (error) {
-              Alert.alert('Грешка', 'Възникна проблем при отмяната на абонамента');
+              console.error('[SubscriptionManagement] Error cancelling subscription:', error);
+              Alert.alert('Грешка', 'Възникна грешка при отмяната на абонамента. Моля, опитайте отново.');
             } finally {
               setCancellingSubscription(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
+  const handleUpgradeSubscription = () => {
+    navigation.navigate('SubscriptionPlans', { 
+      reason: 'upgrade',
+      previousPlan: subscription?.plan || SubscriptionPlan.MONTHLY
+    });
+  };
 
-
-  const handleGoBack = () => {
-    navigation.goBack();
+  const getDaysRemaining = () => {
+    const now = new Date();
+    const endDate = new Date(subscription.currentPeriodEnd);
+    const diffTime = endDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor="transparent"
+        translucent
+      />
       
-      {/* Background Gradient */}
+      {/* Enhanced Background */}
       <LinearGradient
-        colors={['#F8F4F0', '#DDD0C8', '#B0A89F']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={getBackgroundGradient()}
+        locations={[0, 0.15, 0.3, 0.45, 0.6, 0.8, 1]}
         style={styles.backgroundGradient}
       />
 
-      {/* Header */}
-      <Animated.View 
+      {/* Floating Background Elements */}
+      <Animated.View
         style={[
-          styles.header,
+          styles.floatingElement,
+          styles.floatingElement1,
           {
-            transform: [{ translateY: headerAnim }],
+            transform: [
+              {
+                translateY: backgroundFloat1.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -30],
+                }),
+              },
+            ],
           },
         ]}
       >
-        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Управление на абонамента</Text>
-        <View style={styles.headerSpacer} />
+        <LinearGradient
+          colors={isDark ? ['rgba(166, 138, 100, 0.1)', 'rgba(248, 227, 180, 0.05)'] : ['rgba(128, 122, 92, 0.08)', 'rgba(172, 166, 154, 0.05)']}
+          style={styles.floatingGradient}
+        />
       </Animated.View>
 
-      <ScrollView
+      <Animated.View
+        style={[
+          styles.floatingElement,
+          styles.floatingElement2,
+          {
+            transform: [
+              {
+                translateY: backgroundFloat2.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 40],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={isDark ? ['rgba(220, 214, 193, 0.08)', 'rgba(166, 138, 100, 0.12)'] : ['rgba(245, 244, 241, 0.6)', 'rgba(220, 215, 206, 0.4)']}
+          style={styles.floatingGradient}
+        />
+      </Animated.View>
+
+      <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        
+        {/* Logo Section */}
         <Animated.View
           style={[
-            styles.contentContainer,
+            styles.logoSection,
             {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
             },
           ]}
         >
-          {/* Current Subscription Card */}
-          <View style={styles.subscriptionCard}>
-            <View style={styles.subscriptionHeader}>
-              <Text style={styles.subscriptionTitle}>Текущ абонамент</Text>
+          <View style={[styles.logoContainer, { borderColor: isDark ? '#A68A64' : '#807A5C' }]}>
+            <Image
+              source={require('../../assets/images/F.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
+        </Animated.View>
+
+        {/* Title Section */}
+        <Animated.View
+          style={[
+            styles.titleSection,
+            {
+              opacity: titleOpacity,
+              transform: [{ translateY: titleTranslateY }],
+            },
+          ]}
+        >
+          <Text style={[styles.title, { color: getTextColor() }]}>
+            Управление на абонамент
+          </Text>
+          <Text style={[styles.subtitle, { color: getSecondaryTextColor() }]}>
+            Прегледайте и управлявайте вашия план
+          </Text>
+        </Animated.View>
+
+        {/* Content Section */}
+        <Animated.View
+          style={[
+            styles.contentSection,
+            {
+              opacity: contentOpacity,
+              transform: [{ translateY: contentTranslateY }],
+            },
+          ]}
+        >
+          {/* Subscription Status Card */}
+          <View style={[styles.statusCard, getGlassmorphismStyle()]}>
+            <View style={styles.statusHeader}>
+              <Text style={[styles.statusTitle, { color: getTextColor() }]}>
+                Статус на абонамента
+              </Text>
               <View style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}>
-                <Text style={styles.statusBadgeText}>{getStatusText()}</Text>
+                <Text style={styles.statusText}>{getStatusText()}</Text>
               </View>
             </View>
-
-            <View style={styles.subscriptionDetails}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>План:</Text>
-                <Text style={styles.detailValue}>{getPlanDisplayName()}</Text>
-              </View>
-              
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Цена:</Text>
-                <Text style={styles.detailValue}>
-                  {formatPrice(subscription.amount, subscription.currency)}/{getPlanPeriod()}
-                </Text>
-              </View>
-              
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Започнат:</Text>
-                <Text style={styles.detailValue}>
-                  {formatDate(subscription.currentPeriodStart)}
-                </Text>
-              </View>
-              
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>
-                  {subscription.cancelAtPeriodEnd ? 'Изтича:' : 'Следващо плащане:'}
-                </Text>
-                <Text style={styles.detailValue}>
-                  {formatDate(subscription.currentPeriodEnd)}
-                </Text>
-              </View>
-              
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>ID:</Text>
-                <Text style={styles.detailValueSmall}>{subscription.id}</Text>
-              </View>
-            </View>
-
-            {subscription.cancelAtPeriodEnd && (
-              <View style={styles.cancellationNotice}>
-                <Text style={styles.cancellationText}>
-                  ⚠️ Абонаментът е отменен, но остава активен до {formatDate(subscription.currentPeriodEnd)}
+            
+            {subscription.status === SubscriptionStatus.ACTIVE && (
+              <View style={styles.daysRemaining}>
+                <Text style={[styles.daysRemainingText, { color: getSecondaryTextColor() }]}>
+                  {getDaysRemaining()} дни до следващо плащане
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Quick Actions */}
-          <View style={styles.actionsContainer}>
-            <Text style={styles.actionsTitle}>Бързи действия</Text>
+          {/* Subscription Details Card */}
+          <View style={[styles.detailsCard, getGlassmorphismStyle()]}>
+            <Text style={[styles.detailsTitle, { color: getTextColor() }]}>
+              Детайли на плана
+            </Text>
             
-            {/* Enter Main App Button */}
-            <TouchableOpacity
-              style={[styles.actionButton, styles.enterAppButton]}
-              onPress={() => {
-                Alert.alert(
-                  'Влизане в приложението',
-                  'За да влезете в основното приложение, натиснете бутона "← Обратно към началото" в Main App Screen-а.',
-                  [{ text: 'Разбрах' }]
-                );
-              }}
-            >
-              <Text style={styles.actionIcon}>🏠</Text>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionTitle}>Влезте в приложението</Text>
-                <Text style={styles.actionSubtitle}>Достъп до основните функции</Text>
-              </View>
-              <Text style={styles.actionArrow}>→</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleChangePlan}
-            >
-              <Text style={styles.actionIcon}>📊</Text>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionTitle}>Промяна на план</Text>
-                <Text style={styles.actionSubtitle}>Upgrade или downgrade на абонамента</Text>
-              </View>
-              <Text style={styles.actionArrow}>→</Text>
-            </TouchableOpacity>
-
-
-          </View>
-
-          {/* Features Section */}
-          <View style={styles.featuresContainer}>
-            <Text style={styles.featuresTitle}>Включени функции</Text>
-            <View style={styles.featuresList}>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✅</Text>
-                <Text style={styles.featureText}>Неограничени транзакции</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✅</Text>
-                <Text style={styles.featureText}>Разширени отчети и анализи</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✅</Text>
-                <Text style={styles.featureText}>Сканиране на разписки</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✅</Text>
-                <Text style={styles.featureText}>Бюджетни цели и прогнози</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✅</Text>
-                <Text style={styles.featureText}>Експорт на данни</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>✅</Text>
-                <Text style={styles.featureText}>Приоритетна поддръжка</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Cancel Subscription Button */}
-          {!subscription.cancelAtPeriodEnd && subscription.status === SubscriptionStatus.ACTIVE && (
-            <View style={styles.dangerZone}>
-              <Text style={styles.dangerTitle}>Опасна зона</Text>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleCancelSubscription}
-                disabled={cancellingSubscription}
-              >
-                {cancellingSubscription ? (
-                  <ActivityIndicator color="#B0A89F" />
-                ) : (
-                  <Text style={styles.cancelButtonText}>Отмяна на абонамента</Text>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.cancelWarning}>
-                Абонаментът ще остане активен до края на текущия период
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: getSecondaryTextColor() }]}>План:</Text>
+              <Text style={[styles.detailValue, { color: getTextColor() }]}>
+                {getPlanDisplayName()}
               </Text>
             </View>
-          )}
+            
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: getSecondaryTextColor() }]}>Цена:</Text>
+              <Text style={[styles.detailValue, { color: getTextColor() }]}>
+                {(() => {
+                  try {
+                    const period = getPlanPeriodForPrice();
+                    // Firebase Functions return 'planId', so check that first, then 'plan' for backward compatibility
+                    const planValue = (subscription as any).planId || subscription?.plan;
+                    const plan = planValue || SubscriptionPlan.MONTHLY;
+                    const fallbackPrice = getPlanPrice(plan, period);
+                    const finalPrice = subscription?.amount || fallbackPrice;
+                    const finalCurrency = subscription?.currency || 'BGN';
+                    
+                    console.log('[SubscriptionManagementScreen] Price calculation:', {
+                      originalAmount: subscription?.amount,
+                      planValue,
+                      plan,
+                      period,
+                      fallbackPrice,
+                      finalPrice,
+                      finalCurrency
+                    });
+                    
+                    return formatPrice(finalPrice, finalCurrency);
+                  } catch (error) {
+                    console.error('[SubscriptionManagementScreen] Error calculating price:', error);
+                    return '12.99 BGN'; // Ultimate fallback
+                  }
+                })()} {getPlanPeriod()}
+              </Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: getSecondaryTextColor() }]}>Започнал:</Text>
+              <Text style={[styles.detailValue, { color: getTextColor() }]}>
+                {formatDate(subscription.currentPeriodStart)}
+              </Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: getSecondaryTextColor() }]}>
+                {subscription.cancelAtPeriodEnd ? 'Изтича:' : 'Следващо плащане:'}
+              </Text>
+              <Text style={[styles.detailValue, { color: getTextColor() }]}>
+                {formatDate(subscription.currentPeriodEnd)}
+              </Text>
+            </View>
+
+            {subscription.cancelAtPeriodEnd && (
+              <View style={styles.cancelNotice}>
+                <Text style={[styles.cancelNoticeText, { color: '#FF9800' }]}>
+                  ⚠️ Абонаментът е отменен и ще изтече на {formatDate(subscription.currentPeriodEnd)}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Features Card */}
+          <View style={[styles.featuresCard, getGlassmorphismStyle()]}>
+            <Text style={[styles.featuresTitle, { color: getTextColor() }]}>
+              Включени функции
+            </Text>
+            
+            <View style={styles.featuresList}>
+              <View style={styles.featureItem}>
+                <Text style={[styles.featureIcon, { color: '#4CAF50' }]}>✓</Text>
+                <Text style={[styles.featureText, { color: getSecondaryTextColor() }]}>
+                  Неограничени транзакции
+                </Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Text style={[styles.featureIcon, { color: '#4CAF50' }]}>✓</Text>
+                <Text style={[styles.featureText, { color: getSecondaryTextColor() }]}>
+                  Разширени отчети и анализи
+                </Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Text style={[styles.featureIcon, { color: '#4CAF50' }]}>✓</Text>
+                <Text style={[styles.featureText, { color: getSecondaryTextColor() }]}>
+                  Приоритетна поддръжка
+                </Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Text style={[styles.featureIcon, { color: '#4CAF50' }]}>✓</Text>
+                <Text style={[styles.featureText, { color: getSecondaryTextColor() }]}>
+                  Експорт на данни
+                </Text>
+              </View>
+            </View>
+          </View>
         </Animated.View>
+
+        {/* Buttons Section */}
+        <Animated.View
+          style={[
+            styles.buttonSection,
+            {
+              opacity: buttonOpacity,
+              transform: [{ translateY: buttonTranslateY }],
+            },
+          ]}
+        >
+          {/* Upgrade Plan Button */}
+          <TouchableOpacity
+            onPress={handleUpgradeSubscription}
+            style={[
+              styles.primaryButton,
+              styles.glassMorphButton,
+              {
+                backgroundColor: '#b2ac94',
+                borderColor: 'transparent',
+                justifyContent: 'center',
+                alignItems: 'center',
+              },
+            ]}
+          >
+            <View style={[styles.buttonContent, { paddingHorizontal: 24 }]}>
+              <Text style={[styles.primaryButtonText, { color: '#FFFFFF', marginLeft: 30 }]}>
+                Промени план
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Cancel Subscription Button */}
+          {subscription.status === SubscriptionStatus.ACTIVE && !subscription.cancelAtPeriodEnd && (
+            <TouchableOpacity
+              onPress={handleCancelSubscription}
+              disabled={cancellingSubscription}
+              style={[
+                styles.secondaryButton,
+                getGlassmorphismStyle(),
+                styles.glassMorphButton,
+                {
+                  opacity: cancellingSubscription ? 0.7 : 1,
+                },
+              ]}
+            >
+              <View style={styles.buttonContent}>
+                {cancellingSubscription ? (
+                  <ActivityIndicator size="small" color={getTextColor()} />
+                ) : (
+                  <Text style={[styles.secondaryButtonText, { color: '#F44336' }]}>
+                    Отмени абонамента
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Back Button */}
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={[styles.backButton, getGlassmorphismStyle(), styles.glassMorphButton]}
+          >
+            <View style={styles.buttonContent}>
+              <Text style={[styles.backButtonText, { color: getTextColor() }]}>
+                ← Назад
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Support Section */}
+        <View style={styles.supportSection}>
+          <Text style={[styles.supportText, { color: getSecondaryTextColor() }]}>
+            💬 Нужна помощ? Свържете се с нашия екип за поддръжка чрез приложението.
+          </Text>
+        </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F4F0',
   },
   backgroundGradient: {
     position: 'absolute',
@@ -367,241 +701,297 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + 10,
-    paddingBottom: 10,
+  
+  // Floating Background Elements
+  floatingElement: {
+    position: 'absolute',
+    borderRadius: 100,
+    overflow: 'hidden',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  floatingElement1: {
+    width: 200,
+    height: 200,
+    top: '10%',
+    right: '-10%',
   },
-  backButtonText: {
-    fontSize: 20,
-    color: '#2D2928',
-    fontWeight: 'bold',
+  floatingElement2: {
+    width: 150,
+    height: 150,
+    bottom: '20%',
+    left: '-8%',
   },
-  headerTitle: {
+  floatingGradient: {
     flex: 1,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    textAlign: 'center',
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    borderRadius: 100,
   },
-  headerSpacer: {
-    width: 40,
-  },
+
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
+  contentContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
+    paddingTop: 60,
     paddingBottom: 40,
   },
-  contentContainer: {
-    flex: 1,
-    paddingTop: 20,
+
+  // Logo Section
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: 25,
+    marginTop: 10,
   },
-  subscriptionCard: {
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
+  logoContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    zIndex: 10,
+  },
+
+  // Title Section
+  titleSection: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -1,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Black' : 'sans-serif-black',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+
+  // Content Section
+  contentSection: {
+    gap: 20,
+    marginBottom: 30,
+  },
+
+  // Status Card
+  statusCard: {
     borderRadius: 20,
     padding: 24,
-    marginBottom: 30,
-    borderWidth: 2,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
+    borderWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.08)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-  subscriptionHeader: {
+  statusHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  subscriptionTitle: {
+  statusTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2D2928',
+    fontWeight: '700',
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 12,
   },
-  statusBadgeText: {
+  statusText: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#F8F4F0',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  subscriptionDetails: {
-    gap: 12,
+  daysRemaining: {
+    alignItems: 'center',
+  },
+  daysRemainingText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // Details Card
+  detailsCard: {
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.08)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  detailsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
   detailLabel: {
     fontSize: 16,
-    color: '#6B5B57',
     fontWeight: '500',
   },
   detailValue: {
     fontSize: 16,
-    color: '#2D2928',
-    fontWeight: 'bold',
+    fontWeight: '600',
     textAlign: 'right',
     flex: 1,
     marginLeft: 16,
   },
-  detailValueSmall: {
-    fontSize: 12,
-    color: '#2D2928',
-    fontWeight: 'bold',
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 16,
-  },
-  cancellationNotice: {
+  cancelNotice: {
     marginTop: 16,
     padding: 12,
-    backgroundColor: 'rgba(255, 152, 0, 0.1)',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 152, 0, 0.3)',
+    backgroundColor: 'rgba(255, 152, 0, 0.1)',
   },
-  cancellationText: {
+  cancelNoticeText: {
     fontSize: 14,
-    color: '#FF9800',
+    fontWeight: '500',
     textAlign: 'center',
   },
-  actionsContainer: {
-    marginBottom: 30,
-  },
-  actionsTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    marginBottom: 16,
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
-  },
-  enterAppButton: {
-    backgroundColor: 'rgba(176, 168, 159, 0.3)',
-    borderColor: 'rgba(176, 168, 159, 0.6)',
-  },
-  actionIcon: {
-    fontSize: 24,
-    marginRight: 16,
-  },
-  actionContent: {
-    flex: 1,
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    marginBottom: 4,
-  },
-  actionSubtitle: {
-    fontSize: 14,
-    color: '#6B5B57',
-  },
-  actionArrow: {
-    fontSize: 18,
-    color: '#B0A89F',
-    fontWeight: 'bold',
-  },
-  featuresContainer: {
-    backgroundColor: 'rgba(248, 244, 240, 0.8)',
+
+  // Features Card
+  featuresCard: {
     borderRadius: 20,
     padding: 24,
-    marginBottom: 30,
-    borderWidth: 2,
-    borderColor: 'rgba(176, 168, 159, 0.5)',
+    borderWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.08)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   featuresTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2D2928',
-    marginBottom: 20,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(176, 168, 159, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   featuresList: {
-    gap: 16,
+    gap: 12,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   featureIcon: {
-    fontSize: 20,
-    marginRight: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginRight: 12,
+    width: 24,
   },
   featureText: {
     fontSize: 16,
-    color: '#6B5B57',
     fontWeight: '500',
     flex: 1,
   },
-  dangerZone: {
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 2,
-    borderColor: 'rgba(244, 67, 54, 0.3)',
-    alignItems: 'center',
+
+  // Button Section
+  buttonSection: {
+    gap: 16,
   },
-  dangerTitle: {
+  primaryButton: {
+    height: 62,
+    borderRadius: 31,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  secondaryButton: {
+    height: 62,
+    borderRadius: 31,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  backButton: {
+    height: 62,
+    borderRadius: 31,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  glassMorphButton: {
+    ...Platform.select({
+      ios: {
+        shadowColor: 'rgba(0, 0, 0, 0.05)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  buttonContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  primaryButtonText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#F44336',
-    marginBottom: 16,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif',
     textAlign: 'center',
   },
-  cancelButton: {
-    backgroundColor: '#F44336',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    marginBottom: 12,
-    minWidth: 200,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#F8F4F0',
-  },
-  cancelWarning: {
-    fontSize: 12,
-    color: 'rgba(244, 67, 54, 0.8)',
+  secondaryButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif',
     textAlign: 'center',
-    lineHeight: 16,
+  },
+  backButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif',
+    textAlign: 'center',
+  },
+
+  // Support Section
+  supportSection: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  supportText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

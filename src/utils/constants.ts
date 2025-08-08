@@ -24,6 +24,9 @@ export const SCREENS = {
   VOICE_ASSISTANT: 'VoiceAssistant',
   WHAT_IF_SIMULATION: 'WhatIfSimulation',
   EDIT_PROFILE: 'EditProfile',
+  // Referral system screens
+  REFERRAL: 'Referral',
+  REFERRAL_DASHBOARD: 'ReferralDashboard',
 };
 
 // Константи за категории разходи

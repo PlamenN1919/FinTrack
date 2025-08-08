@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 import { useAuth } from '../contexts/AuthContext'; // Коригиран път
 import gamificationService from '../services/GamificationService';
 import storageService from '../services/StorageService';
@@ -150,24 +151,68 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
   const updateTransaction = useCallback(async (id: string, transactionData: Partial<Transaction>) => {
     if (!user) throw new Error("Потребителят не е автентикиран.");
     
-    await firestore()
-      .collection('transactions')
-      .doc(user.uid)
-      .collection('userTransactions')
-      .doc(id)
-      .update(transactionData);
+    try {
+      console.log('[TransactionContext] Updating transaction:', { userId: user.uid, transactionId: id, data: transactionData });
+      
+      // Check if Firebase Auth user is still valid and refresh token
+      const currentUser = auth().currentUser;
+      if (!currentUser || currentUser.uid !== user.uid) {
+        throw new Error("Firebase authentication is invalid. Please login again.");
+      }
+      
+      // Force refresh auth token to ensure it's valid
+      await currentUser.getIdToken(true);
+      
+      await firestore()
+        .collection('transactions')
+        .doc(user.uid)
+        .collection('userTransactions')
+        .doc(id)
+        .update(transactionData);
+        
+      console.log('[TransactionContext] Transaction updated successfully');
+    } catch (error) {
+      console.error('[TransactionContext] Error updating transaction:', error);
+      console.error('[TransactionContext] Firebase auth state:', { 
+        currentUser: auth().currentUser?.uid, 
+        contextUser: user.uid 
+      });
+      throw error;
+    }
   }, [user]);
 
   // Изтриване на транзакция
   const deleteTransaction = useCallback(async (id: string) => {
     if (!user) throw new Error("Потребителят не е автентикиран.");
 
-    await firestore()
-      .collection('transactions')
-      .doc(user.uid)
-      .collection('userTransactions')
-      .doc(id)
-      .delete();
+    try {
+      console.log('[TransactionContext] Deleting transaction:', { userId: user.uid, transactionId: id });
+      
+      // Check if Firebase Auth user is still valid and refresh token
+      const currentUser = auth().currentUser;
+      if (!currentUser || currentUser.uid !== user.uid) {
+        throw new Error("Firebase authentication is invalid. Please login again.");
+      }
+      
+      // Force refresh auth token to ensure it's valid
+      await currentUser.getIdToken(true);
+      
+      await firestore()
+        .collection('transactions')
+        .doc(user.uid)
+        .collection('userTransactions')
+        .doc(id)
+        .delete();
+        
+      console.log('[TransactionContext] Transaction deleted successfully');
+    } catch (error) {
+      console.error('[TransactionContext] Error deleting transaction:', error);
+      console.error('[TransactionContext] Firebase auth state:', { 
+        currentUser: auth().currentUser?.uid, 
+        contextUser: user.uid 
+      });
+      throw error;
+    }
   }, [user]);
 
   const value: TransactionContextType = {
