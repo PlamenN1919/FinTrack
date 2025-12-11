@@ -20,7 +20,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../utils/ThemeContext';
 import { useTransactions } from '../utils/TransactionContext';
 import { useBudgets } from '../utils/BudgetContext';
-import { useUser } from '../contexts/UserContext';
+import { useUser } from '../utils/UserContext';
 
 // Типове за симулации
 interface SimulationScenario {

@@ -16,10 +16,9 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.TRACKING,
     rarity: ACHIEVEMENT_RARITY.COMMON,
     xpReward: 10,
-    progress: 1,
+    progress: 0,
     maxProgress: 1,
-    isCompleted: true,
-    dateCompleted: '2024-05-10',
+    isCompleted: false,
     trigger: {
       action: 'add_transaction',
       condition: (metadata, currentProgress) => currentProgress < 1,
@@ -34,7 +33,7 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.BUDGETING,
     rarity: ACHIEVEMENT_RARITY.UNCOMMON,
     xpReward: 50,
-    progress: 28,
+    progress: 0,
     maxProgress: 30,
     isCompleted: false,
     trigger: {
@@ -51,7 +50,7 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.SAVING,
     rarity: ACHIEVEMENT_RARITY.RARE,
     xpReward: 100,
-    progress: 2,
+    progress: 0,
     maxProgress: 3,
     isCompleted: false,
     trigger: {
@@ -68,7 +67,7 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.LEARNING,
     rarity: ACHIEVEMENT_RARITY.COMMON,
     xpReward: 25,
-    progress: 3,
+    progress: 0,
     maxProgress: 5,
     isCompleted: false,
     trigger: {
@@ -84,7 +83,7 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.CONSISTENCY,
     rarity: ACHIEVEMENT_RARITY.RARE,
     xpReward: 75,
-    progress: 12,
+    progress: 0,
     maxProgress: 30,
     isCompleted: false,
     trigger: {
@@ -100,7 +99,7 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.GOALS,
     rarity: ACHIEVEMENT_RARITY.EPIC,
     xpReward: 150,
-    progress: 2,
+    progress: 0,
     maxProgress: 5,
     isCompleted: false,
     trigger: {
@@ -116,7 +115,7 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.TRACKING,
     rarity: ACHIEVEMENT_RARITY.UNCOMMON,
     xpReward: 50,
-    progress: 22,
+    progress: 0,
     maxProgress: 50,
     isCompleted: false,
     trigger: {
@@ -133,7 +132,7 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.GOALS,
     rarity: ACHIEVEMENT_RARITY.LEGENDARY,
     xpReward: 300,
-    progress: 78,
+    progress: 0,
     maxProgress: 90,
     isCompleted: false,
     trigger: {
@@ -150,7 +149,7 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.TRACKING,
     rarity: ACHIEVEMENT_RARITY.COMMON,
     xpReward: 30,
-    progress: 8,
+    progress: 0,
     maxProgress: 20,
     isCompleted: false,
     trigger: {
@@ -167,7 +166,7 @@ export const mockAchievements: Achievement[] = [
     type: ACHIEVEMENT_TYPES.BUDGETING,
     rarity: ACHIEVEMENT_RARITY.UNCOMMON,
     xpReward: 75,
-    progress: 15,
+    progress: 0,
     maxProgress: 20,
     isCompleted: false,
     trigger: {
@@ -204,7 +203,7 @@ export const mockMissions: Mission[] = [
     icon: '🍲',
     type: MISSION_TYPES.WEEKLY,
     xpReward: 15,
-    progress: 2,
+    progress: 0,
     maxProgress: 3,
     isCompleted: false,
     expiresAt: '2024-05-25T23:59:59',
@@ -217,7 +216,7 @@ export const mockMissions: Mission[] = [
     icon: '📊',
     type: MISSION_TYPES.MONTHLY,
     xpReward: 20,
-    progress: 3,
+    progress: 0,
     maxProgress: 5,
     isCompleted: false,
     expiresAt: '2024-05-31T23:59:59',
@@ -548,8 +547,7 @@ export const mockRewards: Reward[] = [
     description: 'Отключва тъмна тема за приложението',
     icon: '🌙',
     type: REWARD_TYPES.THEME,
-    isUnlocked: true,
-    dateUnlocked: '2024-05-10',
+    isUnlocked: false,
   },
   {
     id: '2',
@@ -667,18 +665,27 @@ export const mockRewards: Reward[] = [
   },
 ];
 
-// Примерен профил с гамификация
+// Примерен профил с гамификация - НУЛЕВ СТАРТ за нови потребители
 export const mockGamificationProfile: GamificationProfile = {
-  xp: 185,
-  level: 3,
-  streakDays: 12,
-  lastActiveDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString(), // вчера за тестване на логиката
-  achievements: mockAchievements,
-  completedAchievements: 1,
+  xp: 0, // Започваме от 0 XP
+  level: 1, // Започваме от ниво 1
+  streakDays: 0, // Няма streak в началото
+  lastActiveDate: undefined, // Няма предишна активност
+  achievements: mockAchievements.map(a => ({
+    ...a,
+    progress: 0, // Всички постижения започват от 0
+    isCompleted: false, // Нищо не е завършено
+    dateCompleted: undefined
+  })),
+  completedAchievements: 0, // Няма завършени постижения
   totalAchievements: mockAchievements.length,
   missions: {
-    active: mockMissions.filter(m => !m.isCompleted),
-    completed: mockMissions.filter(m => m.isCompleted),
+    active: mockMissions.filter(m => !m.isCompleted), // Всички мисии са активни
+    completed: [], // Няма завършени мисии
   },
-  rewards: mockRewards,
+  rewards: mockRewards.map(r => ({
+    ...r,
+    isUnlocked: false, // Всички награди са заключени
+    dateUnlocked: undefined
+  })),
 }; 

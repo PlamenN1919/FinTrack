@@ -18,7 +18,7 @@ import { useTheme } from '../utils/ThemeContext';
 import { useTransactions } from '../utils/TransactionContext';
 import { SCREENS } from '../utils/constants';
 import gamificationService from '../services/GamificationService';
-import { useUser } from '../contexts/UserContext';
+import { useUser } from '../utils/UserContext';
 
 // Модерни UI компоненти
 import SimpleAnimatedCard from '../components/ui/SimpleAnimatedCard';

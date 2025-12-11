@@ -255,21 +255,39 @@ const PaymentScreen: React.FC = () => {
           return;
         }
 
+        console.log('[PaymentScreen] Current user:', currentUser.uid);
+        console.log('[PaymentScreen] User email:', currentUser.email);
+
         // Refresh token to ensure it's valid
         const token = await currentUser.getIdToken(true);
         console.log('[PaymentScreen] Firebase Auth token refreshed successfully');
+        console.log('[PaymentScreen] Token length:', token?.length || 0);
 
+        // Test Firebase Functions connectivity
+        console.log('[PaymentScreen] Testing Firebase Functions connectivity...');
+        console.log('[PaymentScreen] Functions instance:', functions());
+        
         // Create Stripe subscription
         console.log('[PaymentScreen] Calling createStripeSubscription with:', {
           planId,
           userId: currentUser.uid
         });
 
-        const result = await createStripeSubscriptionCallable({
-          planId
-        });
-
-                 console.log('[PaymentScreen] Stripe subscription created successfully:', result.data);
+        let result;
+        try {
+          result = await createStripeSubscriptionCallable({
+            planId
+          });
+          
+          console.log('[PaymentScreen] Function call succeeded! Raw result:', result);
+          console.log('[PaymentScreen] Stripe subscription created successfully:', result.data);
+        } catch (functionError: any) {
+          console.error('[PaymentScreen] Function call failed!');
+          console.error('[PaymentScreen] Function error code:', functionError.code);
+          console.error('[PaymentScreen] Function error message:', functionError.message);
+          console.error('[PaymentScreen] Function error details:', functionError.details);
+          throw functionError;
+        }
 
          const data = result.data as { clientSecret?: string; planId?: string; amount?: number; currency?: string; subscriptionId?: string; status?: string };
          if (data && data.clientSecret) {
@@ -282,16 +300,29 @@ const PaymentScreen: React.FC = () => {
 
       } catch (error: any) {
         console.error('[PaymentScreen] Error preparing payment:', error);
+        console.error('[PaymentScreen] Error code:', error.code);
+        console.error('[PaymentScreen] Error message:', error.message);
+        console.error('[PaymentScreen] Full error:', JSON.stringify(error, null, 2));
+        
         let errorMessage = 'Възникна грешка при подготовката на плащането.';
+        let shouldRetry = true;
         
         if (error.code === 'functions/unauthenticated') {
           errorMessage = 'Моля, влезте отново в профила си.';
+          shouldRetry = false;
           navigation.navigate('Login');
+        } else if (error.code === 'unavailable' || error.message?.includes('UNAVAILABLE')) {
+          errorMessage = 'Не може да се свърже със сървъра. Моля, проверете интернет връзката си и опитайте отново.\n\nАко проблемът продължава, рестартирайте приложението.';
+        } else if (error.code === 'functions/internal') {
+          errorMessage = 'Вътрешна грешка на сървъра. Моля, опитайте отново след малко.';
+        } else if (error.code === 'functions/not-found') {
+          errorMessage = 'Функцията не е намерена. Моля, уверете се че приложението е актуално.';
+          shouldRetry = false;
         } else if (error.message) {
           errorMessage = error.message;
         }
 
-        Alert.alert('Грешка при плащането', errorMessage, [
+        const alertButtons = shouldRetry ? [
           {
             text: 'Опитай отново',
             onPress: () => preparePayment()
@@ -301,7 +332,14 @@ const PaymentScreen: React.FC = () => {
             style: 'cancel',
             onPress: () => navigation.goBack()
           }
-        ]);
+        ] : [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack()
+          }
+        ];
+
+        Alert.alert('Грешка при плащането', errorMessage, alertButtons);
       } finally {
         setIsPreparingPayment(false);
       }

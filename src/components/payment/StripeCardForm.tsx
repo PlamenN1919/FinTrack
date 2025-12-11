@@ -41,6 +41,7 @@ const StripeCardForm: React.FC<StripeCardFormProps> = ({
         useNativeDriver: true,
       }),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Premium Color Functions

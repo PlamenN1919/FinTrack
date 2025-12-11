@@ -24,7 +24,7 @@ import FloatingActionButton from '../components/ui/FloatingActionButton';
 // Тематичен контекст
 import { useTheme } from '../utils/ThemeContext';
 import { useTransactions } from '../utils/TransactionContext';
-import { useUser } from '../contexts/UserContext';
+import { useUser } from '../utils/UserContext';
 import { SCREENS } from '../utils/constants';
 
 // Гамификация компоненти и данни
@@ -34,6 +34,10 @@ import MissionCard from '../components/gamification/MissionCard';
 import GamificationOverlay from '../components/gamification/GamificationOverlay';
 import gamificationService from '../services/GamificationService';
 import { GamificationProfile } from '../models/gamification';
+import FlameIcon from '../components/icons/FlameIcon';
+import TrophyIcon from '../components/icons/TrophyIcon';
+import TargetIcon from '../components/icons/TargetIcon';
+import GiftIcon from '../components/icons/GiftIcon';
 
 // Функция за изчисляване на финансово здраве с error handling
 const calculateFinancialHealth = (transactions: any[], monthlyIncome: number, monthlyExpense: number, currentBalance: number) => {
@@ -325,29 +329,91 @@ const HomeScreen: React.FC = () => {
   const [gamificationProfile, setGamificationProfile] = useState(gamificationService.getProfile());
   const [notifications, setNotifications] = useState<React.ReactNode[]>([]);
 
+  // Показва нотификация за геймификация
+  const showGamificationNotification = useCallback((title: string, message: string, icon: string, color: string, xpAmount: number = 0) => {
+    const notificationId = Date.now().toString();
+    
+    const notification = (
+      <GamificationOverlay
+        key={notificationId}
+        title={title}
+        message={message}
+        icon={icon}
+        color={color}
+        showXP={xpAmount > 0}
+        xpAmount={xpAmount}
+        onDismiss={() => {
+          setNotifications(prev => prev.filter(n => (n as any).key !== notificationId));
+        }}
+      />
+    );
+    
+    setNotifications(prev => [...prev, notification]);
+  }, []);
+
   // Gamification setup
   useEffect(() => {
-    if (userData && !isLoading) {
-      const onProfileUpdate = (profile: GamificationProfile) => {
-        setGamificationProfile(profile);
-      };
-      
-      // Слушаме за промени в профила
-      gamificationService.onProfileUpdated(onProfileUpdate);
-      
-      // Инициализираме за текущия потребител
-      gamificationService.initForUser(userData.id).then(() => {
-        const currentProfile = gamificationService.getProfile();
-        if (currentProfile) {
-          setGamificationProfile(currentProfile);
-        }
-      });
-      
-      return () => {
-        gamificationService.offProfileUpdated(onProfileUpdate);
-      };
-    }
-  }, [userData, isLoading]);
+    const onProfileUpdate = (profile: GamificationProfile) => {
+      setGamificationProfile(profile);
+    };
+    
+    // Слушаме за промени в профила
+    gamificationService.onProfileUpdated(onProfileUpdate);
+    
+    // Зареждаме текущия профил (GamificationService се инициализира автоматично)
+    gamificationService.getProfileAsync().then((currentProfile) => {
+      if (currentProfile) {
+        setGamificationProfile(currentProfile);
+      }
+    });
+    
+    // Слушаме за завършени постижения
+    const onAchievementCompleted = (achievement: any) => {
+      showGamificationNotification(
+        'Ново постижение!',
+        achievement.name,
+        achievement.icon,
+        '#FF9800',
+        achievement.xpReward
+      );
+    };
+
+    // Слушаме за завършени мисии
+    const onMissionCompleted = (mission: any) => {
+      showGamificationNotification(
+        'Мисия завършена!',
+        mission.name,
+        mission.icon,
+        '#2196F3',
+        mission.xpReward
+      );
+    };
+
+    // Слушаме за level up
+    const onXPAdded = (data: any) => {
+      if (data.result.leveledUp) {
+        showGamificationNotification(
+          `🎊 Ниво ${data.result.level}!`,
+          'Поздравления! Качихте ниво!',
+          '🏆',
+          '#FFD700',
+          data.amount
+        );
+      }
+    };
+
+    // Регистрираме event listeners
+    gamificationService.eventEmitter.on('achievementCompleted', onAchievementCompleted);
+    gamificationService.eventEmitter.on('missionCompleted', onMissionCompleted);
+    gamificationService.eventEmitter.on('xpAdded', onXPAdded);
+    
+    return () => {
+      gamificationService.offProfileUpdated(onProfileUpdate);
+      gamificationService.eventEmitter.off('achievementCompleted', onAchievementCompleted);
+      gamificationService.eventEmitter.off('missionCompleted', onMissionCompleted);
+      gamificationService.eventEmitter.off('xpAdded', onXPAdded);
+    };
+  }, [showGamificationNotification]);
 
   // Показва здравен статус въз основа на резултата
   const getHealthStatus = useCallback((score: number) => {
@@ -621,7 +687,7 @@ const HomeScreen: React.FC = () => {
         <SimpleAnimatedCard 
           variant="glass" 
           style={styles.healthCard}
-          animationDelay={200}
+          animationDelay={150}
         >
           <TouchableOpacity 
             onPress={() => navigation.navigate(SCREENS.FINANCIAL_HEALTH)}
@@ -707,13 +773,114 @@ const HomeScreen: React.FC = () => {
           </TouchableOpacity>
         </SimpleAnimatedCard>
 
+        {/* Геймификация: Level и Streak */}
+        <SimpleAnimatedCard 
+          variant="elevated" 
+          style={styles.gamificationCard}
+          animationDelay={200}
+        >
+          <View style={styles.gamificationHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              Твоят напредък
+            </Text>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate(SCREENS.ACHIEVEMENTS)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.viewAllText, { color: theme.colors.primary }]}>
+                Виж всички →
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Level Progress */}
+          <LevelProgressBar 
+            xp={gamificationProfile.xp}
+            level={gamificationProfile.level}
+            compact={false}
+          />
+
+          {/* Streak информация - Подобрен дизайн */}
+          <View style={styles.streakContainer}>
+            <LinearGradient
+              colors={theme.colors.primaryGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.streakGradient}
+            >
+              {/* Декоративни елементи */}
+              <View style={styles.streakDecoTop} />
+              <View style={styles.streakDecoBottom} />
+              
+              <View style={styles.streakContent}>
+                {/* Само икона и число */}
+                <View style={styles.streakIconContainer}>
+                  <FlameIcon size={56} />
+                  {gamificationProfile.streakDays > 0 && (
+                    <View style={styles.streakPulse} />
+                  )}
+                </View>
+                <View style={styles.streakNumberContainer}>
+                  <Text style={styles.streakNumber}>{gamificationProfile.streakDays}</Text>
+                  <Text style={styles.streakNumberLabel}>
+                    {gamificationProfile.streakDays === 1 ? 'ден' : 'дни'}
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* Бързи статистики */}
+          <View style={styles.quickStats}>
+            <View style={styles.quickStatItem}>
+              <View style={styles.quickStatIconContainer}>
+                <TrophyIcon size={32} />
+              </View>
+              <Text style={[styles.quickStatValue, { color: theme.colors.text }]}>
+                {gamificationProfile.completedAchievements}
+              </Text>
+              <Text style={[styles.quickStatLabel, { color: theme.colors.textSecondary }]}>
+                Постижения
+              </Text>
+            </View>
+            <View style={styles.quickStatItem}>
+              <View style={styles.quickStatIconContainer}>
+                <TargetIcon size={32} />
+              </View>
+              <Text style={[styles.quickStatValue, { color: theme.colors.text }]}>
+                {gamificationProfile.missions.active.length}
+              </Text>
+              <Text style={[styles.quickStatLabel, { color: theme.colors.textSecondary }]}>
+                Активни мисии
+              </Text>
+            </View>
+            <View style={styles.quickStatItem}>
+              <View style={styles.quickStatIconContainer}>
+                <GiftIcon size={32} />
+              </View>
+              <Text style={[styles.quickStatValue, { color: theme.colors.text }]}>
+                {gamificationProfile.rewards.filter(r => r.isUnlocked).length}
+              </Text>
+              <Text style={[styles.quickStatLabel, { color: theme.colors.textSecondary }]}>
+                Награди
+              </Text>
+            </View>
+          </View>
+        </SimpleAnimatedCard>
+
         {/* Подобрена графика с модерен дизайн */}
         <SimpleAnimatedCard 
           variant="elevated" 
           style={styles.chartCard}
           animationDelay={300}
         >
-          <View style={styles.chartHeader}>
+          {/* Header с градиент фон */}
+          <LinearGradient
+            colors={[theme.colors.primary + '15', theme.colors.primary + '05']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.chartHeaderGradient}
+          >
             <View style={styles.chartTitleContainer}>
               <LinearGradient
                 colors={theme.colors.primaryGradient}
@@ -730,15 +897,51 @@ const HomeScreen: React.FC = () => {
                 </Text>
               </View>
             </View>
-            
-            {/* Статистика за най-добър месец */}
-            <View style={styles.chartStats}>
-              <Text style={[styles.chartStatsLabel, { color: theme.colors.textSecondary }]}>
-                Най-добър
-              </Text>
-              <Text style={[styles.chartStatsValue, { color: theme.colors.accent }]}>
-                {Math.max(...memoizedData.chartData.datasets[0].data).toFixed(0)} лв.
-              </Text>
+          </LinearGradient>
+          
+          {/* Допълнителни статистики */}
+          <View style={styles.chartMetrics}>
+            <View style={styles.chartMetricItem}>
+              <View style={[styles.chartMetricDot, { backgroundColor: theme.colors.success }]} />
+              <View>
+                <Text style={[styles.chartMetricLabel, { color: theme.colors.textSecondary }]}>
+                  Средно
+                </Text>
+                <Text style={[styles.chartMetricValue, { color: theme.colors.text }]}>
+                  {(() => {
+                    try {
+                      const data = memoizedData.chartData?.datasets?.[0]?.data;
+                      if (!data || data.length === 0) return '0';
+                      const avg = data.reduce((a, b) => a + b, 0) / data.length;
+                      return avg.toFixed(0);
+                    } catch (error) {
+                      console.warn('Грешка при изчисляване на средно:', error);
+                      return '0';
+                    }
+                  })()} лв.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.chartMetricDivider} />
+            <View style={styles.chartMetricItem}>
+              <View style={[styles.chartMetricDot, { backgroundColor: theme.colors.warning }]} />
+              <View>
+                <Text style={[styles.chartMetricLabel, { color: theme.colors.textSecondary }]}>
+                  Най-нисък
+                </Text>
+                <Text style={[styles.chartMetricValue, { color: theme.colors.text }]}>
+                  {(() => {
+                    try {
+                      const data = memoizedData.chartData?.datasets?.[0]?.data;
+                      if (!data || data.length === 0) return '0';
+                      return Math.min(...data).toFixed(0);
+                    } catch (error) {
+                      console.warn('Грешка при изчисляване на най-нисък:', error);
+                      return '0';
+                    }
+                  })()} лв.
+                </Text>
+              </View>
             </View>
           </View>
           
@@ -754,13 +957,13 @@ const HomeScreen: React.FC = () => {
                   backgroundGradientFrom: 'transparent',
                   backgroundGradientTo: 'transparent',
                   decimalPlaces: 0,
-                  color: (opacity = 1) => theme.colors.accent,
+                  color: (opacity = 1) => `rgba(${parseInt(theme.colors.accent.slice(1, 3), 16)}, ${parseInt(theme.colors.accent.slice(3, 5), 16)}, ${parseInt(theme.colors.accent.slice(5, 7), 16)}, ${opacity})`,
                   labelColor: (opacity = 1) => theme.colors.textSecondary,
                   style: {
                     borderRadius: 16,
                   },
                   propsForDots: {
-                    r: "6",
+                    r: "7",
                     strokeWidth: "3",
                     stroke: theme.colors.accent,
                     fill: theme.colors.background
@@ -768,10 +971,16 @@ const HomeScreen: React.FC = () => {
                   propsForBackgroundLines: {
                     strokeDasharray: "5,5",
                     stroke: theme.colors.borderLight,
-                    strokeWidth: 1
-                  }
+                    strokeWidth: 1,
+                    opacity: 0.3
+                  },
+                  fillShadowGradient: theme.colors.accent,
+                  fillShadowGradientOpacity: 0.2,
                 }}
                 bezier
+                withShadow={false}
+                withInnerLines={true}
+                withOuterLines={false}
                 style={styles.chart}
               />
               
@@ -1440,26 +1649,37 @@ const styles = StyleSheet.create({
   },
   
   // Подобрени стилове за графика
+  chartHeaderGradient: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
   chartHeader: {
-    marginBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   chartTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
   chartIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   chartIconInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#F7E7CE',
   },
   chartSubtitle: {
@@ -1468,22 +1688,66 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   chartStats: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    alignItems: 'flex-end',
   },
   chartStatsLabel: {
     fontSize: 11,
     fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  chartStatsBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   chartStatsValue: {
     fontSize: 16,
-    fontWeight: '600',
-    marginTop: 2,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  chartMetrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    borderRadius: 12,
+    marginHorizontal: 16,
+  },
+  chartMetricItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  chartMetricDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  chartMetricLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  chartMetricValue: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  chartMetricDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    marginHorizontal: 12,
   },
   chartWrapper: {
     position: 'relative',
@@ -1685,6 +1949,198 @@ const styles = StyleSheet.create({
   },
   levelContainer: {
     marginBottom: 24,
+  },
+
+  // Геймификация стилове
+  gamificationCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 20,
+  },
+  gamificationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  streakContainer: {
+    marginTop: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  streakGradient: {
+    borderRadius: 16,
+    position: 'relative',
+    minHeight: 120,
+    justifyContent: 'center',
+  },
+  streakDecoTop: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  streakDecoBottom: {
+    position: 'absolute',
+    bottom: -30,
+    left: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  streakContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingLeft: 40,
+  },
+  streakLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  streakIconContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
+  streakIcon: {
+    fontSize: 48,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  streakPulse: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    opacity: 0.5,
+  },
+  streakNumberContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 16,
+  },
+  streakNumber: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: 'white',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+    lineHeight: 36,
+  },
+  streakNumberLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  streakMiddle: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  streakTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  streakSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 18,
+  },
+  streakBonus: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 70,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  streakBonusIcon: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  streakBonusText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '800',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  streakProgress: {
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  streakProgressBar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 4,
+    marginBottom: 4,
+  },
+  streakProgressFill: {
+    height: '100%',
+    borderRadius: 21,
+    backgroundColor: '#00d4ff',
+  },
+  streakProgressText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'white',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  quickStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  quickStatItem: {
+    alignItems: 'center',
+  },
+  quickStatIconContainer: {
+    marginBottom: 8,
+  },
+  quickStatValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

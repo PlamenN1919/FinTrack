@@ -1,6 +1,7 @@
 import { Linking } from 'react-native';
 import { NavigationContainerRef } from '@react-navigation/native';
 import { validateDeepLink, createDeepLink } from '../navigation/linking.config';
+import ReferralService from '../services/ReferralService';
 
 // Deep link handler for special authentication scenarios
 export class DeepLinkHandler {
@@ -38,6 +39,11 @@ export class DeepLinkHandler {
       // Handle payment links
       if (validateDeepLink.isPaymentLink(url)) {
         return this.handlePaymentLink(url);
+      }
+
+      // Handle referral links
+      if (validateDeepLink.isReferralLink(url)) {
+        return this.handleReferralLink(url);
       }
 
       console.log('Deep link handled by navigation system');
@@ -139,6 +145,41 @@ export class DeepLinkHandler {
     }
   }
 
+  // Handle referral deep links
+  private async handleReferralLink(url: string): Promise<boolean> {
+    try {
+      console.log('Referral link detected:', url);
+
+      const referrerId = validateDeepLink.extractReferrerIdFromLink(url);
+      
+      if (!referrerId) {
+        console.error('Could not extract referrer ID from link');
+        return false;
+      }
+
+      console.log('Referrer ID extracted:', referrerId);
+
+      // Save referrer ID using ReferralService
+      await ReferralService.handleReferralDeepLink(url);
+
+      // Navigate to Register screen if not already authenticated
+      if (this.navigationRef?.isReady()) {
+        // Small delay to ensure navigation is ready
+        setTimeout(() => {
+          this.navigationRef?.navigate('Auth', {
+            screen: 'Register',
+            params: { referrerId },
+          });
+        }, 500);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error handling referral link:', error);
+      return false;
+    }
+  }
+
   // Initialize deep link listener
   initializeListener(): () => void {
     // Handle initial URL (app opened from deep link)
@@ -172,6 +213,10 @@ export class DeepLinkHandler {
 
   static createSubscriptionLink(reason?: string, previousPlan?: string): string {
     return createDeepLink.subscriptionPlans(reason, previousPlan);
+  }
+
+  static createReferralLink(referrerId: string): string {
+    return createDeepLink.invite(referrerId);
   }
 }
 

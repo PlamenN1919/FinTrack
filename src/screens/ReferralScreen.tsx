@@ -9,6 +9,7 @@ import {
   Alert,
   StatusBar,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -125,28 +126,52 @@ const ReferralScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <StatusBar 
-        barStyle={theme.dark ? "light-content" : "dark-content"}
-        backgroundColor={theme.colors.background}
-        translucent={false}
+        barStyle="light-content"
+        backgroundColor={theme.colors.primary}
+        translucent={true}
       />
       
-      {/* Header */}
-      <SafeAreaView style={[styles.header, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Text style={[styles.backButtonText, { color: theme.colors.primary }]}>← Назад</Text>
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Покани приятели</Text>
-          <View style={styles.headerRight} />
-        </View>
-      </SafeAreaView>
+      {/* Луксозен header с градиент - в стила на HomeScreen */}
+      <View style={styles.headerWrapper}>
+        <LinearGradient
+          colors={theme.colors.primaryGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          {/* Декоративни елементи */}
+          <View style={styles.headerDecorations}>
+            <View style={[styles.decorativeCircle, styles.decorativeCircle1]} />
+            <View style={[styles.decorativeCircle, styles.decorativeCircle2]} />
+            <View style={[styles.decorativeCircle, styles.decorativeCircle3]} />
+          </View>
+          
+          <SafeAreaView style={styles.headerContent}>
+            <View style={styles.header}>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={styles.backButton}
+              >
+                <Text style={styles.backButtonText}>← Назад</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Hero секция */}
+            <View style={styles.heroSection}>
+              <Text style={styles.heroEmoji}>🎁</Text>
+              <Text style={styles.heroTitle}>Покани приятели</Text>
+              <Text style={styles.heroSubtitle}>
+                Споделете любовта към FinTrack
+              </Text>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
+      </View>
 
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -155,20 +180,28 @@ const ReferralScreen: React.FC = () => {
           />
         }
       >
-        {/* Main Referral Card */}
+        {/* Main Referral Card - Подобрен дизайн */}
         <View style={[styles.mainCard, { backgroundColor: theme.colors.card }]}>
-          <LinearGradient
-            colors={['#FF6B6B', '#4ECDC4']}
-            style={styles.mainCardGradient}
-          >
-            <View style={styles.mainCardContent}>
-              <Text style={styles.mainCardTitle}>🎉 Покани приятел</Text>
-              <Text style={styles.mainCardSubtitle}>Спечели 1 месец безплатно!</Text>
-              <Text style={styles.mainCardDescription}>
-                Поканете приятел да изтегли FinTrack. Ако закупи абонамент, вие получавате 1 месец безплатно!
-              </Text>
+          <View style={styles.mainCardContent}>
+            <View style={styles.rewardBanner}>
+              <LinearGradient
+                colors={theme.colors.accentGradient}
+                style={styles.rewardBannerGradient}
+              >
+                <Text style={styles.rewardBannerEmoji}>🎉</Text>
+                <View style={styles.rewardBannerText}>
+                  <Text style={styles.rewardBannerTitle}>Спечели 1 месец безплатно!</Text>
+                  <Text style={styles.rewardBannerSubtitle}>
+                    За всеки приятел, който закупи абонамент
+                  </Text>
+                </View>
+              </LinearGradient>
             </View>
-          </LinearGradient>
+
+            <Text style={[styles.descriptionText, { color: theme.colors.textSecondary }]}>
+              Поканете приятел да изтегли FinTrack. Когато закупи абонамент, вие автоматично получавате 1 месец безплатно към вашия план!
+            </Text>
+          </View>
           
           {/* Share Button */}
           <TouchableOpacity
@@ -180,7 +213,7 @@ const ReferralScreen: React.FC = () => {
               colors={theme.colors.primaryGradient}
               style={styles.shareButtonGradient}
             >
-              <Text style={styles.shareButtonText}>🚀 Сподели Link</Text>
+              <Text style={styles.shareButtonText}>🚀 Сподели твоя линк</Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -331,17 +364,64 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
   },
-  header: {
-    paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+  
+  // Модерен header в стила на HomeScreen
+  headerWrapper: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  headerGradient: {
+    paddingTop: Platform.OS === 'ios' ? 0 : StatusBar.currentHeight || 0,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  headerDecorations: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  decorativeCircle: {
+    position: 'absolute',
+    borderRadius: 100,
+    backgroundColor: 'rgba(247, 231, 206, 0.08)',
+  },
+  decorativeCircle1: {
+    width: 120,
+    height: 120,
+    top: -40,
+    right: -20,
+  },
+  decorativeCircle2: {
+    width: 80,
+    height: 80,
+    top: 60,
+    left: -30,
+  },
+  decorativeCircle3: {
+    width: 60,
+    height: 60,
+    bottom: 20,
+    right: 80,
   },
   headerContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+  },
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    marginBottom: 24,
   },
   backButton: {
     paddingVertical: 8,
@@ -350,62 +430,105 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#F7E7CE',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.3,
+  heroSection: {
+    alignItems: 'center',
   },
-  headerRight: {
-    width: 60,
+  heroEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: '300',
+    color: '#F7E7CE',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    color: 'rgba(247, 231, 206, 0.8)',
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  
   scrollView: {
     flex: 1,
+    paddingHorizontal: 24,
+    marginTop: -16,
+  },
+  scrollContent: {
+    paddingTop: 32,
+  },
+  
+  // Подобрена главна карта
+  mainCard: {
+    borderRadius: 16,
+    marginBottom: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mainCardContent: {
     padding: 20,
   },
-  mainCard: {
-    borderRadius: 20,
-    marginBottom: 24,
+  rewardBanner: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  rewardBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  rewardBannerEmoji: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  rewardBannerText: {
+    flex: 1,
+  },
+  rewardBannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  rewardBannerSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: 'rgba(26, 26, 26, 0.7)',
+  },
+  descriptionText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '400',
+  },
+  shareButton: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  mainCardGradient: {
-    padding: 24,
-  },
-  mainCardContent: {
-    alignItems: 'center',
-  },
-  mainCardTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: 'white',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  mainCardSubtitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  mainCardDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  shareButton: {
-    margin: 20,
-    borderRadius: 12,
-    overflow: 'hidden',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   shareButtonGradient: {
     paddingVertical: 16,
@@ -421,9 +544,11 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   linkLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   linkBox: {
     padding: 12,
@@ -440,11 +565,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  
+  // Подобрени секции
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     marginBottom: 16,
-    letterSpacing: -0.3,
+    letterSpacing: 0.5,
   },
   statsContainer: {
     marginBottom: 24,
@@ -456,8 +583,8 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     alignItems: 'center',
     marginBottom: 12,
     shadowColor: '#000',
@@ -466,20 +593,20 @@ const styles = StyleSheet.create({
       height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   statEmoji: {
-    fontSize: 24,
-    marginBottom: 8,
+    fontSize: 32,
+    marginBottom: 12,
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
     textAlign: 'center',
   },
@@ -488,7 +615,7 @@ const styles = StyleSheet.create({
   },
   historyItem: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: {
@@ -496,8 +623,8 @@ const styles = StyleSheet.create({
       height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   historyHeader: {
     flexDirection: 'row',
@@ -529,28 +656,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   emptyState: {
-    padding: 32,
+    padding: 40,
     borderRadius: 16,
     alignItems: 'center',
     marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: 64,
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: 'center',
   },
   emptyDescription: {
-    fontSize: 14,
+    fontSize: 15,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   bottomSpacing: {
-    height: 40,
+    height: 60,
   },
 });
 

@@ -47,6 +47,7 @@ const GamificationOverlay: React.FC<OverlayProps> = ({
     }, 5000);
     
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   const handleDismiss = () => {

@@ -54,6 +54,10 @@ interface ReceiptData {
   paymentMethod?: string;
 }
 
+// Debug mode за симулатор (когато няма камера)
+const IS_SIMULATOR = Platform.OS === 'ios' && !Platform.isPad && Platform.isTVOS === false;
+const ENABLE_DEBUG_MODE = __DEV__ && IS_SIMULATOR;
+
 const ScannerScreen: React.FC = () => {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
@@ -354,12 +358,57 @@ const ScannerScreen: React.FC = () => {
     }
   }, [isProcessing, scanTimeout, parseReceiptQR, navigation]);
 
+  // Симулиране на сканиране за DEBUG режим (симулатор)
+  const simulateScan = useCallback(() => {
+    console.log('🧪 DEBUG MODE: Симулиране на QR сканиране');
+    
+    // Тестови QR данни
+    const mockQRData = JSON.stringify({
+      store: "Kaufland (TEST)",
+      date: new Date().toISOString(),
+      total: 45.99,
+      items: [
+        { name: "Хляб", price: 2.50, quantity: 2 },
+        { name: "Мляко", price: 3.99, quantity: 1 },
+        { name: "Кафе", price: 12.00, quantity: 1 },
+        { name: "Плодове", price: 15.00, quantity: 1 },
+        { name: "Зеленчуци", price: 12.50, quantity: 1 }
+      ],
+      fiscalNumber: "FN123456789",
+      paymentMethod: "Карта"
+    });
+    
+    // Симулираме event от камерата
+    const mockEvent = {
+      nativeEvent: {
+        codeStringValue: mockQRData
+      }
+    };
+    
+    // Изчакваме 2 секунди за реалистичност
+    setTimeout(() => {
+      handleQRCodeScanned(mockEvent);
+    }, 2000);
+  }, [handleQRCodeScanned]);
+
   // Рестартиране на сканирането с timeout
   const startScan = useCallback(() => {
     try {
       setScanResult(null);
       setError(null);
       setIsScanning(true);
+      
+      // DEBUG MODE: Ако сме в симулатор, симулираме сканиране
+      if (ENABLE_DEBUG_MODE) {
+        console.log('🧪 DEBUG MODE: Активиран - симулиране на сканиране след 2 секунди');
+        Alert.alert(
+          '🧪 Debug Mode',
+          'Симулаторът няма камера. Ще симулирам сканиране на тестова бележка след 2 секунди.',
+          [{ text: 'OK' }]
+        );
+        simulateScan();
+        return;
+      }
       
       // Set timeout for scanning (30 seconds)
       const timeout = setTimeout(() => {
@@ -379,10 +428,10 @@ const ScannerScreen: React.FC = () => {
       console.error('Грешка при стартиране на сканиране:', error);
       setError('Възникна грешка при стартиране на сканирането');
     }
-  }, []);
+  }, [simulateScan]);
 
   // Запазване на сканираните данни като транзакция с подобрено error handling
-  const saveAsTransaction = useCallback(() => {
+  const saveAsTransaction = useCallback(async () => {
     if (!scanResult?.parsedData) {
       setError('Няма данни за запазване');
       return;
@@ -419,7 +468,8 @@ const ScannerScreen: React.FC = () => {
     
     // Създаваме транзакция от сканираните данни
     try {
-      addTransaction({
+      // ВАЖНО: чакаме транзакцията да се запише в Firestore
+      await addTransaction({
         amount: -Math.abs(parsedData.total || 0), // Винаги отрицателна сума (разход)
         category: categoryName,
         date: validDate,
@@ -652,9 +702,13 @@ const ScannerScreen: React.FC = () => {
             <SafeAreaView style={styles.headerContent}>
               <View style={styles.header}>
                 <View style={styles.headerTextContainer}>
-                  <Text style={styles.headerTitle}>QR Сканер</Text>
+                  <Text style={styles.headerTitle}>
+                    QR Сканер {ENABLE_DEBUG_MODE && '🧪'}
+                  </Text>
                   <Text style={styles.headerSubtitle}>
-                    Сканиране на касови бележки
+                    {ENABLE_DEBUG_MODE 
+                      ? 'Debug Mode - Симулирано сканиране' 
+                      : 'Сканиране на касови бележки'}
                   </Text>
                 </View>
               </View>
@@ -683,14 +737,26 @@ const ScannerScreen: React.FC = () => {
               QR Сканер за касови бележки
             </Text>
             <Text style={[styles.welcomeText, { color: theme.colors.textSecondary }]}>
-              Сканирайте QR кода на вашата касова бележка за автоматично добавяне на транзакция
+              {ENABLE_DEBUG_MODE 
+                ? '🧪 Debug Mode: Симулаторът няма камера. При натискане на бутона ще се симулира сканиране на тестова бележка.' 
+                : 'Сканирайте QR кода на вашата касова бележка за автоматично добавяне на транзакция'}
             </Text>
             <TouchableOpacity
               style={[styles.startScanButton, { backgroundColor: theme.colors.primary }]}
               onPress={startScan}
             >
-              <Text style={styles.startScanText}>Започни сканиране</Text>
+              <Text style={styles.startScanText}>
+                {ENABLE_DEBUG_MODE ? '🧪 Симулирай сканиране' : 'Започни сканиране'}
+              </Text>
             </TouchableOpacity>
+            
+            {ENABLE_DEBUG_MODE && (
+              <View style={[styles.debugBadge, { backgroundColor: 'rgba(255, 165, 0, 0.2)', borderColor: 'orange' }]}>
+                <Text style={[styles.debugBadgeText, { color: 'orange' }]}>
+                  ⚠️ Debug Mode: За реално тестване използвай физическо устройство
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -976,6 +1042,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 6,
     marginTop: 10,
+  },
+  debugBadge: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    maxWidth: '90%',
+  },
+  debugBadgeText: {
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
 

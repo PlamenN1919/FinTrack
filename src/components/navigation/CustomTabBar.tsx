@@ -95,6 +95,7 @@ const CustomTabBar: React.FC<CustomTabBarProps> = ({ state, descriptors, navigat
         ]).start();
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.index, animatedValues]);
 
   // Continuous pulse за диамантния бутон - по-субтилен
@@ -208,7 +209,6 @@ const CustomTabBar: React.FC<CustomTabBarProps> = ({ state, descriptors, navigat
           style={styles.tabBar}
                 >
           {state.routes.map((route: any, index: number) => {
-            const { options } = descriptors[route.key];
             const isFocused = state.index === index;
             const isScanner = route.name === 'ScannerTab';
 

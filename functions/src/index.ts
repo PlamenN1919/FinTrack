@@ -24,7 +24,17 @@ const प्लांस = {
 
 // Initialize services
 admin.initializeApp();
-const stripe = new Stripe(functions.config().stripe.secret);
+
+// Initialize Stripe with error handling
+const stripeSecretKey = functions.config().stripe?.secret;
+if (!stripeSecretKey) {
+  logger.error('CRITICAL: Stripe secret key is not configured!');
+  logger.error('Please run: firebase functions:config:set stripe.secret="sk_test_..." --project fintrack-bef0a');
+  throw new Error('Stripe secret key is not configured. Please contact support.');
+}
+
+const stripe = new Stripe(stripeSecretKey);
+logger.info('Stripe initialized successfully');
 
 // Helper function to get or create a Stripe customer
 const getOrCreateCustomer = async (userId: string, email: string | undefined) => {
@@ -1035,12 +1045,21 @@ export const processReferralReward = functions.https.onCall(async (data, context
       refereeDeviceId: deviceId,
     });
 
-    // Get referrer's current subscription
-    const referrerDoc = await admin.firestore().collection('users').doc(referrerId).get();
-    const referrerData = referrerDoc.data();
+    // Get referrer's current subscription from subscriptions collection
+    const referrerSubscriptionDoc = await admin.firestore().collection('subscriptions').doc(referrerId).get();
+    
+    if (!referrerSubscriptionDoc.exists) {
+      logger.warn(`Referrer ${referrerId} has no subscription document`);
+      return {
+        success: true,
+        message: 'Реферралът е записан, но наградата ще бъде дадена когато реферрърът има активен абонамент.',
+      };
+    }
 
-    if (!referrerData || !referrerData.subscription) {
-      logger.warn(`Referrer ${referrerId} has no active subscription`);
+    const referrerSubscription = referrerSubscriptionDoc.data();
+    
+    if (!referrerSubscription || referrerSubscription.status !== 'active') {
+      logger.warn(`Referrer ${referrerId} subscription is not active. Status: ${referrerSubscription?.status}`);
       return {
         success: true,
         message: 'Реферралът е записан, но наградата ще бъде дадена когато реферрърът има активен абонамент.',
@@ -1048,12 +1067,13 @@ export const processReferralReward = functions.https.onCall(async (data, context
     }
 
     // Extend referrer's subscription by 1 month
-    const currentEndDate = new Date(referrerData.subscription.endDate.toDate());
+    const currentEndDate = referrerSubscription.currentPeriodEnd.toDate();
     const newEndDate = new Date(currentEndDate);
     newEndDate.setMonth(newEndDate.getMonth() + 1);
 
-    await admin.firestore().collection('users').doc(referrerId).update({
-      'subscription.endDate': admin.firestore.Timestamp.fromDate(newEndDate)
+    await admin.firestore().collection('subscriptions').doc(referrerId).update({
+      currentPeriodEnd: admin.firestore.Timestamp.fromDate(newEndDate),
+      updatedAt: admin.firestore.Timestamp.now(),
     });
 
     // Mark reward as granted
@@ -1062,19 +1082,28 @@ export const processReferralReward = functions.https.onCall(async (data, context
       rewardGrantedAt: admin.firestore.Timestamp.now(),
     });
 
-    // Send push notification to referrer
-    if (referrerData.fcmToken) {
-      await admin.messaging().send({
-        token: referrerData.fcmToken,
-        notification: {
-          title: '🎉 Успешен реферрал!',
-          body: 'Вашият приятел се абонира! Получавате 1 месец безплатно 🎁',
-        },
-        data: {
-          type: 'referral_reward',
-          referralId: referralDoc.id,
-        },
-      });
+    // Try to send push notification to referrer (optional - don't fail if no FCM token)
+    try {
+      const referrerUserDoc = await admin.firestore().collection('users').doc(referrerId).get();
+      const referrerUserData = referrerUserDoc.data();
+      
+      if (referrerUserData?.fcmToken) {
+        await admin.messaging().send({
+          token: referrerUserData.fcmToken,
+          notification: {
+            title: '🎉 Успешен реферрал!',
+            body: 'Вашият приятел се абонира! Получавате 1 месец безплатно 🎁',
+          },
+          data: {
+            type: 'referral_reward',
+            referralId: referralDoc.id,
+          },
+        });
+        logger.info(`Push notification sent to referrer ${referrerId}`);
+      }
+    } catch (notificationError) {
+      logger.warn(`Could not send push notification to referrer ${referrerId}:`, notificationError);
+      // Don't fail the whole operation if notification fails
     }
 
     logger.info(`Processed referral reward for ${referrerId}, extended subscription until ${newEndDate}`);

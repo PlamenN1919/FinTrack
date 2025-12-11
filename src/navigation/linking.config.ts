@@ -59,6 +59,12 @@ export const linkingConfig: LinkingOptions<any> = {
               retryCount: (count: string) => parseInt(count, 10),
             },
           },
+          Invite: {
+            path: 'invite',
+            parse: {
+              ref: (ref: string) => ref,
+            },
+          },
         },
       },
       Main: {
@@ -117,6 +123,11 @@ export const createDeepLink = {
     return `${deepLinkConfig.scheme}://payment/failed/${errorCode}/${planId}/${retryCount}`;
   },
 
+  // Referral invite link
+  invite: (referrerId: string): string => {
+    return `${deepLinkConfig.scheme}://invite?ref=${referrerId}`;
+  },
+
   // Main app screens
   home: (): string => `${deepLinkConfig.scheme}://home`,
   transactions: (): string => `${deepLinkConfig.scheme}://transactions`,
@@ -144,6 +155,20 @@ export const validateDeepLink = {
 
   isPaymentLink: (url: string): boolean => {
     return url.includes('/payment/');
+  },
+
+  isReferralLink: (url: string): boolean => {
+    return url.includes('/invite') || url.includes('?ref=');
+  },
+
+  extractReferrerIdFromLink: (url: string): string | null => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.searchParams.get('ref');
+    } catch {
+      const match = url.match(/[?&]ref=([^&]+)/);
+      return match ? match[1] : null;
+    }
   },
 
   extractEmailFromVerificationLink: (url: string): string | null => {

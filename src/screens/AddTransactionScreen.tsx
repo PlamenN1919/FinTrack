@@ -24,6 +24,10 @@ import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, EMOTIONS, PAYMENT_METHODS } from
 import SimpleAnimatedCard from '../components/ui/SimpleAnimatedCard';
 import PremiumButton from '../components/ui/PremiumButton';
 
+// Геймификация
+import gamificationService from '../services/GamificationService';
+import GamificationOverlay from '../components/gamification/GamificationOverlay';
+
 const AddTransactionScreen: React.FC = () => {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
@@ -40,6 +44,9 @@ const AddTransactionScreen: React.FC = () => {
   const [emotion, setEmotion] = useState(EMOTIONS.NEUTRAL);
   const [selectedIcon, setSelectedIcon] = useState('');
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS.card.key);
+  
+  // Геймификация нотификации
+  const [notifications, setNotifications] = useState<React.ReactNode[]>([]);
   
   // Масив с категории според типа транзакция
   const categoryOptions = isExpense ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
@@ -63,8 +70,30 @@ const AddTransactionScreen: React.FC = () => {
     }
   };
 
+  // Показва нотификация за геймификация
+  const showGamificationNotification = (title: string, message: string, icon: string, color: string, xpAmount: number = 0) => {
+    const notificationId = Date.now().toString();
+    
+    const notification = (
+      <GamificationOverlay
+        key={notificationId}
+        title={title}
+        message={message}
+        icon={icon}
+        color={color}
+        showXP={xpAmount > 0}
+        xpAmount={xpAmount}
+        onDismiss={() => {
+          setNotifications(prev => prev.filter(n => (n as any).key !== notificationId));
+        }}
+      />
+    );
+    
+    setNotifications(prev => [...prev, notification]);
+  };
+
   // Функция за запазване на транзакцията
-  const saveTransaction = () => {
+  const saveTransaction = async () => {
     // Разширена валидация
     if (!amount) {
       Alert.alert('Грешка', 'Моля, въведете сума');
@@ -97,22 +126,122 @@ const AddTransactionScreen: React.FC = () => {
       icon: selectedIcon || '💰', // По подразбиране икона
     };
 
-    // Добавяме транзакцията чрез Context
-    addTransaction(transactionData);
+    try {
+      // Добавяме транзакцията чрез Context - ВАЖНО: чакаме да се запише в Firestore
+      await addTransaction(transactionData);
+      console.log('[AddTransactionScreen] Транзакцията е записана успешно в Firestore');
     
     // ВАЖНО: Обновяваме бюджетите при нова транзакция
     if (isExpense) {
       updateBudgetSpending(category, transactionData.amount);
     }
     
-    // Навигация назад с успешно съобщение
-    Alert.alert('Успех', 'Транзакцията е запазена успешно', [
-      { text: 'OK', onPress: () => navigation.goBack() }
-    ]);
+    // 🎮 ГЕЙМИФИКАЦИЯ: Проверяваме постижения и мисии
+    try {
+      // Проверяваме постижения за добавяне на транзакция
+      const updatedAchievements = gamificationService.checkAchievementsForAction('add_transaction', {
+        category: transactionData.category,
+        amount: Math.abs(transactionData.amount),
+        emotionalState: transactionData.emotionalState,
+        isScanned: false, // Може да се добави QR scanner функционалност
+        isExpense: isExpense,
+      });
+
+      // Проверяваме мисии за дневна активност
+      const updatedMissions = gamificationService.checkMissionsForAction('daily_activity_completed', {
+        transactionCount: 1,
+        date: new Date().toDateString(),
+      });
+
+      // Добавяме XP за транзакцията
+      const xpResult = gamificationService.addXP(5);
+
+      // Показваме нотификация за XP
+      if (xpResult.leveledUp) {
+        showGamificationNotification(
+          `🎊 Ниво ${xpResult.level}!`,
+          'Поздравления! Качихте ниво!',
+          '🏆',
+          '#FFD700',
+          5
+        );
+        
+        // Показваме нотификации за нови награди
+        if (xpResult.newRewards && xpResult.newRewards.length > 0) {
+          xpResult.newRewards.forEach(reward => {
+            setTimeout(() => {
+              showGamificationNotification(
+                'Нова награда!',
+                reward.name,
+                reward.icon,
+                '#9C27B0',
+                0
+              );
+            }, 1000);
+          });
+        }
+      } else {
+        showGamificationNotification(
+          'Транзакция добавена!',
+          `Получихте ${5} XP`,
+          '✅',
+          '#4CAF50',
+          5
+        );
+      }
+
+      // Показваме нотификации за завършени постижения
+      updatedAchievements.forEach((achievement, index) => {
+        if (achievement.isCompleted) {
+          setTimeout(() => {
+            showGamificationNotification(
+              'Ново постижение!',
+              achievement.name,
+              achievement.icon,
+              '#FF9800',
+              achievement.xpReward
+            );
+          }, (index + 1) * 1500);
+        }
+      });
+
+      // Показваме нотификации за завършени мисии
+      updatedMissions.forEach((mission, index) => {
+        if (mission.isCompleted) {
+          setTimeout(() => {
+            showGamificationNotification(
+              'Мисия завършена!',
+              mission.name,
+              mission.icon,
+              '#2196F3',
+              mission.xpReward
+            );
+          }, (index + updatedAchievements.length + 1) * 1500);
+        }
+      });
+    } catch (gamificationError) {
+      console.error('Gamification error:', gamificationError);
+      // Не спираме потребителя ако има грешка в геймификацията
+    }
+    
+    // Навигация назад с успешно съобщение (след кратко забавяне за да се видят нотификациите)
+    setTimeout(() => {
+      Alert.alert('Успех', 'Транзакцията е запазена успешно', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
+    }, 800);
+    
+    } catch (error) {
+      console.error('[AddTransactionScreen] Грешка при запазване на транзакция:', error);
+      Alert.alert('Грешка', 'Възникна проблем при запазването на транзакцията. Моля, опитайте отново.');
+    }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Геймификация нотификации */}
+      {notifications}
+      
       <StatusBar 
         barStyle="light-content" 
         backgroundColor={theme.colors.primary}

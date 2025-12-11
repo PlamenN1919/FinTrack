@@ -27,6 +27,10 @@ import PremiumButton from '../components/ui/PremiumButton';
 // Икони
 import BudgetsIcon from '../components/icons/BudgetsIcon';
 
+// Геймификация
+import gamificationService from '../services/GamificationService';
+import { useEffect } from 'react';
+
 const BudgetsScreen: React.FC = () => {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
@@ -35,6 +39,36 @@ const BudgetsScreen: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 🎮 ГЕЙМИФИКАЦИЯ: Проверка на бюджетно спазване
+  useEffect(() => {
+    if (!budgets || budgets.length === 0) return;
+
+    try {
+      // Изчисляваме колко дни потребителят е спазвал бюджета
+      const activeBudgets = budgets.filter(b => b && b.isActive);
+      const budgetsWithinLimit = activeBudgets.filter(b => {
+        const percentage = (b.spent / b.budget) * 100;
+        return percentage <= 100;
+      });
+
+      const complianceRate = activeBudgets.length > 0 
+        ? budgetsWithinLimit.length / activeBudgets.length 
+        : 0;
+
+      // Ако повече от 80% от бюджетите са спазени, задействаме геймификацията
+      if (complianceRate >= 0.8) {
+        gamificationService.onBudgetComplianceCheck({
+          isWithinBudget: true,
+          daysInBudget: Math.floor(complianceRate * 30), // Приблизително изчисление
+          budgetsCount: activeBudgets.length,
+          complianceRate: complianceRate
+        });
+      }
+    } catch (error) {
+      console.error('Gamification budget check error:', error);
+    }
+  }, [budgets]);
 
   // Изчисляване на общи статистики с error handling
   const budgetStats = useMemo(() => {

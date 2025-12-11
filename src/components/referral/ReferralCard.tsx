@@ -62,63 +62,59 @@ const ReferralCard: React.FC<ReferralCardProps> = ({ onPress }) => {
       onPress={onPress}
       activeOpacity={0.9}
     >
-      <LinearGradient
-        colors={['#FF6B6B', '#4ECDC4']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradientBorder}
-      >
-        <View style={[styles.content, { backgroundColor: theme.colors.card }]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.emoji}>🎉</Text>
-            <View style={styles.headerText}>
-              <Text style={[styles.title, { color: theme.colors.text }]}>
-                Покани приятел
-              </Text>
-              <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-                Спечели 1 месец безплатно!
-              </Text>
-            </View>
-          </View>
-
-          {/* Description */}
-          <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-            Поканете приятел да изтегли FinTrack. Ако закупи абонамент, вие получавате 1 месец безплатно!
-          </Text>
-
-          {/* Action Button */}
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleGenerateAndShare}
-            disabled={loading}
-            activeOpacity={0.8}
+      <View style={[styles.content, { backgroundColor: theme.colors.card }]}>
+        {/* Reward Banner */}
+        <View style={styles.rewardBanner}>
+          <LinearGradient
+            colors={theme.colors.accentGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.rewardBannerGradient}
           >
-            <LinearGradient
-              colors={theme.colors.primaryGradient}
-              style={styles.buttonGradient}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <>
-                  <Text style={styles.buttonText}>🚀 Създай Link</Text>
-                  <Text style={styles.buttonSubtext}>и започни да канят приятели</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Current referral link preview */}
-          {referralLink && (
-            <View style={styles.linkPreview}>
-              <Text style={[styles.linkText, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {referralLink.url}
-              </Text>
+            <Text style={styles.rewardEmoji}>🎁</Text>
+            <View style={styles.rewardText}>
+              <Text style={styles.rewardTitle}>Покани приятел</Text>
+              <Text style={styles.rewardSubtitle}>Спечели 1 месец безплатно</Text>
             </View>
-          )}
+          </LinearGradient>
         </View>
-      </LinearGradient>
+
+        {/* Description */}
+        <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
+          Когато приятелят ти закупи абонамент, ти автоматично получаваш 1 месец безплатно!
+        </Text>
+
+        {/* Action Button */}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleGenerateAndShare}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={theme.colors.primaryGradient}
+            style={styles.buttonGradient}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Text style={styles.buttonText}>🚀 Сподели линк</Text>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Current referral link preview */}
+        {referralLink && (
+          <View style={styles.linkPreview}>
+            <Text style={[styles.linkLabel, { color: theme.colors.textSecondary }]}>
+              Твоят линк:
+            </Text>
+            <Text style={[styles.linkText, { color: theme.colors.primary }]} numberOfLines={1}>
+              {referralLink.url}
+            </Text>
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 };
@@ -130,50 +126,61 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  gradientBorder: {
-    borderRadius: 16,
-    padding: 2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   content: {
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 20,
   },
-  header: {
+  rewardBanner: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  rewardBannerGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    padding: 16,
   },
-  emoji: {
+  rewardEmoji: {
     fontSize: 32,
     marginRight: 12,
   },
-  headerText: {
+  rewardText: {
     flex: 1,
   },
-  title: {
-    fontSize: 20,
+  rewardTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    color: '#1A1A1A',
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
+  rewardSubtitle: {
+    fontSize: 13,
     fontWeight: '500',
-    marginTop: 2,
+    color: 'rgba(26, 26, 26, 0.7)',
   },
   description: {
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 16,
+    fontWeight: '400',
   },
   actionButton: {
     borderRadius: 12,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   buttonGradient: {
     paddingVertical: 16,
@@ -185,23 +192,27 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 2,
-  },
-  buttonSubtext: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
-    fontWeight: '400',
   },
   linkPreview: {
     marginTop: 12,
-    padding: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    padding: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  linkLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   linkText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'monospace',
   },
 });
 
+export default ReferralCard; 
 export default ReferralCard; 

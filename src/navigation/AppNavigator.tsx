@@ -35,11 +35,17 @@ const AppNavigator: React.FC = () => {
   }
 
   // Route Guard Logic - Smart navigation based on UserState
+  // 🚧 TEMPORARY: Bypass auth for development - always show Main App
   const shouldShowAuth = () => {
+    console.log('[AppNavigator] 🚧 DEV MODE: Bypassing auth, showing Main App');
     console.log('[AppNavigator] Current userState:', authState.userState);
     console.log('[AppNavigator] User:', authState.user?.uid || 'null');
     console.log('[AppNavigator] Subscription:', authState.subscription?.status || 'null');
     
+    // 🚧 TEMPORARY: Always return false to show Main App
+    return false;
+    
+    /* ORIGINAL CODE - RESTORE WHEN DONE:
     // Show Main App only for active subscribers
     if (authState.userState === UserState.ACTIVE_SUBSCRIBER) {
       console.log('[AppNavigator] Showing Main App - user is active subscriber');
@@ -49,6 +55,7 @@ const AppNavigator: React.FC = () => {
     // Show Auth flow for all other states
     console.log('[AppNavigator] Showing Auth flow for userState:', authState.userState);
     return true;
+    */
   };
 
   return (

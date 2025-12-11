@@ -20,6 +20,7 @@ import { AuthStackParamList, SubscriptionPlan, SubscriptionStatus, UserState } f
 import { formatPrice, getPlanPrice } from '../../config/subscription.config';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../utils/ThemeContext';
+import ReferralService from '../../services/ReferralService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -264,6 +265,29 @@ const PaymentSuccessScreen: React.FC = () => {
       
       console.log('[PaymentSuccessScreen] Subscription set! New auth state should be ACTIVE_SUBSCRIBER');
       console.log('[PaymentSuccessScreen] Current userState after setSubscription:', authState.userState);
+
+      // REFERRAL SYSTEM: Check if there's a pending referral and process reward
+      try {
+        const pendingReferrerId = await ReferralService.getPendingReferrerId();
+        
+        if (pendingReferrerId) {
+          console.log('[PaymentSuccessScreen] Processing referral reward for referrer:', pendingReferrerId);
+          
+          // Process the referral reward
+          await ReferralService.processReferralReward(pendingReferrerId);
+          
+          // Clear the pending referrer ID
+          await ReferralService.clearPendingReferrerId();
+          
+          console.log('[PaymentSuccessScreen] Referral reward processed successfully!');
+        } else {
+          console.log('[PaymentSuccessScreen] No pending referral found');
+        }
+      } catch (referralError: any) {
+        console.error('[PaymentSuccessScreen] Error processing referral:', referralError);
+        // Don't block the payment success flow if referral processing fails
+        // Just log the error
+      }
       
       // Give AppNavigator a moment to react to the state change and check multiple times
       let retryCount = 0;

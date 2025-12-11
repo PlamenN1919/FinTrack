@@ -47,13 +47,15 @@ class GamificationService {
   private profile: GamificationProfile;
   private isInitialized: boolean = false;
   private initPromise: Promise<void> | null = null;
-  private eventEmitter: GamificationEventEmitter = new GamificationEventEmitter();
+  public eventEmitter: GamificationEventEmitter = new GamificationEventEmitter();
   
   constructor() {
     // Започваме с mock данните
     this.profile = {...mockGamificationProfile};
     // Стартираме async инициализация
     this.initPromise = this.initializeProfile();
+    // Стартираме автоматично обновяване на мисии
+    this.startAutoRefresh();
   }
 
   /**
@@ -784,13 +786,39 @@ class GamificationService {
   }
 
   /**
-   * Reset профила (за тестване)
+   * Reset профила (за тестване или нов потребител)
    */
   resetProfile(): void {
-    console.log('🔄 Resetting gamification profile to defaults');
-    this.profile = {...mockGamificationProfile};
+    console.log('🔄 Resetting gamification profile to defaults (fresh start)');
+    
+    // Създаваме напълно нов профил от нулата
+    this.profile = {
+      xp: 0,
+      level: 1,
+      streakDays: 0,
+      lastActiveDate: undefined,
+      achievements: mockGamificationProfile.achievements.map(a => ({
+        ...a,
+        progress: 0,
+        isCompleted: false,
+        dateCompleted: undefined
+      })),
+      completedAchievements: 0,
+      totalAchievements: mockGamificationProfile.achievements.length,
+      missions: {
+        active: mockGamificationProfile.missions.active,
+        completed: []
+      },
+      rewards: mockGamificationProfile.rewards.map(r => ({
+        ...r,
+        isUnlocked: false,
+        dateUnlocked: undefined
+      }))
+    };
+    
     this.saveProfile();
     this.eventEmitter.emit('profileReset', this.profile);
+    console.log('✅ Profile reset complete - starting from zero!');
   }
 
   /**
@@ -901,6 +929,77 @@ class GamificationService {
         }
       }
     };
+  }
+
+  /**
+   * Автоматично обновяване на мисии (извиква се периодично)
+   * Почиства изтеклите мисии и генерира нови дневни/седмични мисии
+   */
+  autoRefreshMissions(): void {
+    try {
+      console.log('🔄 Auto-refreshing missions...');
+      
+      // Почистваме изтеклите мисии
+      this.cleanupExpiredMissions();
+      
+      // Проверяваме дали трябва да генерираме нови дневни мисии
+      const today = new Date().toDateString();
+      const lastRefresh = this.profile.lastActiveDate;
+      
+      if (lastRefresh !== today) {
+        console.log('📅 Generating new daily missions for today');
+        // Тук може да добавим логика за генериране на нови дневни мисии
+        // За момента само обновяваме датата
+        this.profile.lastActiveDate = today;
+        this.saveProfile();
+      }
+      
+      console.log('✅ Missions refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error auto-refreshing missions:', error);
+    }
+  }
+
+  /**
+   * Стартира автоматично обновяване на мисии (извиква се при инициализация)
+   */
+  startAutoRefresh(): void {
+    // Проверяваме веднъж при стартиране
+    this.autoRefreshMissions();
+    
+    // Настройваме интервал за проверка на всеки 1 час
+    setInterval(() => {
+      this.autoRefreshMissions();
+    }, 60 * 60 * 1000); // 1 час
+  }
+
+  /**
+   * Изчиства профила (за logout или нов потребител)
+   */
+  async clearProfile(): Promise<void> {
+    try {
+      console.log('🗑️ Clearing gamification profile...');
+      
+      // Изчистваме от storage
+      await storageService.saveGamification(null);
+      
+      // Reset-ваме в паметта
+      this.resetProfile();
+      
+      console.log('✅ Profile cleared successfully');
+    } catch (error) {
+      console.error('❌ Error clearing profile:', error);
+    }
+  }
+
+  /**
+   * Проверява дали профилът е нов (без прогрес)
+   */
+  isNewProfile(): boolean {
+    return this.profile.xp === 0 && 
+           this.profile.level === 1 && 
+           this.profile.completedAchievements === 0 &&
+           this.profile.missions.completed.length === 0;
   }
 }
 

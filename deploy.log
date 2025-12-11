@@ -1,0 +1,33 @@
+
+=== Deploying to 'fintrack-bef0a'...
+
+i  deploying functions
+i  functions: preparing codebase default for deployment
+i  functions: ensuring required API cloudfunctions.googleapis.com is enabled...
+i  functions: ensuring required API cloudbuild.googleapis.com is enabled...
+i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled...
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+i  functions: Loading and analyzing source code for codebase default to determine what to deploy
+Serving at port 8118
+
+{"severity":"INFO","message":"Stripe initialized successfully"}
+
+i  extensions: ensuring required API firebaseextensions.googleapis.com is enabled...
+i  functions: preparing functions directory for uploading...
+⚠ DEPRECATION NOTICE: Action required to deploy after March 2026
+  
+  functions.config() API is deprecated.
+  Cloud Runtime Configuration API, the Google Cloud service used to store function configuration data, will be shut down in March 2026. As a result, you must migrate away from using functions.config() to continue deploying your functions after March 2026.
+  
+  What this means for you:
+  
+  - The Firebase CLI commands for managing this configuration (functions:config:set, get, unset, clone, and export) are deprecated. These commands will no longer work after March 2026.
+  - firebase deploy command will fail for functions that use the legacy functions.config() API after March 2026.
+  
+  Existing deployments will continue to work with their current configuration.
+  
+  See your migration options at: https://firebase.google.com/docs/functions/config-env#migrate-to-dotenv
+i  functions: packaged /Users/nikolovp/Documents/FinTrack1/functions (141.03 KB) for uploading
+i  functions: ensuring required API cloudscheduler.googleapis.com is enabled...
+
+Error: Extensions require the Blaze plan, but project fintrack-bef0a is not on the Blaze plan. Please visit https://console.cloud.google.com/billing/linkedaccount?project=fintrack-bef0a to upgrade your project.

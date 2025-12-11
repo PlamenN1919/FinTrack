@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../utils/ThemeContext';
-import { useUser } from '../contexts/UserContext';
+import { useUser } from '../utils/UserContext';
 import { launchImageLibrary, ImagePickerResponse, MediaType } from 'react-native-image-picker';
 
 // Интерфейс за потребителски данни

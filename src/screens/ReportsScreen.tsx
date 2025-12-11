@@ -22,9 +22,21 @@ import AnimatedStats from '../components/ui/AnimatedStats';
 
 // Тематичен контекст
 import { useTheme } from '../utils/ThemeContext';
-import { useTransactions } from '../utils/TransactionContext';
+import { useTransactions, Transaction } from '../utils/TransactionContext';
 import { useBudgets } from '../utils/BudgetContext';
 import { SCREENS } from '../utils/constants';
+
+// Геймификация
+import gamificationService from '../services/GamificationService';
+import predictionService, { 
+  PredictionResult, 
+  CategoryAnalysis, 
+  BudgetPrediction,
+  SpendingPattern,
+  MonthlyForecast,
+  FinancialHealthScore
+} from '../services/PredictionService';
+import { useEffect } from 'react';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -41,6 +53,17 @@ const ReportsScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // 🎮 ГЕЙМИФИКАЦИЯ: Задействане при преглед на отчети
+  useEffect(() => {
+    try {
+      // Задействаме геймификацията при отваряне на екрана
+      gamificationService.onReportViewed(activeReport);
+      
+      console.log(`📊 Report viewed: ${activeReport}`);
+    } catch (error) {
+      console.error('Gamification report view error:', error);
+    }
+  }, [activeReport]); // Задействаме при промяна на активния отчет
 
   
   // Функция за филтриране на транзакции по период
@@ -778,185 +801,391 @@ const ReportsScreen: React.FC = () => {
   );
 
   const renderPredictiveContent = () => {
-    // Интелигентни анализи базирани на реални данни
-    const meta = (predictiveData as any).meta;
-    const generateSmartPredictions = () => {
-      if (!meta || getFilteredTransactions.length === 0) {
-        return [
-          {
-            type: 'info',
-            text: 'Няма достатъчно данни за интелигентни предвиждания. Добавете повече транзакции.'
-          },
-          {
-            type: 'info',
-            text: 'Препоръчваме да въвеждате транзакции редовно за по-точни прогнози.'
-          },
-          {
-            type: 'info',
-            text: 'След натрупване на данни ще получите персонализирани финансови съвети.'
-          }
-        ];
+    // Инициализиране на PredictionService с текущите данни
+    predictionService.initialize(transactions, budgets);
+    
+    // Генериране на всички интелигентни предвиждания
+    const allPredictions = predictionService.generateAllPredictions();
+    const { 
+      predictions, 
+      categoryAnalyses, 
+      budgetPredictions, 
+      patterns, 
+      forecasts, 
+      healthScore 
+    } = allPredictions;
+
+    // Ако няма достатъчно данни, показваме демо режим
+    const hasData = transactions.length > 0;
+    const isDemo = !hasData;
+    
+    // Демо транзакции за визуализация когато няма реални данни
+    const demoTransactions: Transaction[] = isDemo ? [
+      { id: '1', amount: -150, category: 'Храна', date: new Date().toISOString(), merchant: 'Kaufland', emotionalState: 'neutral', paymentMethod: 'card', createdAt: new Date() },
+      { id: '2', amount: -45, category: 'Транспорт', date: new Date(Date.now() - 86400000).toISOString(), merchant: 'Shell', emotionalState: 'neutral', paymentMethod: 'card', createdAt: new Date() },
+      { id: '3', amount: -89, category: 'Забавления', date: new Date(Date.now() - 172800000).toISOString(), merchant: 'Cinema City', emotionalState: 'happy', paymentMethod: 'card', createdAt: new Date() },
+      { id: '4', amount: 2500, category: 'Заплата', date: new Date(Date.now() - 259200000).toISOString(), merchant: 'Работодател', emotionalState: 'happy', paymentMethod: 'bank', createdAt: new Date() },
+      { id: '5', amount: -200, category: 'Битови', date: new Date(Date.now() - 345600000).toISOString(), merchant: 'EVN', emotionalState: 'neutral', paymentMethod: 'bank', createdAt: new Date() },
+      { id: '6', amount: -75, category: 'Здраве', date: new Date(Date.now() - 432000000).toISOString(), merchant: 'Аптека', emotionalState: 'neutral', paymentMethod: 'card', createdAt: new Date() },
+      { id: '7', amount: -320, category: 'Храна', date: new Date(Date.now() - 604800000).toISOString(), merchant: 'Lidl', emotionalState: 'neutral', paymentMethod: 'card', createdAt: new Date() },
+      { id: '8', amount: -55, category: 'Транспорт', date: new Date(Date.now() - 691200000).toISOString(), merchant: 'OMV', emotionalState: 'neutral', paymentMethod: 'card', createdAt: new Date() },
+      { id: '9', amount: 500, category: 'Бонус', date: new Date(Date.now() - 1209600000).toISOString(), merchant: 'Работодател', emotionalState: 'happy', paymentMethod: 'bank', createdAt: new Date() },
+      { id: '10', amount: -180, category: 'Храна', date: new Date(Date.now() - 1296000000).toISOString(), merchant: 'Billa', emotionalState: 'neutral', paymentMethod: 'card', createdAt: new Date() },
+    ] : [];
+    
+    // Използваме реални или демо данни
+    const dataToUse = hasData ? transactions : demoTransactions;
+    
+    // Реинициализираме сервиза с правилните данни
+    if (isDemo) {
+      predictionService.initialize(demoTransactions, budgets);
+    }
+
+    // Функция за определяне на цвета на предвиждането
+    const getPredictionColor = (type: string) => {
+      switch (type) {
+        case 'success': return '#10B981';
+        case 'warning': return '#F59E0B';
+        case 'danger': return '#EF4444';
+        default: return theme.colors.primary;
       }
-
-      const predictions = [];
-
-      // Анализ на тренд - намалени критерии за по-чувствителен анализ
-      if (meta.expenseTrend > 20) {
-        predictions.push({
-          type: 'warning',
-          text: `Разходите ви нарастват с ${meta.expenseTrend.toFixed(0)} лв. месечно. Препоръчваме преглед на бюджета.`
-        });
-      } else if (meta.expenseTrend < -20) {
-        predictions.push({
-          type: 'success',
-          text: `Отлична работа! Разходите ви намаляват с ${Math.abs(meta.expenseTrend).toFixed(0)} лв. месечно.`
-        });
-      } else {
-        predictions.push({
-          type: 'info',
-          text: 'Разходите ви са стабилни - добър контрол на финансите.'
-        });
-      }
-
-      // Анализ на приходи - намалени критерии
-      if (meta.incomeTrend > 30) {
-        predictions.push({
-          type: 'success',
-          text: `Приходите ви нарастват с ${meta.incomeTrend.toFixed(0)} лв. месечно - страхотен прогрес!`
-        });
-      } else if (meta.incomeTrend < -30) {
-        predictions.push({
-          type: 'warning',
-          text: `Приходите ви намаляват с ${Math.abs(meta.incomeTrend).toFixed(0)} лв. месечно. Внимавайте с разходите.`
-        });
-      }
-
-      // Прогноза за баланс
-      const predictedBalance = meta.totalPredictedIncome - meta.totalPredictedExpenses;
-      if (predictedBalance > 0) {
-        predictions.push({
-          type: 'success',
-          text: `За следващите 6 месеца се очаква спестяване от ${predictedBalance.toFixed(0)} лв.`
-        });
-      } else {
-        predictions.push({
-          type: 'warning',
-          text: `За следващите 6 месеца се очаква дефицит от ${Math.abs(predictedBalance).toFixed(0)} лв.`
-        });
-      }
-
-      // Анализ на ефективност
-      const efficiencyRatio = meta.totalPredictedIncome > 0 ? 
-        (meta.totalPredictedExpenses / meta.totalPredictedIncome) * 100 : 0;
-      
-      if (efficiencyRatio > 90) {
-        predictions.push({
-          type: 'warning',
-          text: `Разходите съставляват ${efficiencyRatio.toFixed(0)}% от приходите. Препоръчваме оптимизация.`
-        });
-      } else if (efficiencyRatio < 70) {
-        predictions.push({
-          type: 'success',
-          text: `Отличен контрол! Разходите са само ${efficiencyRatio.toFixed(0)}% от приходите.`
-        });
-      }
-
-      // Сезонен анализ
-      const currentMonth = new Date().getMonth();
-      const winterMonths = [11, 0, 1]; // Дек, Ян, Фев
-      const summerMonths = [5, 6, 7]; // Юни, Юли, Авг
-      const springMonths = [2, 3, 4]; // Мар, Апр, Май
-      const autumnMonths = [8, 9, 10]; // Сеп, Окт, Ное
-
-      if (winterMonths.includes(currentMonth)) {
-        predictions.push({
-          type: 'info',
-          text: 'През зимните месеци очаквайте повишени разходи за отопление и празници.'
-        });
-      } else if (summerMonths.includes(currentMonth)) {
-        predictions.push({
-          type: 'info',
-          text: 'Лятото е добро време за планиране на отпуски и летни дейности.'
-        });
-      } else if (springMonths.includes(currentMonth)) {
-        predictions.push({
-          type: 'info',
-          text: 'Пролетта носи възможности за нови инвестиции и планове.'
-        });
-      } else if (autumnMonths.includes(currentMonth)) {
-        predictions.push({
-          type: 'info',
-          text: 'Есента е подходяща за преглед на годишния бюджет и планиране.'
-        });
-      }
-
-      // Препоръки според данните
-      if (meta.historicalData && meta.historicalData.length > 0) {
-        const avgMonthlyExpenses = meta.historicalData.reduce((sum: number, d: any) => sum + d.expenses, 0) / meta.historicalData.length;
-        if (avgMonthlyExpenses > 0) {
-          predictions.push({
-            type: 'info',
-            text: `Средните ви месечни разходи са ${avgMonthlyExpenses.toFixed(0)} лв. Планирайте съответно.`
-          });
-        }
-      }
-
-      return predictions.slice(0, 4); // Показваме до 4 предвиждания
     };
 
-    const smartPredictions = generateSmartPredictions();
+    // Функция за определяне на бекграунд цвета
+    const getPredictionBgColor = (type: string) => {
+      switch (type) {
+        case 'success': return 'rgba(16, 185, 129, 0.1)';
+        case 'warning': return 'rgba(245, 158, 11, 0.1)';
+        case 'danger': return 'rgba(239, 68, 68, 0.1)';
+        default: return 'rgba(99, 102, 241, 0.1)';
+      }
+    };
 
     return (
-    <View>
+      <View>
+        {/* === ДЕМО БАНЕР === */}
+        {isDemo && (
+          <View style={styles.demoBanner}>
+            <Text style={styles.demoBannerIcon}>🎯</Text>
+            <View style={styles.demoBannerContent}>
+              <Text style={styles.demoBannerTitle}>Демо режим</Text>
+              <Text style={styles.demoBannerText}>
+                Показваме примерни данни. Добавете транзакции за реални анализи.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* === ФИНАНСОВО ЗДРАВЕ === */}
+        <SimpleAnimatedCard variant="elevated" style={styles.reportCard} animationDelay={200}>
+          <View style={styles.reportCardHeader}>
+            <Text style={styles.reportCardIcon}>💪</Text>
+            <Text style={[styles.reportCardTitle, { color: theme.colors.text }]}>
+              Финансово здраве
+            </Text>
+          </View>
+          
+          {/* Кръгов индикатор за здраве */}
+          <View style={styles.healthScoreContainer}>
+            <View style={[
+              styles.healthScoreCircle,
+              { 
+                borderColor: healthScore.overall >= 70 ? '#10B981' : 
+                             healthScore.overall >= 40 ? '#F59E0B' : '#EF4444'
+              }
+            ]}>
+              <Text style={[
+                styles.healthScoreValue,
+                { 
+                  color: healthScore.overall >= 70 ? '#10B981' : 
+                         healthScore.overall >= 40 ? '#F59E0B' : '#EF4444'
+                }
+              ]}>
+                {healthScore.overall}
+              </Text>
+              <Text style={[styles.healthScoreLabel, { color: theme.colors.textSecondary }]}>
+                / 100
+              </Text>
+            </View>
+            <Text style={[styles.healthScoreText, { color: theme.colors.text }]}>
+              {healthScore.overall >= 80 ? 'Отлично!' : 
+               healthScore.overall >= 60 ? 'Добре' : 
+               healthScore.overall >= 40 ? 'Средно' : 'Нужна е работа'}
+            </Text>
+          </View>
+
+          {/* Детайли за здравето */}
+          <View style={styles.healthDetailsContainer}>
+            <View style={styles.healthDetailRow}>
+              <Text style={[styles.healthDetailLabel, { color: theme.colors.textSecondary }]}>
+                🐷 Спестявания
+              </Text>
+              <Text style={[styles.healthDetailValue, { color: theme.colors.text }]}>
+                {healthScore.savingsRate >= 0 ? '+' : ''}{healthScore.savingsRate}%
+              </Text>
+            </View>
+            <View style={styles.healthDetailRow}>
+              <Text style={[styles.healthDetailLabel, { color: theme.colors.textSecondary }]}>
+                📊 Бюджети
+              </Text>
+              <Text style={[styles.healthDetailValue, { color: theme.colors.text }]}>
+                {healthScore.budgetAdherence}%
+              </Text>
+            </View>
+            <View style={styles.healthDetailRow}>
+              <Text style={[styles.healthDetailLabel, { color: theme.colors.textSecondary }]}>
+                📈 Стабилност
+              </Text>
+              <Text style={[styles.healthDetailValue, { color: theme.colors.text }]}>
+                {healthScore.spendingStability}%
+              </Text>
+            </View>
+          </View>
+        </SimpleAnimatedCard>
+
+        {/* === ПРОГНОЗА ЗА 6 МЕСЕЦА === */}
         <SimpleAnimatedCard variant="elevated" style={styles.reportCard} animationDelay={300}>
           <View style={styles.reportCardHeader}>
             <Text style={styles.reportCardIcon}>🔮</Text>
-        <Text style={[styles.reportCardTitle, { color: theme.colors.text }]}>
-          Прогноза за следващите 6 месеца
-        </Text>
+            <Text style={[styles.reportCardTitle, { color: theme.colors.text }]}>
+              Прогноза за следващите 6 месеца
+            </Text>
           </View>
+          
           {predictiveData.datasets && predictiveData.datasets[0] && predictiveData.datasets[0].data.some((val: number) => val > 0) ? (
-        <LineChart
-          data={predictiveData}
-          width={screenWidth - 32}
-          height={220}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-          yAxisSuffix=" лв"
-        />
+            <LineChart
+              data={predictiveData}
+              width={screenWidth - 32}
+              height={200}
+              chartConfig={chartConfig}
+              bezier
+              style={styles.chart}
+              yAxisSuffix=" лв"
+            />
           ) : (
             <Text style={[styles.noDataText, { color: theme.colors.textSecondary }]}>
-              Няма достатъчно исторически данни за прогноза
+              Няма достатъчно исторически данни за графика
+            </Text>
+          )}
+
+          {/* Детайли за прогнозата */}
+          <View style={styles.forecastSummary}>
+            {forecasts.slice(0, 3).map((forecast, index) => (
+              <View key={index} style={styles.forecastItem}>
+                <Text style={[styles.forecastMonth, { color: theme.colors.text }]}>
+                  {forecast.month}
+                </Text>
+                <Text style={[
+                  styles.forecastValue, 
+                  { color: forecast.predictedSavings >= 0 ? '#10B981' : '#EF4444' }
+                ]}>
+                  {forecast.predictedSavings >= 0 ? '+' : ''}{forecast.predictedSavings.toFixed(0)} лв
+                </Text>
+                <Text style={[styles.forecastConfidence, { color: theme.colors.textSecondary }]}>
+                  {forecast.confidence}% увереност
+                </Text>
+              </View>
+            ))}
+          </View>
+        </SimpleAnimatedCard>
+
+        {/* === ИНТЕЛИГЕНТНИ ПРЕДВИЖДАНИЯ === */}
+        <SimpleAnimatedCard variant="glass" style={styles.reportCard} animationDelay={400}>
+          <View style={styles.reportCardHeader}>
+            <Text style={styles.reportCardIcon}>🧠</Text>
+            <Text style={[styles.reportCardTitle, { color: theme.colors.text }]}>
+              Интелигентни предвиждания
+            </Text>
+          </View>
+          
+          {predictions.length > 0 ? (
+            predictions.slice(0, 5).map((prediction, index) => (
+              <View 
+                key={index} 
+                style={[
+                  styles.advancedPredictionItem,
+                  { backgroundColor: getPredictionBgColor(prediction.type) }
+                ]}
+              >
+                <View style={styles.predictionHeader}>
+                  <Text style={styles.predictionIcon}>{prediction.icon}</Text>
+                  <View style={styles.predictionTitleContainer}>
+                    <Text style={[styles.predictionTitle, { color: theme.colors.text }]}>
+                      {prediction.title}
+                    </Text>
+                    <View style={[
+                      styles.predictionBadge,
+                      { backgroundColor: getPredictionColor(prediction.type) }
+                    ]}>
+                      <Text style={styles.predictionBadgeText}>
+                        {prediction.category === 'trend' ? 'Тренд' :
+                         prediction.category === 'budget' ? 'Бюджет' :
+                         prediction.category === 'anomaly' ? 'Аномалия' :
+                         prediction.category === 'savings' ? 'Спестявания' :
+                         prediction.category === 'spending' ? 'Разходи' :
+                         prediction.category === 'pattern' ? 'Паттерн' : 'Съвет'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <Text style={[styles.predictionDescription, { color: theme.colors.textSecondary }]}>
+                  {prediction.text}
+                </Text>
+                {prediction.actionable && (
+                  <TouchableOpacity style={[styles.predictionAction, { borderColor: getPredictionColor(prediction.type) }]}>
+                    <Text style={[styles.predictionActionText, { color: getPredictionColor(prediction.type) }]}>
+                      {prediction.action || 'Виж детайли'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))
+          ) : (
+            <Text style={[styles.noDataText, { color: theme.colors.textSecondary }]}>
+              Добавете повече транзакции за персонализирани съвети
             </Text>
           )}
         </SimpleAnimatedCard>
 
-        <SimpleAnimatedCard variant="glass" style={styles.reportCard} animationDelay={400}>
-          <View style={styles.reportCardHeader}>
-            <Text style={styles.reportCardIcon}>🧠</Text>
-        <Text style={[styles.reportCardTitle, { color: theme.colors.text }]}>
-              Интелигентни предвиждания
-          </Text>
-        </View>
-          {smartPredictions.map((prediction, index) => (
-            <View key={index} style={styles.predictionItem}>
-              <View style={[
-                styles.predictionDot, 
-                { 
-                  backgroundColor: prediction.type === 'success' ? theme.colors.success :
-                                 prediction.type === 'warning' ? theme.colors.warning :
-                                 theme.colors.primary
-                }
-              ]} />
-          <Text style={[styles.predictionText, { color: theme.colors.text }]}>
-                {prediction.text}
-          </Text>
-        </View>
-          ))}
-        </SimpleAnimatedCard>
-    </View>
-  );
+        {/* === АНАЛИЗ ПО КАТЕГОРИИ === */}
+        {categoryAnalyses.length > 0 && (
+          <SimpleAnimatedCard variant="elevated" style={styles.reportCard} animationDelay={500}>
+            <View style={styles.reportCardHeader}>
+              <Text style={styles.reportCardIcon}>📊</Text>
+              <Text style={[styles.reportCardTitle, { color: theme.colors.text }]}>
+                Топ категории с промени
+              </Text>
+            </View>
+            
+            {categoryAnalyses.slice(0, 4).map((analysis, index) => (
+              <View key={index} style={styles.categoryAnalysisItem}>
+                <View style={styles.categoryAnalysisLeft}>
+                  <Text style={[styles.categoryName, { color: theme.colors.text }]}>
+                    {analysis.category}
+                  </Text>
+                  <Text style={[styles.categorySpending, { color: theme.colors.textSecondary }]}>
+                    {analysis.currentMonthSpending.toFixed(0)} лв този месец
+                  </Text>
+                </View>
+                <View style={styles.categoryAnalysisRight}>
+                  <View style={[
+                    styles.trendIndicator,
+                    { backgroundColor: analysis.trendPercent > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' }
+                  ]}>
+                    <Text style={[
+                      styles.trendText,
+                      { color: analysis.trendPercent > 0 ? '#EF4444' : '#10B981' }
+                    ]}>
+                      {analysis.trendPercent > 0 ? '↑' : '↓'} {Math.abs(analysis.trendPercent).toFixed(0)}%
+                    </Text>
+                  </View>
+                  {analysis.isAnomaly && (
+                    <Text style={styles.anomalyBadge}>⚠️</Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </SimpleAnimatedCard>
+        )}
+
+        {/* === БЮДЖЕТНИ ПРОГНОЗИ === */}
+        {budgetPredictions.length > 0 && (
+          <SimpleAnimatedCard variant="glass" style={styles.reportCard} animationDelay={600}>
+            <View style={styles.reportCardHeader}>
+              <Text style={styles.reportCardIcon}>💰</Text>
+              <Text style={[styles.reportCardTitle, { color: theme.colors.text }]}>
+                Прогнози за бюджети
+              </Text>
+            </View>
+            
+            {budgetPredictions.slice(0, 3).map((budget, index) => (
+              <View key={index} style={styles.budgetPredictionItem}>
+                <View style={styles.budgetPredictionHeader}>
+                  <Text style={[styles.budgetCategory, { color: theme.colors.text }]}>
+                    {budget.category}
+                  </Text>
+                  {budget.willExceed && (
+                    <View style={styles.warningBadge}>
+                      <Text style={styles.warningBadgeText}>⚠️ Ще превиши</Text>
+                    </View>
+                  )}
+                </View>
+                
+                {/* Прогрес бар */}
+                <View style={styles.budgetProgressContainer}>
+                  <View style={[styles.budgetProgressBg, { backgroundColor: theme.colors.border }]}>
+                    <View 
+                      style={[
+                        styles.budgetProgressFill,
+                        { 
+                          width: `${Math.min((budget.spent / budget.budget) * 100, 100)}%`,
+                          backgroundColor: budget.willExceed ? '#EF4444' : 
+                                          (budget.spent / budget.budget) > 0.8 ? '#F59E0B' : '#10B981'
+                        }
+                      ]} 
+                    />
+                  </View>
+                  <Text style={[styles.budgetProgressText, { color: theme.colors.textSecondary }]}>
+                    {budget.spent.toFixed(0)} / {budget.budget.toFixed(0)} лв
+                  </Text>
+                </View>
+                
+                <View style={styles.budgetPredictionDetails}>
+                  <Text style={[styles.budgetDetailText, { color: theme.colors.textSecondary }]}>
+                    📅 Остават {budget.daysRemaining} дни
+                  </Text>
+                  <Text style={[styles.budgetDetailText, { color: theme.colors.textSecondary }]}>
+                    💡 Дневен лимит: {budget.recommendedDailyLimit.toFixed(0)} лв
+                  </Text>
+                </View>
+                
+                {budget.predictedEndDate && (
+                  <Text style={[styles.budgetWarningText, { color: '#EF4444' }]}>
+                    ⏰ Изчерпва се на {budget.predictedEndDate.toLocaleDateString('bg-BG')}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </SimpleAnimatedCard>
+        )}
+
+        {/* === СЕДМИЧНИ ПАТТЕРНИ === */}
+        {patterns.some(p => p.transactionCount > 0) && (
+          <SimpleAnimatedCard variant="elevated" style={styles.reportCard} animationDelay={700}>
+            <View style={styles.reportCardHeader}>
+              <Text style={styles.reportCardIcon}>📆</Text>
+              <Text style={[styles.reportCardTitle, { color: theme.colors.text }]}>
+                Седмични паттерни
+              </Text>
+            </View>
+            
+            <View style={styles.patternsContainer}>
+              {patterns.filter(p => p.transactionCount > 0).map((pattern, index) => (
+                <View key={index} style={styles.patternItem}>
+                  <Text style={[styles.patternDay, { color: theme.colors.text }]}>
+                    {pattern.dayOfWeek.substring(0, 3)}
+                  </Text>
+                  <View style={[
+                    styles.patternBar,
+                    { 
+                      height: Math.max(4, (pattern.averageSpending / Math.max(...patterns.map(p => p.averageSpending))) * 60),
+                      backgroundColor: theme.colors.primary
+                    }
+                  ]} />
+                  <Text style={[styles.patternAmount, { color: theme.colors.textSecondary }]}>
+                    {pattern.averageSpending.toFixed(0)}лв
+                  </Text>
+                </View>
+              ))}
+            </View>
+            
+            <Text style={[styles.patternInsight, { color: theme.colors.textSecondary }]}>
+              💡 Най-активен ден: {patterns.reduce((max, p) => p.averageSpending > max.averageSpending ? p : max, patterns[0]).dayOfWeek}
+            </Text>
+          </SimpleAnimatedCard>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -982,18 +1211,6 @@ const ReportsScreen: React.FC = () => {
                   Детайлен преглед на финансите
           </Text>
               </View>
-              <TouchableOpacity
-                style={styles.exportButton}
-                onPress={() => {/* Експорт функционалност */}}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={['rgba(247, 231, 206, 0.2)', 'rgba(247, 231, 206, 0.1)']}
-                  style={styles.exportButtonGradient}
-                >
-                  <Text style={styles.exportButtonText}>📊</Text>
-                </LinearGradient>
-              </TouchableOpacity>
             </View>
           </SafeAreaView>
         </LinearGradient>
@@ -1216,6 +1433,318 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   
+  // === СТИЛОВЕ ЗА ИНТЕЛИГЕНТНИ ПРЕДВИЖДАНИЯ ===
+  
+  // Demo Banner
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.2)',
+  },
+  demoBannerIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  demoBannerContent: {
+    flex: 1,
+  },
+  demoBannerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6366F1',
+    marginBottom: 2,
+  },
+  demoBannerText: {
+    fontSize: 13,
+    color: '#6366F1',
+    opacity: 0.8,
+  },
+
+  // Empty State
+  emptyStateContainer: {
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyStateIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+
+  // Health Score
+  healthScoreContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  healthScoreCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  healthScoreValue: {
+    fontSize: 36,
+    fontWeight: '700',
+  },
+  healthScoreLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  healthScoreText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  healthDetailsContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  healthDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  healthDetailLabel: {
+    fontSize: 14,
+  },
+  healthDetailValue: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Forecast Summary
+  forecastSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  forecastItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  forecastMonth: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  forecastValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  forecastConfidence: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  // Advanced Predictions
+  advancedPredictionItem: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  predictionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  predictionIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  predictionTitleContainer: {
+    flex: 1,
+  },
+  predictionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  predictionBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  predictionBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  predictionDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginLeft: 36,
+  },
+  predictionAction: {
+    alignSelf: 'flex-start',
+    marginLeft: 36,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  predictionActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Category Analysis
+  categoryAnalysisItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  categoryAnalysisLeft: {
+    flex: 1,
+  },
+  categoryName: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  categorySpending: {
+    fontSize: 13,
+  },
+  categoryAnalysisRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trendIndicator: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  trendText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  anomalyBadge: {
+    fontSize: 16,
+    marginLeft: 8,
+  },
+
+  // Budget Predictions
+  budgetPredictionItem: {
+    padding: 12,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  budgetPredictionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  budgetCategory: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  warningBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  warningBadgeText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  budgetProgressContainer: {
+    marginBottom: 8,
+  },
+  budgetProgressBg: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  budgetProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  budgetProgressText: {
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'right',
+  },
+  budgetPredictionDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  budgetDetailText: {
+    fontSize: 12,
+  },
+  budgetWarningText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 8,
+  },
+
+  // Patterns
+  patternsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-end',
+    height: 100,
+    marginTop: 8,
+  },
+  patternItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  patternDay: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  patternBar: {
+    width: 24,
+    borderRadius: 4,
+    minHeight: 4,
+  },
+  patternAmount: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+  patternInsight: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+
+  // Legacy styles (kept for compatibility)
   predictionItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',

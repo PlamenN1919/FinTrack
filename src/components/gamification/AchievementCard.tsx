@@ -13,24 +13,18 @@ interface AchievementCardProps {
 const AchievementCard: React.FC<AchievementCardProps> = ({ achievement, onPress, compact = false }) => {
   const { theme } = useTheme();
   
-  // Валидация на achievement обекта
-  if (!achievement) {
-    console.warn('AchievementCard: achievement prop is required');
-    return null;
-  }
-  
   // Безопасни стойности с fallbacks
   const safeAchievement = {
-    id: achievement.id || 'unknown',
-    name: achievement.name || 'Неизвестно постижение',
-    description: achievement.description || 'Няма описание',
-    icon: achievement.icon || '🏆',
-    rarity: achievement.rarity || ACHIEVEMENT_RARITY.COMMON,
-    xpReward: typeof achievement.xpReward === 'number' ? achievement.xpReward : 0,
-    progress: typeof achievement.progress === 'number' ? achievement.progress : 0,
-    maxProgress: typeof achievement.maxProgress === 'number' ? achievement.maxProgress : 1,
-    isCompleted: Boolean(achievement.isCompleted),
-    dateCompleted: achievement.dateCompleted,
+    id: achievement?.id || 'unknown',
+    name: achievement?.name || 'Неизвестно постижение',
+    description: achievement?.description || 'Няма описание',
+    icon: achievement?.icon || '🏆',
+    rarity: achievement?.rarity || ACHIEVEMENT_RARITY.COMMON,
+    xpReward: typeof achievement?.xpReward === 'number' ? achievement.xpReward : 0,
+    progress: typeof achievement?.progress === 'number' ? achievement.progress : 0,
+    maxProgress: typeof achievement?.maxProgress === 'number' ? achievement.maxProgress : 1,
+    isCompleted: Boolean(achievement?.isCompleted),
+    dateCompleted: achievement?.dateCompleted,
   };
   
   // Получаване на цвят според рядкостта
@@ -85,6 +79,12 @@ const AchievementCard: React.FC<AchievementCardProps> = ({ achievement, onPress,
       return 0;
     }
   }, [safeAchievement.progress, safeAchievement.maxProgress]);
+  
+  // Валидация на achievement обекта
+  if (!achievement) {
+    console.warn('AchievementCard: achievement prop is required');
+    return null;
+  }
   
   // Компактен изглед
   if (compact) {

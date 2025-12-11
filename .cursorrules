@@ -170,10 +170,178 @@ firebase deploy --only functions
 - Verify Firebase Auth token is valid before Functions calls
 - **Test subscription price display** for all plan types (monthly, quarterly, yearly)
 
+## QR Scanner Patterns ⚠️ CRITICAL
+
+**Camera Library:**
+- Uses `react-native-camera-kit` v15.1.0 (NOT react-native-camera)
+- Import: `import { Camera, CameraType } from 'react-native-camera-kit';`
+- Supports QR code scanning with `onReadCode` callback
+
+**Android Permissions - MUST HAVE:**
+```xml
+<!-- AndroidManifest.xml -->
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-feature android:name="android.hardware.camera" android:required="true" />
+<uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+```
+
+**iOS Permissions - Already Configured:**
+```xml
+<!-- Info.plist -->
+<key>NSCameraUsageDescription</key>
+<string>Приложението се нуждае от достъп до камерата, за да можете да сканирате QR кодове...</string>
+```
+
+**QR Data Parsing - 4 Supported Formats:**
+1. **JSON structure**: `{"store":"Kaufland","total":45.99,...}`
+2. **URL format**: `https://receipt.com?store=X&total=Y`
+3. **Structured text**: `Store|Item1 2.50|Item2 3.99|Total: 6.49`
+4. **Simple amount**: Any string with price pattern `\d+\.\d{2}`
+
+**Security Validation:**
+```typescript
+// ALWAYS validate QR data before parsing
+const validateQRData = (qrData: string): boolean => {
+  // Check length (max 10KB)
+  if (!qrData || qrData.length > 10000) return false;
+  
+  // Check for malicious patterns
+  const suspiciousPatterns = [
+    /javascript:/i, /data:/i, /vbscript:/i,
+    /<script/i, /onclick/i, /onerror/i,
+  ];
+  
+  return !suspiciousPatterns.some(pattern => pattern.test(qrData));
+};
+```
+
+**Transaction Integration:**
+- Automatically categorizes based on store name
+- Creates transaction with 🧾 icon
+- Adds note: "🧾 Сканирана бележка - X продукта"
+- Amount is always negative (expense)
+- Integrates with TransactionContext → Firestore
+
+**UX Best Practices:**
+- 30-second timeout for scanning
+- Loading states during processing
+- Back button handling during scan
+- Error states with retry options
+- Fallback to manual entry
+- Visual scan frame for positioning
+
+**Common QR Scanner Issues:**
+- Missing Android camera permissions = App crashes or permission denied
+- Camera not opening = Need rebuild after adding permissions
+- Parse failure = Unsupported QR format, show manual entry option
+- Slow scanning = Check lighting, hold phone steady
+
+**Testing QR Scanner:**
+1. Test with real receipts (Kaufland, Lidl, Billa)
+2. Generate test QR codes with different formats
+3. Test permission flow on fresh install
+4. Verify transaction creation in Firestore
+5. Test error handling with invalid QR codes
+
+## Referral System Patterns ⚠️ CRITICAL
+
+**Complete Referral Flow Implementation:**
+
+### 1. Deep Link Handling
+```typescript
+// ✅ CORRECT - linking.config.ts has Invite route
+Invite: {
+  path: 'invite',
+  parse: {
+    ref: (ref: string) => ref,
+  },
+}
+
+// ✅ CORRECT - deepLinkHandler.ts processes referral links
+private async handleReferralLink(url: string): Promise<boolean> {
+  const referrerId = validateDeepLink.extractReferrerIdFromLink(url);
+  await ReferralService.handleReferralDeepLink(url); // Saves to AsyncStorage
+  // Navigate to Register screen
+}
+```
+
+### 2. AsyncStorage Pattern
+```typescript
+// ✅ CORRECT - Save referrer ID when deep link opens
+await AsyncStorage.setItem('pendingReferrerId', referrerId);
+
+// ✅ CORRECT - Retrieve after successful payment
+const referrerId = await ReferralService.getPendingReferrerId();
+await ReferralService.processReferralReward(referrerId);
+await ReferralService.clearPendingReferrerId();
+```
+
+### 3. PaymentSuccessScreen Integration
+```typescript
+// ✅ CORRECT - Check for pending referral after subscription
+const pendingReferrerId = await ReferralService.getPendingReferrerId();
+if (pendingReferrerId) {
+  await ReferralService.processReferralReward(pendingReferrerId);
+  await ReferralService.clearPendingReferrerId();
+}
+```
+
+### 4. Firebase Functions - Correct Firestore Structure
+```typescript
+// ✅ CORRECT - Use subscriptions collection
+const referrerSubscriptionDoc = await admin.firestore()
+  .collection('subscriptions')
+  .doc(referrerId)
+  .get();
+
+// ✅ CORRECT - Use currentPeriodEnd field (NOT endDate)
+const currentEndDate = referrerSubscription.currentPeriodEnd.toDate();
+const newEndDate = new Date(currentEndDate);
+newEndDate.setMonth(newEndDate.getMonth() + 1);
+
+await admin.firestore().collection('subscriptions').doc(referrerId).update({
+  currentPeriodEnd: admin.firestore.Timestamp.fromDate(newEndDate),
+});
+```
+
+### 5. Required Dependencies
+```json
+{
+  "@react-native-clipboard/clipboard": "^1.14.2",
+  "react-native-device-info": "^14.1.1"
+}
+```
+
+### 6. Anti-fraud Checks
+- Device ID: Uses `react-native-device-info` for unique device ID
+- IP Address: Uses `DeviceInfo.getIpAddress()`
+- Duplicate checks: Prevents same device/IP from multiple referrals
+- Self-referral protection: Blocks referrerId === newUserId
+- Temporary email detection: Blocks known temp email domains
+
+**Common Referral Errors:**
+- Deep link не работи = Missing route in linking.config.ts
+- Referrer ID се губи = Not saved in AsyncStorage
+- Награда не се дава = PaymentSuccessScreen не извиква processReferralReward
+- Firestore грешка = Using wrong field name (endDate vs currentPeriodEnd)
+- Device ID винаги различен = Not using react-native-device-info
+
+**Testing Referral Flow:**
+1. Generate referral link in ReferralScreen
+2. Open link on different device/emulator
+3. Register new user
+4. Complete payment
+5. Check Firestore: referrals collection status='completed', rewardGranted=true
+6. Check Firestore: subscriptions collection currentPeriodEnd extended by 1 month
+
 ## Deployment Notes
 
 - iOS: Requires GoogleService-Info.plist in bundle
 - Android: Requires google-services.json in app folder
+- **Android Camera**: MUST have camera permissions in AndroidManifest.xml
 - Firebase Functions: Deployed separately with proper CORS and regions
 - Stripe: Requires proper secret key configuration in Firebase Functions config
-- **Subscription Data**: Field name consistency critical for proper price display 
+- **Subscription Data**: Field name consistency critical for proper price display
+- **QR Scanner**: Test on real devices (emulator may not have camera)
+- **Referral System**: Requires npm install + pod install for new dependencies
+- **Deep Links**: Test with `xcrun simctl openurl` (iOS) or `adb shell am start` (Android) 

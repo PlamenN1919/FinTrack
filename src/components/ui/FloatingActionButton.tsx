@@ -27,49 +27,43 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
 }) => {
   const { theme } = useTheme();
   
-  // Анимационни стойности
+  // Анимационни стойности - минималистични
   const scaleValue = useRef(new Animated.Value(0)).current;
   const opacityValue = useRef(new Animated.Value(0)).current;
   const pulseValue = useRef(new Animated.Value(1)).current;
-  const rotateValue = useRef(new Animated.Value(0)).current;
 
-  // Entrance анимация
+  // Entrance анимация - по-бърза и фина
   useEffect(() => {
     setTimeout(() => {
       Animated.parallel([
         Animated.spring(scaleValue, {
           toValue: 1,
           useNativeDriver: true,
-          tension: 100,
-          friction: 8,
+          tension: 80,
+          friction: 7,
         }),
         Animated.timing(opacityValue, {
           toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(rotateValue, {
-          toValue: 1,
-          duration: 600,
+          duration: 300,
           useNativeDriver: true,
         }),
       ]).start();
     }, animationDelay);
   }, [animationDelay]);
 
-  // Pulse анимация
+  // Pulse анимация - по-фина и деликатна
   useEffect(() => {
     if (enablePulse) {
       const pulseAnimation = () => {
         Animated.sequence([
           Animated.timing(pulseValue, {
-            toValue: 1.1,
-            duration: 1000,
+            toValue: 1.05,
+            duration: 1500,
             useNativeDriver: true,
           }),
           Animated.timing(pulseValue, {
             toValue: 1,
-            duration: 1000,
+            duration: 1500,
             useNativeDriver: true,
           }),
         ]).start(() => pulseAnimation());
@@ -78,12 +72,12 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
     }
   }, [enablePulse]);
 
-  // Press анимации
+  // Press анимации - минималистични
   const handlePressIn = () => {
     HapticUtils.buttonPress();
     
     Animated.spring(scaleValue, {
-      toValue: 0.95,
+      toValue: 0.96,
       useNativeDriver: true,
       tension: 300,
       friction: 10,
@@ -100,21 +94,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   };
 
   const handlePress = () => {
-    // Micro-interaction
-    Animated.sequence([
-      Animated.timing(scaleValue, {
-        toValue: 1.05,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleValue, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }),
-    ]).start();
-
     onPress();
   };
 
@@ -130,7 +109,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
     }
   };
 
-  // Получаване на размери
+  // Получаване на размери - минималистични
   const getSizeStyle = () => {
     switch (size) {
       case 'small':
@@ -142,17 +121,17 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
         };
       case 'large':
         return {
-          paddingHorizontal: 32,
-          paddingVertical: 16,
-          minHeight: 60,
-          borderRadius: 30,
+          paddingHorizontal: 28,
+          paddingVertical: 14,
+          minHeight: 56,
+          borderRadius: 28,
         };
       default: // medium
         return {
-          paddingHorizontal: 24,
-          paddingVertical: 12,
-          minHeight: 50,
-          borderRadius: 25,
+          paddingHorizontal: 22,
+          paddingVertical: 11,
+          minHeight: 48,
+          borderRadius: 24,
         };
     }
   };
@@ -160,18 +139,12 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   const sizeStyle = getSizeStyle();
   const gradientColors = getGradientColors();
 
-  // Rotation interpolation
-  const rotateInterpolate = rotateValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
   return (
     <TouchableOpacity
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={1}
+      activeOpacity={0.9}
       style={[styles.container, style]}
     >
       <Animated.View
@@ -180,14 +153,13 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
           sizeStyle,
           {
             transform: [
-              { scale: scaleValue },
-              { scale: pulseValue },
-              { rotate: rotateInterpolate },
+              { scale: Animated.multiply(scaleValue, pulseValue) },
             ],
             opacity: opacityValue,
           },
         ]}
       >
+        {/* Фон градиент */}
         <LinearGradient
           colors={gradientColors}
           start={{ x: 0, y: 0 }}
@@ -195,13 +167,14 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
           style={[StyleSheet.absoluteFill, { borderRadius: sizeStyle.borderRadius }]}
         />
         
-        {/* Glow effect */}
+        {/* Тънка бяла рамка за елегантност */}
         <View style={[
           StyleSheet.absoluteFill,
-          styles.glowEffect,
+          styles.borderOverlay,
           { borderRadius: sizeStyle.borderRadius }
         ]} />
         
+        {/* Съдържание */}
         <View style={styles.content}>
           {icon && (
             <View style={styles.iconContainer}>
@@ -222,15 +195,17 @@ const styles = StyleSheet.create({
   button: {
     justifyContent: 'center',
     alignItems: 'center',
+    // Минималистична сянка
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
     overflow: 'hidden',
   },
-  glowEffect: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  borderOverlay: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   content: {
     flexDirection: 'row',
@@ -244,9 +219,9 @@ const styles = StyleSheet.create({
   },
   text: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 });
 

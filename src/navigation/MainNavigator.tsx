@@ -1,136 +1,158 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth } from '../contexts/AuthContext';
 import { SCREENS } from '../utils/constants';
 
-// Import screens
+// Import Tab Screens
+import HomeScreen from '../screens/HomeScreen';
+import TransactionsScreen from '../screens/TransactionsScreen';
+import BudgetsScreen from '../screens/BudgetsScreen';
+import ReportsScreen from '../screens/ReportsScreen';
+import ScannerScreen from '../screens/ScannerScreen';
+
+// Import Stack Screens
 import ProfileScreen from '../screens/ProfileScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import AddTransactionScreen from '../screens/AddTransactionScreen';
+import AddBudgetScreen from '../screens/AddBudgetScreen';
+import TransactionDetailsScreen from '../screens/TransactionDetailsScreen';
+import BudgetDetailsScreen from '../screens/BudgetDetailsScreen';
+import FinancialHealthScreen from '../screens/FinancialHealthScreen';
+import AchievementsScreen from '../screens/AchievementsScreen';
+import VoiceAssistantScreen from '../screens/VoiceAssistantScreen';
+import WhatIfSimulationScreen from '../screens/WhatIfSimulationScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 import ReferralScreen from '../screens/ReferralScreen';
 
+// Import Custom Tab Bar
+import CustomTabBar from '../components/navigation/CustomTabBar';
+
+const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function SimplifiedMainScreen({ navigation }: any) {
-  const { logout } = useAuth();
-  
-  const handleLogout = () => {
-    Alert.alert(
-      'Излизане', 
-      'Искате ли да излезете и да се върнете към началния екран?',
-      [
-        { text: 'Отказ', style: 'cancel' },
-        { 
-          text: 'Излизане', 
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-          }
-        }
-      ]
-    );
-  };
-
-  const handleNavigateToProfile = () => {
-    navigation.navigate(SCREENS.PROFILE);
-  };
-
-  const handleNavigateToReferral = () => {
-    navigation.navigate(SCREENS.REFERRAL);
-  };
-  
+// Tab Navigator Component
+function TabNavigator() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Main App Screen</Text>
-      <Text style={styles.subtext}>Ако виждате това, значи работи!</Text>
-      
-      {/* Navigation Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.navButton} onPress={handleNavigateToProfile}>
-          <Text style={styles.navButtonText}>👤 Профил</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navButton} onPress={handleNavigateToReferral}>
-          <Text style={styles.navButtonText}>🎉 Покани приятел</Text>
-        </TouchableOpacity>
-      </View>
-      
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>← Обратно към началото</Text>
-      </TouchableOpacity>
-    </View>
+    <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Tab.Screen 
+        name="HomeTab" 
+        component={HomeScreen}
+        options={{
+          tabBarLabel: 'Начало',
+        }}
+      />
+      <Tab.Screen 
+        name="TransactionsTab" 
+        component={TransactionsScreen}
+        options={{
+          tabBarLabel: 'Транзакции',
+        }}
+      />
+      <Tab.Screen 
+        name="ScannerTab" 
+        component={ScannerScreen}
+        options={{
+          tabBarLabel: '',
+        }}
+      />
+      <Tab.Screen 
+        name="BudgetsTab" 
+        component={BudgetsScreen}
+        options={{
+          tabBarLabel: 'Бюджети',
+        }}
+      />
+      <Tab.Screen 
+        name="ReportsTab" 
+        component={ReportsScreen}
+        options={{
+          tabBarLabel: 'Отчети',
+        }}
+      />
+    </Tab.Navigator>
   );
 }
 
+// Main Navigator with Stack for modals and detail screens
 function MainNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
+        presentation: 'card',
       }}
     >
+      {/* Main Tab Navigator */}
       <Stack.Screen 
-        name="MainHome" 
-        component={SimplifiedMainScreen} 
+        name="MainTabs" 
+        component={TabNavigator}
       />
+      
+      {/* Stack Screens - Accessible from any tab */}
       <Stack.Screen 
         name={SCREENS.PROFILE} 
-        component={ProfileScreen} 
+        component={ProfileScreen}
+      />
+      <Stack.Screen 
+        name={SCREENS.SETTINGS} 
+        component={SettingsScreen}
+      />
+      <Stack.Screen 
+        name={SCREENS.ADD_TRANSACTION} 
+        component={AddTransactionScreen}
+        options={{
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen 
+        name={SCREENS.ADD_BUDGET} 
+        component={AddBudgetScreen}
+        options={{
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen 
+        name={SCREENS.TRANSACTION_DETAILS} 
+        component={TransactionDetailsScreen}
+      />
+      <Stack.Screen 
+        name={SCREENS.BUDGET_DETAILS} 
+        component={BudgetDetailsScreen}
+      />
+      <Stack.Screen 
+        name={SCREENS.FINANCIAL_HEALTH} 
+        component={FinancialHealthScreen}
+      />
+      <Stack.Screen 
+        name={SCREENS.ACHIEVEMENTS} 
+        component={AchievementsScreen}
+      />
+      <Stack.Screen 
+        name={SCREENS.VOICE_ASSISTANT} 
+        component={VoiceAssistantScreen}
+        options={{
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen 
+        name={SCREENS.WHAT_IF_SIMULATION} 
+        component={WhatIfSimulationScreen}
+      />
+      <Stack.Screen 
+        name={SCREENS.EDIT_PROFILE} 
+        component={EditProfileScreen}
       />
       <Stack.Screen 
         name={SCREENS.REFERRAL} 
-        component={ReferralScreen} 
+        component={ReferralScreen}
       />
     </Stack.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#1A1A1A',
-    },
-    text: {
-        color: 'white',
-        fontSize: 28,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    subtext: {
-        color: 'lightgray',
-        fontSize: 18,
-        marginTop: 10,
-        marginBottom: 40,
-    },
-    buttonContainer: {
-        width: '80%',
-        gap: 16,
-        marginBottom: 40,
-    },
-    navButton: {
-        paddingHorizontal: 24,
-        paddingVertical: 16,
-        backgroundColor: '#00B4DB',
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    navButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    logoutButton: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        backgroundColor: '#FF6B6B',
-        borderRadius: 8,
-    },
-    logoutButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-    }
-});
 
 export default MainNavigator; 

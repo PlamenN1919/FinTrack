@@ -33,5 +33,22 @@ target 'FinTrackNew' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+    
+    # Fix for React Native 0.80 header warnings
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
+      end
+    end
+    
+    # Fix for "Create Symlinks to Header Folders" warnings
+    installer.pods_project.targets.each do |target|
+      target.build_phases.each do |build_phase|
+        if build_phase.respond_to?(:name) && build_phase.name.include?('Create Symlinks')
+          build_phase.output_paths = ["$(DERIVED_FILE_DIR)/#{target.name}-symlinks.txt"]
+        end
+      end
+    end
   end
 end

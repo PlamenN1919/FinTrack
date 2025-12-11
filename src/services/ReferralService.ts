@@ -1,5 +1,5 @@
-import { Alert, Share, Linking } from 'react-native';
-// import DeviceInfo from 'react-native-device-info'; // TODO: Add this dependency later
+import { Alert, Share, Linking, Clipboard as RNClipboard, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   generateReferralLinkCallable, 
   processReferralRewardCallable, 
@@ -117,22 +117,11 @@ class ReferralService {
    */
   async copyReferralLink(referralLink: string): Promise<void> {
     try {
-      // Note: We'll need to install @react-native-clipboard/clipboard
-      // For now, we'll show an alert with the link
-      Alert.alert(
-        'Referral Link', 
-        referralLink,
-        [
-          { text: 'Затвори', style: 'cancel' },
-          { 
-            text: 'Копирай', 
-            onPress: () => {
-              // TODO: Implement clipboard copy
-              Alert.alert('Копирано!', 'Линкът е копиран в clipboard');
-            }
-          }
-        ]
-      );
+      // Use React Native's built-in Clipboard (deprecated but works without native module issues)
+      RNClipboard.setString(referralLink);
+      Alert.alert('✅ Копирано!', 'Линкът е копиран в clipboard', [
+        { text: 'OK', style: 'default' }
+      ]);
     } catch (error: any) {
       console.error('Error copying referral link:', error);
       Alert.alert('Грешка', 'Възникна грешка при копиране на линка');
@@ -215,8 +204,15 @@ class ReferralService {
       
       if (referrerId) {
         // Store referrer ID for later use when user subscribes
-        // We can use AsyncStorage for this
-        console.log('Referral detected:', referrerId);
+        await AsyncStorage.setItem('pendingReferrerId', referrerId);
+        console.log('Referral detected and saved:', referrerId);
+        
+        Alert.alert(
+          '🎉 Покана приета!',
+          'Ще получите 1 месец безплатно след абониране!',
+          [{ text: 'Супер!', style: 'default' }]
+        );
+        
         return referrerId;
       }
       
@@ -224,6 +220,29 @@ class ReferralService {
     } catch (error: any) {
       console.error('Error handling referral deep link:', error);
       return null;
+    }
+  }
+
+  /**
+   * Get pending referrer ID from storage
+   */
+  async getPendingReferrerId(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem('pendingReferrerId');
+    } catch (error: any) {
+      console.error('Error getting pending referrer ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear pending referrer ID from storage
+   */
+  async clearPendingReferrerId(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem('pendingReferrerId');
+    } catch (error: any) {
+      console.error('Error clearing pending referrer ID:', error);
     }
   }
 
@@ -295,27 +314,38 @@ class ReferralService {
   }
 
   /**
-   * Get device ID (simplified implementation)
+   * Get device ID (simplified - uses platform info + timestamp)
+   * For production, consider using a proper device ID library or UUID
    */
   private async getDeviceId(): Promise<string> {
     try {
-      // TODO: Implement proper device ID when react-native-device-info is added
-      // For now, generate a simple random ID
-      return `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Try to get from AsyncStorage first (persistent device ID)
+      let deviceId = await AsyncStorage.getItem('deviceId');
+      
+      if (!deviceId) {
+        // Generate a unique device ID based on platform and timestamp
+        deviceId = `${Platform.OS}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await AsyncStorage.setItem('deviceId', deviceId);
+      }
+      
+      return deviceId;
     } catch (error) {
-      return 'unknown_device';
+      console.error('Error getting device ID:', error);
+      return `${Platform.OS}_unknown`;
     }
   }
 
   /**
-   * Get device IP address (simplified implementation)
+   * Get device IP address (simplified)
+   * Returns platform info as IP is not easily accessible in React Native
    */
   private async getDeviceIP(): Promise<string> {
     try {
-      // In a real implementation, you might want to use a service to get the external IP
-      // For now, we'll return a placeholder
-      return 'unknown';
+      // In React Native, getting real IP is complex and requires native modules
+      // For anti-fraud, we return platform info which Firebase Functions can log
+      return `${Platform.OS}_${Platform.Version}`;
     } catch (error) {
+      console.error('Error getting device IP:', error);
       return 'unknown';
     }
   }
