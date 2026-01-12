@@ -1,0 +1,838 @@
+import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
+import AsyncStorageWrapper from '../utils/AsyncStorageWrapper';
+import { Platform, Alert } from 'react-native';
+import { auth, db, functions, checkExpiredSubscriptionsCallable } from '../config/firebase.config';
+import { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { setUserId as setCrashlyticsUserId, setAttribute as setCrashlyticsAttribute, logError, clearUserData as clearCrashlyticsUserData } from '../utils/crashlytics';
+import { setUserId as setAnalyticsUserId, setUserProperty, logLogin, logSignUp } from '../utils/analytics';
+// import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { 
+  AuthContextType, 
+  AuthState, 
+  User, 
+  UserState, 
+  AuthError, 
+  LoginCredentials, 
+  RegisterCredentials, 
+  SocialLoginResult,
+  AuthProvider as AuthProviderEnum,
+  SubscriptionPlan,
+  Subscription,
+  SubscriptionStatus,
+  AuthErrorCode
+} from '../types/auth.types';
+import { SUBSCRIPTION_PLANS } from '../config/subscription.config';
+import { Environment } from '../config/environment.config';
+
+// Storage keys
+const STORAGE_KEYS = {
+  USER: '@fintrack_user',
+  SUBSCRIPTION: '@fintrack_subscription',
+  AUTH_STATE: '@fintrack_auth_state',
+  DEVICE_ID: '@fintrack_device_id',
+} as const;
+
+// Initial state - Start with UNREGISTERED to show auth screens
+const initialState: AuthState = {
+  user: null,
+  subscription: null,
+  userState: UserState.UNREGISTERED,
+  isLoading: true, // Start loading initially
+  isInitialized: false, // Start as not initialized
+  error: null,
+  shouldShowWelcome: true, // Always start with Welcome screen
+};
+
+// Action types
+type AuthAction = 
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_USER'; payload: User | null }
+  | { type: 'SET_SUBSCRIPTION'; payload: Subscription | null }
+  | { type: 'SET_USER_STATE'; payload: UserState }
+  | { type: 'SET_ERROR'; payload: AuthError | null }
+  | { type: 'SET_INITIALIZED'; payload: boolean }
+  | { type: 'SET_SHOULD_SHOW_WELCOME'; payload: boolean }
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'RESET_STATE' };
+
+// Helper function to check if subscription has expired
+const isSubscriptionExpired = (subscription: Subscription): boolean => {
+  console.log('[AuthContext] isSubscriptionExpired called with:', {
+    hasSubscription: !!subscription,
+    hasCurrentPeriodEnd: !!subscription?.currentPeriodEnd,
+    currentPeriodEnd: subscription?.currentPeriodEnd,
+    currentPeriodEndType: typeof subscription?.currentPeriodEnd
+  });
+
+  if (!subscription || !subscription.currentPeriodEnd) {
+    console.log('[AuthContext] No subscription or currentPeriodEnd -> EXPIRED (true)');
+    return true;
+  }
+  
+  const now = new Date();
+  let endDate: Date;
+  
+  if (subscription.currentPeriodEnd instanceof Date) {
+    endDate = subscription.currentPeriodEnd;
+    console.log('[AuthContext] currentPeriodEnd is Date:', endDate);
+  } else if (subscription.currentPeriodEnd && typeof subscription.currentPeriodEnd === 'object' && 'toDate' in subscription.currentPeriodEnd) {
+    // Firestore Timestamp
+    endDate = (subscription.currentPeriodEnd as any).toDate();
+    console.log('[AuthContext] currentPeriodEnd is Firestore Timestamp, converted to:', endDate);
+  } else {
+    // Fallback - treat as expired
+    console.log('[AuthContext] currentPeriodEnd is unknown type, treating as expired');
+    return true;
+  }
+  
+  const isExpired = now > endDate;
+  console.log('[AuthContext] Expiration comparison:', {
+    now: now.toISOString(),
+    endDate: endDate.toISOString(),
+    nowTimestamp: now.getTime(),
+    endDateTimestamp: endDate.getTime(),
+    isExpired
+  });
+  
+  return isExpired;
+};
+
+// Helper function to get correct user state based on subscription
+const getUserStateFromSubscription = (subscription: Subscription | null): UserState => {
+  console.log('[AuthContext] getUserStateFromSubscription called with:', {
+    hasSubscription: !!subscription,
+    subscriptionId: subscription?.id || 'null',
+    status: subscription?.status || 'null',
+    currentPeriodEnd: subscription?.currentPeriodEnd || 'null',
+    plan: subscription?.plan || 'null'
+  });
+
+  if (!subscription) {
+    console.log('[AuthContext] No subscription -> REGISTERED_NO_SUBSCRIPTION');
+    return UserState.REGISTERED_NO_SUBSCRIPTION;
+  }
+
+  // Check if subscription has expired first (regardless of status)
+  const expired = isSubscriptionExpired(subscription);
+  console.log('[AuthContext] Subscription expiration check:', {
+    expired,
+    currentPeriodEnd: subscription.currentPeriodEnd,
+    now: new Date()
+  });
+
+  if (expired) {
+    console.log('[AuthContext] Subscription is expired -> EXPIRED_SUBSCRIBER');
+    return UserState.EXPIRED_SUBSCRIBER;
+  }
+
+  // Check actual status
+  console.log('[AuthContext] Checking subscription status:', subscription.status);
+  console.log('[AuthContext] SubscriptionStatus.ACTIVE value:', SubscriptionStatus.ACTIVE);
+  console.log('[AuthContext] Status comparison:', subscription.status === SubscriptionStatus.ACTIVE);
+
+  switch (subscription.status) {
+    case SubscriptionStatus.ACTIVE:
+      console.log('[AuthContext] Status is ACTIVE -> ACTIVE_SUBSCRIBER');
+      return UserState.ACTIVE_SUBSCRIBER;
+    case SubscriptionStatus.FAILED:
+      console.log('[AuthContext] Status is FAILED -> PAYMENT_FAILED');
+      return UserState.PAYMENT_FAILED;
+    case SubscriptionStatus.EXPIRED:
+      console.log('[AuthContext] Status is EXPIRED -> EXPIRED_SUBSCRIBER');
+      return UserState.EXPIRED_SUBSCRIBER;
+    default:
+      console.log('[AuthContext] Status is OTHER (' + subscription.status + ') -> REGISTERED_NO_SUBSCRIPTION');
+      return UserState.REGISTERED_NO_SUBSCRIPTION;
+  }
+};
+
+// Auth reducer
+const authReducer = (state: AuthState, action: AuthAction): AuthState => {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
+    case 'SET_USER':
+      return { ...state, user: action.payload };
+    case 'SET_SUBSCRIPTION':
+      const newUserState = getUserStateFromSubscription(action.payload);
+      console.log('[AuthContext] SET_SUBSCRIPTION - updating userState to:', newUserState);
+      return { 
+        ...state, 
+        subscription: action.payload,
+        userState: newUserState
+      };
+    case 'SET_USER_STATE':
+      return { ...state, userState: action.payload };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+    case 'SET_INITIALIZED':
+      return { ...state, isInitialized: action.payload };
+    case 'SET_SHOULD_SHOW_WELCOME':
+      return { ...state, shouldShowWelcome: action.payload };
+    case 'CLEAR_ERROR':
+      return { ...state, error: null };
+    case 'RESET_STATE':
+      return { ...initialState };
+    default:
+      return state;
+  }
+};
+
+// Utility functions
+const generateDeviceId = (): string => {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
+const createAuthError = (code: string, message: string, details?: any): AuthError => ({
+  code,
+  message,
+  details,
+  timestamp: new Date(),
+  recoverable: true,
+});
+
+// NEW: Firebase error handler
+const handleFirebaseError = (error: any): AuthError => {
+  let code = AuthErrorCode.UNKNOWN_ERROR;
+  let message = 'Възникна неочаквана грешка. Моля, опитайте отново.';
+
+  if (error.code) {
+    switch (error.code) {
+      case 'auth/invalid-email':
+        code = AuthErrorCode.INVALID_EMAIL;
+        message = 'Имейл адресът не е валиден.';
+        break;
+      case 'auth/invalid-credential':
+        code = AuthErrorCode.WRONG_PASSWORD;
+        message = 'Невалидни данни за вход. Моля, проверете имейла и паролата си.';
+        break;
+      case 'auth/user-disabled':
+        code = AuthErrorCode.USER_DISABLED;
+        message = 'Този потребителски акаунт е деактивиран.';
+        break;
+      case 'auth/user-not-found':
+        code = AuthErrorCode.USER_NOT_FOUND;
+        message = 'Няма намерен потребител с този имейл.';
+        break;
+      case 'auth/wrong-password':
+        code = AuthErrorCode.WRONG_PASSWORD;
+        message = 'Грешна парола. Моля, опитайте отново.';
+        break;
+      case 'auth/email-already-in-use':
+        code = AuthErrorCode.EMAIL_ALREADY_IN_USE;
+        message = 'Имейл адресът вече се използва от друг акаунт.';
+        break;
+      case 'auth/operation-not-allowed':
+        code = AuthErrorCode.OPERATION_NOT_ALLOWED;
+        message = 'Влизането с имейл и парола не е активирано.';
+        break;
+      case 'auth/weak-password':
+        code = AuthErrorCode.WEAK_PASSWORD;
+        message = 'Паролата е твърде слаба. Трябва да е поне 6 символа.';
+        break;
+      case 'auth/too-many-requests':
+        code = AuthErrorCode.TOO_MANY_REQUESTS;
+        message = 'Твърде много неуспешни опити. Моля, изчакайте малко преди да опитате отново.';
+        break;
+      case 'auth/network-request-failed':
+        code = AuthErrorCode.NETWORK_ERROR;
+        message = 'Проблем с мрежовата връзка. Моля, проверете интернет връзката си.';
+        break;
+      default:
+        console.error('[AuthContext] Unhandled Firebase Error:', error);
+        // Keep the default message and code for unknown errors
+        break;
+    }
+  }
+
+  return createAuthError(code, message, error);
+};
+
+// NEW: Firebase user mapper
+const mapFirebaseUser = (firebaseUser: FirebaseAuthTypes.User): User => {
+  return {
+    uid: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    emailVerified: firebaseUser.emailVerified,
+    displayName: firebaseUser.displayName || null,
+    photoURL: firebaseUser.photoURL || null,
+    createdAt: new Date(firebaseUser.metadata.creationTime || Date.now()),
+    lastLoginAt: new Date(firebaseUser.metadata.lastSignInTime || Date.now()),
+    provider: (firebaseUser.providerData[0]?.providerId || 'password') as AuthProviderEnum,
+    metadata: {
+      deviceId: generateDeviceId(), // This could be improved to be more stable
+      platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : undefined,
+      appVersion: '1.0.0', // This should come from device info
+    },
+  };
+};
+
+
+
+
+
+const determineUserState = (user: User | null, subscription: Subscription | null): UserState => {
+  console.log('[AuthContext] determineUserState called with:', { 
+    user: user?.uid || 'null', 
+    userEmail: user?.email || 'null',
+    subscriptionStatus: subscription?.status || 'null',
+    subscription: subscription 
+  });
+  
+  if (!user) {
+    console.log('[AuthContext] No user -> UNREGISTERED');
+    return UserState.UNREGISTERED;
+  }
+  
+  // Use the new helper function with expiration checking
+  const userState = getUserStateFromSubscription(subscription);
+  console.log('[AuthContext] Determined user state:', userState);
+  
+  return userState;
+};
+
+// Create context
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [state, dispatch] = useReducer(authReducer, initialState);
+
+  // Initialize services (temporarily disabled)
+  const initializeServices = useCallback(async () => {
+    try {
+      console.log('[AuthContext] Initializing services...');
+      
+      // We are not using Google Sign-in for now.
+      // Environment.logEnvironment();
+      
+      // GoogleSignin.configure({
+      //   webClientId: Environment.getGoogleSignInConfig().webClientId,
+      // });
+      
+      console.log('[AuthContext] Services initialized successfully');
+    } catch (error) {
+      console.error('[AuthContext] Service initialization error:', error);
+    }
+  }, []);
+
+  // Persist state to AsyncStorage
+  const persistState = useCallback(async (user: User | null, subscription: Subscription | null) => {
+    try {
+      // Check if AsyncStorage is available
+      if (!AsyncStorageWrapper || typeof AsyncStorageWrapper.setItem !== 'function' || typeof AsyncStorageWrapper.removeItem !== 'function') {
+        console.log('[AuthContext] AsyncStorage not available, skipping persistence');
+        return;
+      }
+
+      if (user) {
+        await AsyncStorageWrapper.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      } else {
+        await AsyncStorageWrapper.removeItem(STORAGE_KEYS.USER);
+      }
+
+      if (subscription) {
+        await AsyncStorageWrapper.setItem(STORAGE_KEYS.SUBSCRIPTION, JSON.stringify(subscription));
+      } else {
+        await AsyncStorageWrapper.removeItem(STORAGE_KEYS.SUBSCRIPTION);
+      }
+    } catch (error) {
+      console.error('Failed to persist auth state:', error);
+    }
+  }, []);
+
+  // Load persisted state
+  const loadPersistedState = useCallback(async () => {
+    try {
+      // Check if AsyncStorage is available
+      if (!AsyncStorageWrapper || typeof AsyncStorageWrapper.getItem !== 'function') {
+        console.log('[AuthContext] AsyncStorage not available');
+        return { user: null, subscription: null };
+      }
+
+      const [userJson, subscriptionJson] = await Promise.all([
+        AsyncStorageWrapper.getItem(STORAGE_KEYS.USER),
+        AsyncStorageWrapper.getItem(STORAGE_KEYS.SUBSCRIPTION),
+      ]);
+
+      const user = userJson ? JSON.parse(userJson) : null;
+      const subscription = subscriptionJson ? JSON.parse(subscriptionJson) : null;
+
+      if (user) {
+        // Convert date strings back to Date objects
+        user.createdAt = new Date(user.createdAt);
+        user.lastLoginAt = new Date(user.lastLoginAt);
+      }
+
+      if (subscription) {
+        subscription.currentPeriodStart = new Date(subscription.currentPeriodStart);
+        subscription.currentPeriodEnd = new Date(subscription.currentPeriodEnd);
+        subscription.createdAt = new Date(subscription.createdAt);
+        subscription.updatedAt = new Date(subscription.updatedAt);
+      }
+
+      return { user, subscription };
+    } catch (error) {
+      console.error('Failed to load persisted state:', error);
+      return { user: null, subscription: null };
+    }
+  }, []);
+
+  // Initialize auth state and listen for changes
+  useEffect(() => {
+    const initializeAuth = async () => {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      try {
+        // Firebase is already initialized in firebase.config.ts
+        console.log('[AuthContext] Firebase already initialized');
+        
+        await initializeServices();
+        
+        // Load persisted subscription state, user state will be handled by Firebase
+        const { subscription: persistedSubscription } = await loadPersistedState();
+        if (persistedSubscription) {
+          dispatch({ type: 'SET_SUBSCRIPTION', payload: persistedSubscription });
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        dispatch({ type: 'SET_ERROR', payload: createAuthError(
+          AuthErrorCode.UNKNOWN_ERROR,
+          'Failed to initialize authentication'
+        )});
+      } finally {
+        // We set initialized to true, but loading will be handled by the auth listener
+        // This will be set by the onAuthStateChanged listener
+      }
+    };
+
+    initializeAuth();
+
+    const subscriber = auth().onAuthStateChanged(async (firebaseUser: FirebaseAuthTypes.User | null) => {
+      try {
+        if (firebaseUser) {
+          // User is signed in
+          console.log('[AuthContext] Firebase user signed in:', firebaseUser.uid);
+          const user = mapFirebaseUser(firebaseUser);
+          dispatch({ type: 'SET_USER', payload: user });
+
+          // Set user ID for Crashlytics and Analytics
+          setCrashlyticsUserId(user.uid);
+          await setAnalyticsUserId(user.uid);
+          
+          // Set user attributes for crash reports
+          setCrashlyticsAttribute('email', user.email || 'unknown');
+          setCrashlyticsAttribute('provider', user.provider);
+          await setUserProperty('provider', user.provider);
+
+          // Fetch subscription from Firestore
+          const subscriptionDoc = await db().collection('subscriptions').doc(user.uid).get();
+          if (subscriptionDoc.exists()) {
+            const subData = subscriptionDoc.data() as Subscription;
+            // Convert Firestore Timestamps to JS Dates
+            subData.currentPeriodStart = (subData.currentPeriodStart as any).toDate();
+            subData.currentPeriodEnd = (subData.currentPeriodEnd as any).toDate();
+            subData.createdAt = (subData.createdAt as any).toDate();
+            subData.updatedAt = (subData.updatedAt as any).toDate();
+            dispatch({ type: 'SET_SUBSCRIPTION', payload: subData });
+            await persistState(user, subData);
+            
+            // Set subscription attributes for tracking
+            setCrashlyticsAttribute('subscription_status', subData.status);
+            setCrashlyticsAttribute('subscription_plan', subData.plan || 'unknown');
+            await setUserProperty('subscription_status', subData.status);
+            await setUserProperty('subscription_plan', subData.plan || 'unknown');
+          } else {
+            dispatch({ type: 'SET_SUBSCRIPTION', payload: null });
+            await persistState(user, null);
+            
+            // Set no subscription attributes
+            setCrashlyticsAttribute('subscription_status', 'none');
+            await setUserProperty('subscription_status', 'none');
+          }
+        } else {
+          // User is signed out
+          console.log('[AuthContext] Firebase user signed out.');
+          dispatch({ type: 'SET_USER', payload: null });
+          dispatch({ type: 'SET_SUBSCRIPTION', payload: null }); // Clear subscription on sign out
+          await persistState(null, null);
+          
+          // Clear user data from Crashlytics
+          clearCrashlyticsUserData();
+        }
+      } catch (error) {
+        console.error('[AuthContext] Error in onAuthStateChanged:', error);
+        logError(error as Error, 'AuthContext - onAuthStateChanged');
+        dispatch({ type: 'SET_ERROR', payload: createAuthError(
+          AuthErrorCode.UNKNOWN_ERROR,
+          'Failed to handle authentication state change.'
+        )});
+      } finally {
+        // Always ensure loading is set to false and initialized is true after auth state change
+        dispatch({ type: 'SET_INITIALIZED', payload: true });
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    });
+
+    // Unsubscribe on unmount
+    return subscriber;
+  }, [initializeServices, loadPersistedState, persistState]);
+
+  // Update user state when user or subscription changes
+  useEffect(() => {
+    console.log('[AuthContext] useEffect triggered for UserState update:', {
+      currentUserState: state.userState,
+      hasUser: !!state.user,
+      userEmail: state.user?.email || 'null',
+      subscriptionStatus: state.subscription?.status || 'null',
+      isInitialized: state.isInitialized,
+      isLoading: state.isLoading,
+    });
+    
+    const newUserState = determineUserState(state.user, state.subscription);
+    if (newUserState !== state.userState) {
+      console.log('[AuthContext] User state changing from', state.userState, 'to', newUserState);
+      dispatch({ type: 'SET_USER_STATE', payload: newUserState });
+      console.log('[AuthContext] User state changed to:', newUserState);
+    } else {
+      console.log('[AuthContext] User state remains:', state.userState);
+    }
+  }, [state.user, state.subscription, state.userState]);
+
+  // --- REAL AUTHENTICATION METHODS ---
+  const signInWithEmail = useCallback(async (credentials: LoginCredentials): Promise<User> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
+    try {
+      const userCredential = await auth().signInWithEmailAndPassword(
+        credentials.email.trim().toLowerCase(),
+        credentials.password
+      );
+      
+      // Log successful login
+      await logLogin('email');
+      
+      // The onAuthStateChanged listener will handle setting the user state.
+      return mapFirebaseUser(userCredential.user);
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
+      logError(error, 'AuthContext - signInWithEmail');
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  const signUpWithEmail = useCallback(async (credentials: RegisterCredentials): Promise<User> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
+    try {
+      if (credentials.password !== credentials.confirmPassword) {
+        throw { code: AuthErrorCode.INVALID_PASSWORD, message: 'Паролите не съвпадат.' };
+      }
+      if (!credentials.acceptTerms) {
+        throw { code: AuthErrorCode.PERMISSION_DENIED, message: 'Трябва да приемете общите условия.' };
+      }
+      
+      const userCredential = await auth().createUserWithEmailAndPassword(
+        credentials.email.trim().toLowerCase(),
+        credentials.password
+      );
+      
+      // Log successful registration
+      await logSignUp('email');
+      
+      // The onAuthStateChanged listener will handle setting the user state.
+      return mapFirebaseUser(userCredential.user);
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
+      logError(error, 'AuthContext - signUpWithEmail');
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  const signInWithGoogle = useCallback(async (): Promise<SocialLoginResult> => {
+    throw createAuthError(
+      AuthErrorCode.GOOGLE_SIGNIN_ERROR,
+      'Google Sign-In is not implemented.'
+    );
+  }, []);
+
+  const signInWithApple = useCallback(async (): Promise<SocialLoginResult> => {
+    throw createAuthError(
+      AuthErrorCode.APPLE_SIGNIN_ERROR,
+      'Apple Sign-In not implemented yet'
+    );
+  }, []);
+
+  const signOut = useCallback(async (): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      await auth().signOut();
+      // Clear user data from Crashlytics
+      clearCrashlyticsUserData();
+      // onAuthStateChanged will handle clearing user data
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
+      logError(error, 'AuthContext - signOut');
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  // Email verification methods (not used since verification is disabled)
+  const sendEmailVerification = useCallback(async (): Promise<void> => {
+    console.log('[AuthContext] Email verification disabled');
+    // No longer needed since we don't require email verification
+  }, []);
+
+  const checkEmailVerification = useCallback(async (): Promise<boolean> => {
+    console.log('[AuthContext] Email verification disabled - always returning true');
+    // Always return true since we don't require email verification
+    return true;
+  }, []);
+
+  // Password management
+  const sendPasswordResetEmail = useCallback(async (email: string): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      await auth().sendPasswordResetEmail(email.trim().toLowerCase());
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  const updatePassword = useCallback(async (currentPassword: string, newPassword: string): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const user = auth().currentUser;
+      if (!user || !user.email) {
+        throw new Error('Потребителят не е автентикиран');
+      }
+
+      // Повторна автентикация с текущата парола
+      const credential = auth.EmailAuthProvider.credential(user.email, currentPassword);
+      await user.reauthenticateWithCredential(credential);
+
+      // Обновяване на паролата
+      await user.updatePassword(newPassword);
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  // --- МЕТОДИ ЗА УПРАВЛЕНИЕ НА АБОНАМЕНТ ---
+
+  // Тази функция вече не е нужна, тъй като плащането и създаването на абонамент
+  // се обработват от PaymentScreen -> stripeWebhook.
+  const createSubscription = useCallback(async (planId: SubscriptionPlan, paymentMethodId: string): Promise<Subscription> => {
+    throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'This function is deprecated.');
+  }, []);
+
+  const cancelSubscription = useCallback(async (): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      if (!state.subscription?.stripeSubscriptionId) {
+        throw new Error("Няма активен абонамент за отмяна.");
+      }
+      
+      const cancelStripeSubscription = functions().httpsCallable('cancelStripeSubscription');
+      
+      await cancelStripeSubscription({ subscriptionId: state.subscription.stripeSubscriptionId });
+      
+      // Firestore документът ще се обнови автоматично от webhook
+      // Можем да покажем съобщение за успех веднага.
+      Alert.alert("Заявката е приета", "Вашият абонамент ще бъде отменен в края на текущия период.");
+
+    } catch (error: any) {
+      console.error("Error cancelling subscription:", error);
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [state.subscription]);
+
+  const updateSubscription = useCallback(async (newPlanId: SubscriptionPlan): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      if (!state.subscription?.stripeSubscriptionId) {
+        throw new Error("Няма активен абонамент за промяна.");
+      }
+
+      // Намираме stripePriceId за новия план
+      const newPlanConfig = SUBSCRIPTION_PLANS[newPlanId];
+      if (!newPlanConfig || !newPlanConfig.stripePriceIds) {
+          throw new Error("Невалиден нов план.");
+      }
+      const newPriceId = Object.values(newPlanConfig.stripePriceIds)[0];
+
+      const updateStripeSubscription = functions().httpsCallable('updateStripeSubscription');
+
+      await updateStripeSubscription({
+        subscriptionId: state.subscription.stripeSubscriptionId,
+        newPriceId: newPriceId,
+      });
+      
+      Alert.alert("Успех", "Вашият абонамент ще бъде променен скоро.");
+
+    } catch (error: any) {
+      console.error("Error updating subscription:", error);
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [state.subscription]);
+
+  const restorePurchases = useCallback(async (): Promise<Subscription[]> => {
+    return [];
+  }, []);
+
+  const refreshAuthState = useCallback(async (): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const currentUser = auth().currentUser;
+      if (currentUser) {
+        // Презареждаме потребителските данни
+        await currentUser.reload();
+        const user = mapFirebaseUser(currentUser);
+        dispatch({ type: 'SET_USER', payload: user });
+
+        // Презареждаме абонамента от Firestore
+        const subscriptionDoc = await db().collection('subscriptions').doc(user.uid).get();
+        if (subscriptionDoc.exists()) {
+          const subData = subscriptionDoc.data() as Subscription;
+          // Convert Firestore Timestamps to JS Dates
+          subData.currentPeriodStart = (subData.currentPeriodStart as any).toDate();
+          subData.currentPeriodEnd = (subData.currentPeriodEnd as any).toDate();
+          subData.createdAt = (subData.createdAt as any).toDate();
+          subData.updatedAt = (subData.updatedAt as any).toDate();
+          dispatch({ type: 'SET_SUBSCRIPTION', payload: subData });
+          await persistState(user, subData);
+        } else {
+          dispatch({ type: 'SET_SUBSCRIPTION', payload: null });
+          await persistState(user, null);
+        }
+      }
+    } catch (error: any) {
+      const authError = handleFirebaseError(error);
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [persistState]);
+
+  const clearError = useCallback(() => {
+    dispatch({ type: 'CLEAR_ERROR' });
+  }, []);
+
+  const getUserState = useCallback((): UserState => {
+    return state.userState;
+  }, [state.userState]);
+
+  const canAccessFeature = useCallback((feature: string): boolean => {
+    return state.userState === UserState.ACTIVE_SUBSCRIBER;
+  }, [state.userState]);
+
+  const setSubscription = useCallback(async (subscription: Subscription): Promise<void> => {
+    try {
+      console.log('[AuthContext] Setting subscription:', subscription);
+      console.log('[AuthContext] Current state before setting subscription:', { 
+        user: state.user?.uid, 
+        currentSubscription: state.subscription?.status,
+        userState: state.userState 
+      });
+      
+      dispatch({ type: 'SET_SUBSCRIPTION', payload: subscription });
+      await persistState(state.user, subscription);
+      
+      console.log('[AuthContext] Subscription set successfully');
+    } catch (error: any) {
+      console.error('[AuthContext] Failed to set subscription:', error);
+      const authError = createAuthError(
+        AuthErrorCode.UNKNOWN_ERROR,
+        'Failed to set subscription'
+      );
+      dispatch({ type: 'SET_ERROR', payload: authError });
+      throw authError;
+    }
+  }, [state.user, persistState]);
+
+  const updateProfile = useCallback(async (updates: Partial<User>): Promise<void> => {
+    throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Profile update not implemented yet');
+  }, []);
+
+  const deleteAccount = useCallback(async (): Promise<void> => {
+    throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Account deletion not implemented yet');
+  }, []);
+
+  const linkAccount = useCallback(async (provider: AuthProviderEnum): Promise<void> => {
+    throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Account linking not implemented yet');
+  }, []);
+
+  const unlinkAccount = useCallback(async (provider: AuthProviderEnum): Promise<void> => {
+    throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Account unlinking not implemented yet');
+  }, []);
+
+  const contextValue: AuthContextType = {
+    authState: state,
+    user: state.user,
+    isLoading: state.isLoading,
+    signInWithEmail,
+    signUpWithEmail,
+    signInWithGoogle,
+    signInWithApple,
+    signOut,
+    logout: signOut,
+    sendEmailVerification,
+    checkEmailVerification,
+    sendPasswordResetEmail,
+    updatePassword,
+    updateProfile,
+    deleteAccount,
+    linkAccount,
+    unlinkAccount,
+    createSubscription,
+    cancelSubscription,
+    updateSubscription,
+    restorePurchases,
+    setSubscription,
+    refreshAuthState,
+    clearError,
+    getUserState,
+    canAccessFeature,
+  };
+
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Hook to use auth context
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export default AuthContext; 

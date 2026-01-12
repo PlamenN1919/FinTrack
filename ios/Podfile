@@ -1,0 +1,174 @@
+# Use CDN for faster downloads
+source 'https://cdn.cocoapods.org/'
+
+# Resolve react_native_pods.rb with node to allow for hoisting
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native/scripts/react_native_pods.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+platform :ios, min_ios_version_supported
+prepare_react_native_project!
+
+# react-native-permissions configuration
+def node_require(script)
+  require Pod::Executable.execute_command('node', ['-p',
+    "require.resolve(
+      '#{script}',
+      {paths: [process.argv[1]]},
+    )", __dir__]).strip
+end
+
+node_require('react-native-permissions/scripts/setup.rb')
+
+# Only enable the Camera permission handler
+setup_permissions([
+  'Camera',
+])
+
+# Camera Kit iOS configuration
+post_integrate do |installer|
+  installer.pods_project.targets.each do |target|
+    if target.name == 'ReactNativeCameraKit'
+      target.build_configurations.each do |config|
+        config.build_settings['SWIFT_VERSION'] = '5.0'
+      end
+    end
+  end
+end
+
+# Firebase SDK requires modular headers configuration
+# Using dynamic linking instead of static to fix Firebase/Firebase.h not found
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+target 'FinTrackNew' do
+  # Enable modular headers globally for Firebase compatibility
+  use_modular_headers!
+  config = use_native_modules!
+  
+  # Firebase dependencies with modular headers
+  pod 'Firebase', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseAuth', :modular_headers => true
+  pod 'FirebaseFirestore', :modular_headers => true
+  pod 'FirebaseFunctions', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseAuthInterop', :modular_headers => true
+  pod 'FirebaseAppCheckInterop', :modular_headers => true
+  pod 'FirebaseFirestoreInternal', :modular_headers => true
+  pod 'FirebaseMessagingInterop', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'GTMSessionFetcher', :modular_headers => true
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  post_install do |installer|
+    # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      # :ccache_enabled => true
+    )
+    
+    # Fix for Xcode 26 beta compatibility
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        # Suppress warnings
+        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
+        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+        
+        # Fix for Xcode 26 beta asset catalog issues
+        config.build_settings['ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS'] = 'NO'
+        config.build_settings['VALIDATE_PRODUCT'] = 'NO'
+        
+        # Deployment target fix
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        
+        # Fix for gRPC module map issues in Xcode 26
+        config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        
+        # Disable Swift Package Manager integration that causes issues
+        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
+        
+        # Fix for deprecated 'windows' API in iOS 15.0+
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+        
+        # Fix for Swift stdlib warnings
+        config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'NO'
+      end
+      
+      # Specific fix for gRPC targets
+      if target.name.include?('gRPC')
+        target.build_configurations.each do |config|
+          config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
+          config.build_settings['DEFINES_MODULE'] = 'NO'
+          config.build_settings['USE_HEADERMAP'] = 'YES'
+          
+          # Add abseil headers to search path
+          config.build_settings['HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
+          config.build_settings['HEADER_SEARCH_PATHS'] << '$(PODS_ROOT)/abseil/absl'
+          config.build_settings['HEADER_SEARCH_PATHS'] << '$(PODS_TARGET_SRCROOT)'
+          
+          # Fix for zlib fdopen conflict with iOS SDK 26.0
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'NO_GZCOMPRESS=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'Z_SOLO=1'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'NO_GZIP=1'
+        end
+      end
+      
+      # Fix for abseil targets - add proper header search paths
+      if target.name == 'abseil'
+        target.build_configurations.each do |config|
+          config.build_settings['HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
+          config.build_settings['HEADER_SEARCH_PATHS'] << '"$(PODS_ROOT)/abseil"'
+          config.build_settings['USER_HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
+          config.build_settings['USER_HEADER_SEARCH_PATHS'] << '"$(PODS_ROOT)/abseil"'
+        end
+      end
+      
+      # Fix for Stripe deprecated API warnings and resource issues
+      if target.name.include?('Stripe')
+        target.build_configurations.each do |config|
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+          config.build_settings['WARNING_CFLAGS'] ||= ['$(inherited)']
+          config.build_settings['WARNING_CFLAGS'] << '-Wno-deprecated-declarations'
+          
+          # Fix for lstat resource bundle issues in Xcode 16
+          config.build_settings['EXCLUDED_SOURCE_FILE_NAMES'] ||= ['$(inherited)']
+          config.build_settings['EXCLUDED_SOURCE_FILE_NAMES'] << '*.lproj'
+        end
+        
+        # Remove problematic resource bundles
+        target.resources_build_phase.files.each do |file|
+          if file.file_ref && file.file_ref.path && file.file_ref.path.include?('.lproj')
+            target.resources_build_phase.remove_file_reference(file.file_ref)
+          end
+        end
+      end
+    end
+    
+    # Fix for "Create Symlinks to Header Folders" warnings
+    installer.pods_project.targets.each do |target|
+      target.build_phases.each do |build_phase|
+        if build_phase.respond_to?(:name) && build_phase.name.include?('Create Symlinks')
+          build_phase.output_paths = ["$(DERIVED_FILE_DIR)/#{target.name}-symlinks.txt"]
+        end
+      end
+    end
+  end
+end

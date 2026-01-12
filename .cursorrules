@@ -1,0 +1,486 @@
+# FinTrack Project Intelligence (.cursorrules)
+
+## Production Readiness Patterns ✅ НОВO (13 Яну 2026)
+
+**Logger Utility - ALWAYS use instead of console.log:**
+```typescript
+// ✅ CORRECT - Production-safe logging
+import { logger, paymentLogger, authLogger } from '../utils/logger';
+
+logger.log('Debug info');        // Only in development
+logger.info('Info message');     // Only in development
+logger.warn('Warning');          // Only in development
+logger.error('Error occurred');  // ALWAYS logged (even in production)
+
+// Specialized loggers
+paymentLogger.log('Payment initiated');
+authLogger.error('Auth failed');
+
+// ❌ WRONG - Will run in production
+console.log('Debug info');  // Removed automatically in production by babel
+```
+
+**Crashlytics Error Tracking:**
+```typescript
+// ✅ CORRECT - Log errors to Crashlytics
+import { logError, setUserId } from '../utils/crashlytics';
+
+try {
+  // ... risky code
+} catch (error) {
+  logError(error as Error, 'Payment flow');
+  logger.error('Payment error:', error);
+}
+
+// Set user ID after login
+setUserId(user.uid);
+```
+
+**Analytics Event Tracking:**
+```typescript
+// ✅ CORRECT - Track important events
+import { logEvent, logPurchase, logScreenView } from '../utils/analytics';
+
+// Custom events
+await logEvent('feature_used', { feature_name: 'qr_scanner' });
+
+// Purchase tracking
+await logPurchase(amount, 'EUR', [{ item_id: planId, item_name: 'Premium' }]);
+
+// Screen tracking (handled automatically in navigation)
+await logScreenView('PaymentScreen');
+```
+
+**Babel Configuration for Production:**
+- `babel.config.js` configured to remove console.log in production
+- console.error and console.warn are kept for debugging
+- Use logger utility for all new code
+
+## Firebase SDK Patterns ⚠️ CRITICAL
+
+**ALWAYS use React Native Firebase SDK, NEVER web Firebase SDK:**
+```typescript
+// ✅ CORRECT - React Native Firebase
+import { functions } from '../config/firebase.config';
+const callable = functions().httpsCallable('functionName');
+
+// ❌ WRONG - Web Firebase SDK (causes "Firebase App not created" error)
+import { getFunctions, httpsCallable } from 'firebase/functions';
+```
+
+**Key Firebase Patterns:**
+- All Firebase imports go through `src/config/firebase.config.ts`
+- Firebase auto-initializes via native config files (GoogleService-Info.plist, google-services.json)
+- Never call `initializeApp()` manually in React Native
+- Project ID: `fintrack-bef0a`
+
+## Subscription Data Consistency Patterns ⚠️ CRITICAL
+
+**ALWAYS use consistent field names between Firebase Functions and client code:**
+```typescript
+// ✅ CORRECT - Firebase Functions write 'plan' field
+await admin.firestore().collection('subscriptions').doc(userId).set({
+  plan: planId, // Use 'plan' to match interface
+  // ...
+});
+
+// ✅ CORRECT - Client code with backward compatibility
+const planValue = subscription.plan || (subscription as any).planId;
+switch (planValue) {
+  case SubscriptionPlan.YEARLY:
+  case 'yearly':
+    return 'yearly';
+  // ...
+}
+```
+
+**Subscription Price Display Rules:**
+- Always check both `subscription.plan` AND `subscription.planId` for compatibility
+- Use fallback logic to handle legacy data in Firestore
+- Firebase Functions write string values: 'monthly', 'quarterly', 'yearly'
+- These match SubscriptionPlan enum values exactly
+- **NEVER hardcode fallback prices** - always calculate dynamically based on plan
+
+**Common Subscription Errors:**
+- `subscription.plan` undefined = Legacy data uses `planId` field
+- Price showing 12.99 BGN for yearly plan = Field name mismatch
+- Always support both field names for smooth migrations
+
+## Firebase Authentication Patterns ⚠️ CRITICAL
+
+**Always validate Firebase Auth token before calling Functions:**
+```typescript
+// ✅ CORRECT - Check for valid Firebase Auth token
+const currentUser = auth().currentUser;
+if (!currentUser) {
+  // Redirect to login
+  return;
+}
+const token = await currentUser.getIdToken(true); // Force refresh
+```
+
+**Common Auth Errors:**
+- `Error: UNAUTHENTICATED` = Firebase Auth token missing or invalid
+- Check `authState.user` AND `auth().currentUser`
+- Local state doesn't guarantee valid Firebase token
+- Always refresh token before critical operations
+
+## Stripe Configuration Patterns ⚠️ CRITICAL
+
+**Firebase Functions Stripe Setup:**
+```bash
+# Set CORRECT secret key (starts with sk_test_ not pk_test_)
+firebase functions:config:set stripe.secret="sk_test_..."
+firebase deploy --only functions
+```
+
+**Current Stripe Price IDs (EUR - Test Mode):**
+```typescript
+// Updated: 6 Jan 2026
+Monthly:   price_1SmYnPG1pdDRlAv6q17RYNIr   (12.99 EUR/month)
+Quarterly: price_1SmYsVG1pdDRlAv6u14OQk4u   (29.99 EUR/3 months)
+Yearly:    price_1SmYsVG1pdDRlAv6oZxuHfRF   (75.99 EUR/year)
+```
+
+**⚠️ IMPORTANT:** These are Test mode Price IDs. For Production (Live mode), you must:
+1. Create identical prices in Stripe Live mode
+2. Get new Live mode Price IDs
+3. Update all config files with Live Price IDs
+4. Redeploy Firebase Functions
+
+**Common Stripe Errors:**
+- `Error: NOT_FOUND` = Usually wrong Stripe key in Firebase config OR invalid Price ID
+- `The currency bgn is not supported` = Check fallback currency in Firebase Functions (must be 'eur')
+- Use `sk_test_` for secret key, not `pk_test_` (publishable key)
+- Always redeploy functions after config changes
+- Price ID not found = Wrong Test/Live mode or Price ID deleted in Stripe
+
+**⚠️ CRITICAL - Currency Fallback:**
+```typescript
+// ✅ CORRECT - Always use EUR fallback
+currency: subscription.currency || 'eur'
+
+// ❌ WRONG - BGN not supported
+currency: subscription.currency || 'bgn'
+```
+
+## Firebase Functions Deployment Patterns
+
+**Deployment Issues:**
+- v1 vs v2 functions conflicts: Delete old functions first
+- CPU setting errors on GCF gen 1: Remove `setGlobalOptions`
+- Lint errors blocking deploy: Temporarily remove lint from firebase.json predeploy
+
+**Deployment Commands:**
+```bash
+# Delete old functions if conflicts
+firebase functions:delete functionName --force
+
+# Deploy without lint (emergency)
+# Remove "npm run lint" from firebase.json predeploy
+
+# Normal deployment
+firebase deploy --only functions
+```
+
+## Code Organization Patterns
+
+**Authentication Flow:**
+- Uses Context API for state management (`AuthContext`)
+- TypeScript strict typing throughout
+- Navigation via React Navigation with proper type safety
+- Payment flow: Plans → Payment → Success/Failed screens
+
+**Firebase Functions Integration:**
+- All functions calls require userId parameter
+- Always handle errors gracefully with user-friendly messages
+- Use httpsCallable pattern from React Native Firebase SDK
+- Validate Firebase Auth token before calling functions
+
+## UI/UX Patterns
+
+**Language:** Bulgarian language throughout UI
+**Design:** Modern gradient-based design with animations
+**Colors:** Blue gradient theme (#00B4DB primary)
+**Navigation:** Stack navigation with proper animations
+
+## Development Patterns
+
+**Error Handling:**
+- Always show user-friendly error messages in Bulgarian
+- Use Alert.alert for critical errors
+- Log detailed errors to console for debugging
+
+**TypeScript:**
+- Strict typing enabled
+- Proper interface definitions for all data structures
+- Never use `any` type without good reason
+
+## Critical Learnings
+
+1. **Firebase SDK Mixing**: The #1 source of runtime errors is mixing web and React Native Firebase SDKs
+2. **Stripe Configuration**: Secret vs publishable keys - always verify correct key type
+3. **Functions Deployment**: v1/v2 conflicts require function deletion and recreation
+4. **Authentication State**: Local state ≠ valid Firebase token - always validate both
+5. **Payment Flow**: Always include userId in payment intent creation
+6. **Context State**: AuthContext is the source of truth for user state
+7. **Memory Bank**: Keep documentation updated for session continuity
+8. **Subscription Field Names**: Firebase Functions must write 'plan' not 'planId' to match client interface
+9. **Price Display Logic**: Always support both field names for backward compatibility
+10. **Referral Functions Auth**: ALL service methods calling Firebase Functions MUST validate auth token first
+
+## Known Issues Fixed
+
+- ✅ Firebase SDK conflict in StripeService.ts resolved
+- ✅ Stripe secret key configuration corrected (was using publishable key)
+- ✅ Functions v1/v2 deployment conflicts resolved
+- ✅ Payment flow properly integrated with React Native Firebase
+- ✅ Type safety maintained throughout payment screens
+- ✅ Authentication token validation added to PaymentScreen
+- ✅ Stripe Price IDs corrected in subscription.config.ts (invalid IDs replaced with working ones)
+- ✅ Payment Intent extraction fixed (added fallback when Stripe expand fails)
+- ✅ Subscription price display fixed (field name consistency between Functions and client)
+- ✅ **Referral Functions Error**: Added Firebase Auth validation to all ReferralService methods
+- ✅ **QR Scanner Black Screen (1st fix)**: Switched from Vision Camera to Camera Kit (28 Дек 2024)
+- ✅ **QR Scanner Black Screen (FINAL FIX)**: Removed ALL conflicting camera libraries - only camera-kit remains (6 Яну 2026 вечер)
+- ✅ **Stripe Prices Migration**: Migrated from BGN to EUR with new Price IDs (6 Яну 2026)
+- ✅ **BGN Currency Error**: Fixed residual BGN fallback in Firebase Functions - changed to EUR (11 Яну 2026)
+
+## Testing Patterns
+
+- Always test payment flow end-to-end
+- Verify Firebase initialization on both iOS and Android
+- Check error messages are properly localized to Bulgarian
+- Test Stripe payment intent creation with console logs
+- Verify Firebase Auth token is valid before Functions calls
+- **Test subscription price display** for all plan types (monthly, quarterly, yearly)
+
+## QR Scanner Patterns ⚠️ CRITICAL
+
+**⚠️ СТАТУС: ВРЕМЕННО ЗАКЛЮЧЕНА (9 Яну 2026)**
+QR Scanner функционалността е временно заключена с визуален overlay:
+- `isLocked` state контролира достъпа до сканирането
+- Показва замъглен екран с текст "Очаквайте скоро..."
+- Бутонът за сканиране е деактивиран и показва "🔒 Заключено"
+- Alert съобщение при опит за сканиране: "QR сканерът скоро ще бъде достъпен"
+- За активиране: промени `const [isLocked, setIsLocked] = useState(true)` на `false` в `ScannerScreen.tsx`
+
+**Camera Library - ФИНАЛНА КОНФИГУРАЦИЯ:**
+- Uses **САМО** `react-native-camera-kit` v15.1.0 ✅ CONFIRMED WORKING (6 Яну 2026)
+- **ПРЕМАХНАТИ** всички конфликтни библиотеки:
+  - ❌ `react-native-camera` (deprecated, черен екран)
+  - ❌ `react-native-vision-camera` (не се използва)
+  - ❌ `react-native-qrcode-scanner` (зависи от deprecated camera)
+- Import: `import { Camera, CameraType } from 'react-native-camera-kit';`
+- Supports QR code scanning with `onReadCode` callback
+- **Navigation:** Uses `ScannerScreen.tsx` (production-ready, 1470+ lines)
+
+**Android Permissions - MUST HAVE:**
+```xml
+<!-- AndroidManifest.xml -->
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-feature android:name="android.hardware.camera" android:required="true" />
+<uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+```
+
+**iOS Permissions - Already Configured:**
+```xml
+<!-- Info.plist -->
+<key>NSCameraUsageDescription</key>
+<string>Приложението се нуждае от достъп до камерата, за да можете да сканирате QR кодове...</string>
+```
+
+**QR Data Parsing - 4 Supported Formats:**
+1. **JSON structure**: `{"store":"Kaufland","total":45.99,...}`
+2. **URL format**: `https://receipt.com?store=X&total=Y`
+3. **Structured text**: `Store|Item1 2.50|Item2 3.99|Total: 6.49`
+4. **Simple amount**: Any string with price pattern `\d+\.\d{2}`
+
+**Security Validation:**
+```typescript
+// ALWAYS validate QR data before parsing
+const validateQRData = (qrData: string): boolean => {
+  // Check length (max 10KB)
+  if (!qrData || qrData.length > 10000) return false;
+  
+  // Check for malicious patterns
+  const suspiciousPatterns = [
+    /javascript:/i, /data:/i, /vbscript:/i,
+    /<script/i, /onclick/i, /onerror/i,
+  ];
+  
+  return !suspiciousPatterns.some(pattern => pattern.test(qrData));
+};
+```
+
+**Transaction Integration:**
+- Automatically categorizes based on store name
+- Creates transaction with 🧾 icon
+- Adds note: "🧾 Сканирана бележка - X продукта"
+- Amount is always negative (expense)
+- Integrates with TransactionContext → Firestore
+
+**UX Best Practices:**
+- 30-second timeout for scanning
+- Loading states during processing
+- Back button handling during scan
+- Error states with retry options
+- Fallback to manual entry
+- Visual scan frame for positioning
+
+**Camera Error Handling - CRITICAL:**
+```typescript
+// ✅ CORRECT - Always wrap Camera with CameraErrorBoundary
+<CameraErrorBoundary onError={handleCameraError} fallback={<ErrorUI />}>
+  <Camera
+    onError={(error) => handleCameraError(error)}
+    onReadCode={(event) => {
+      // Clear init timeout on successful scan
+      if (cameraInitTimeoutRef.current) {
+        clearTimeout(cameraInitTimeoutRef.current);
+      }
+      handleQRCodeScanned(event);
+    }}
+  />
+</CameraErrorBoundary>
+
+// ✅ CORRECT - Show loading state during initialization
+{cameraInitializing && <LoadingOverlay />}
+```
+
+**Common QR Scanner Issues:**
+- **Black screen on open** = MOST COMMON: Multiple camera libraries installed (conflict)
+  - Solution: Keep ONLY `react-native-camera-kit`, remove all others
+  - Check: `ls node_modules | grep camera` should show ONLY camera-kit
+- **Black screen with Vision Camera** = Missing `codeScanner` prop or QR scanning plugin
+- **Conflicting libraries** = App has camera, camera-kit, vision-camera, qrcode-scanner together
+  - Solution: `npm uninstall react-native-camera react-native-vision-camera react-native-qrcode-scanner`
+  - Then: `npm install` + `cd ios && rm -rf Pods && pod install`
+- Missing Android camera permissions = App crashes or permission denied
+- Camera not opening = Need rebuild after adding permissions
+- Parse failure = Unsupported QR format, show manual entry option
+- Slow scanning = Check lighting, hold phone steady
+- Camera initialization timeout = 5 seconds, show warning but don't stop
+- **Camera styles** = Use flex: 1 instead of absolute positioning
+- **Wrong library** = Always use Camera Kit, NOT Vision Camera for QR scanning
+- **After library changes** = ALWAYS rebuild: clean build folders, reinstall pods
+
+**Testing QR Scanner:**
+1. Test with real receipts (Kaufland, Lidl, Billa)
+2. Generate test QR codes with different formats
+3. Test permission flow on fresh install
+4. Verify transaction creation in Firestore
+5. Test error handling with invalid QR codes
+6. **Check console logs for detailed debugging info** (📷, ✅, ❌, ⚠️ markers)
+7. Verify loading state shows during camera initialization
+8. Test camera error recovery (retry mechanism)
+
+## Referral System Patterns ⚠️ CRITICAL
+
+**⚠️ СТАТУС: ВРЕМЕННО СКРИТА (9 Яну 2026)**
+Referral функционалността е скрита от UI, но backend логиката е активна:
+- `ReferralCard` компонент е коментиран в `ProfileScreen.tsx`
+- `ReferralScreen` остава в навигацията, но няма визуален достъп
+- Backend: `ReferralService`, Firebase Functions работят нормално
+- За активиране: премахни коментарите в `ProfileScreen.tsx`
+
+**Complete Referral Flow Implementation:**
+
+### 1. Deep Link Handling
+```typescript
+// ✅ CORRECT - linking.config.ts has Invite route
+Invite: {
+  path: 'invite',
+  parse: {
+    ref: (ref: string) => ref,
+  },
+}
+
+// ✅ CORRECT - deepLinkHandler.ts processes referral links
+private async handleReferralLink(url: string): Promise<boolean> {
+  const referrerId = validateDeepLink.extractReferrerIdFromLink(url);
+  await ReferralService.handleReferralDeepLink(url); // Saves to AsyncStorage
+  // Navigate to Register screen
+}
+```
+
+### 2. AsyncStorage Pattern
+```typescript
+// ✅ CORRECT - Save referrer ID when deep link opens
+await AsyncStorage.setItem('pendingReferrerId', referrerId);
+
+// ✅ CORRECT - Retrieve after successful payment
+const referrerId = await ReferralService.getPendingReferrerId();
+await ReferralService.processReferralReward(referrerId);
+await ReferralService.clearPendingReferrerId();
+```
+
+### 3. PaymentSuccessScreen Integration
+```typescript
+// ✅ CORRECT - Check for pending referral after subscription
+const pendingReferrerId = await ReferralService.getPendingReferrerId();
+if (pendingReferrerId) {
+  await ReferralService.processReferralReward(pendingReferrerId);
+  await ReferralService.clearPendingReferrerId();
+}
+```
+
+### 4. Firebase Functions - Correct Firestore Structure
+```typescript
+// ✅ CORRECT - Use subscriptions collection
+const referrerSubscriptionDoc = await admin.firestore()
+  .collection('subscriptions')
+  .doc(referrerId)
+  .get();
+
+// ✅ CORRECT - Use currentPeriodEnd field (NOT endDate)
+const currentEndDate = referrerSubscription.currentPeriodEnd.toDate();
+const newEndDate = new Date(currentEndDate);
+newEndDate.setMonth(newEndDate.getMonth() + 1);
+
+await admin.firestore().collection('subscriptions').doc(referrerId).update({
+  currentPeriodEnd: admin.firestore.Timestamp.fromDate(newEndDate),
+});
+```
+
+### 5. Required Dependencies
+```json
+{
+  "@react-native-clipboard/clipboard": "^1.14.2",
+  "react-native-device-info": "^14.1.1"
+}
+```
+
+### 6. Anti-fraud Checks
+- Device ID: Uses `react-native-device-info` for unique device ID
+- IP Address: Uses `DeviceInfo.getIpAddress()`
+- Duplicate checks: Prevents same device/IP from multiple referrals
+- Self-referral protection: Blocks referrerId === newUserId
+- Temporary email detection: Blocks known temp email domains
+
+**Common Referral Errors:**
+- Deep link не работи = Missing route in linking.config.ts
+- Referrer ID се губи = Not saved in AsyncStorage
+- Награда не се дава = PaymentSuccessScreen не извиква processReferralReward
+- Firestore грешка = Using wrong field name (endDate vs currentPeriodEnd)
+- Device ID винаги различен = Not using react-native-device-info
+
+**Testing Referral Flow:**
+1. Generate referral link in ReferralScreen
+2. Open link on different device/emulator
+3. Register new user
+4. Complete payment
+5. Check Firestore: referrals collection status='completed', rewardGranted=true
+6. Check Firestore: subscriptions collection currentPeriodEnd extended by 1 month
+
+## Deployment Notes
+
+- iOS: Requires GoogleService-Info.plist in bundle
+- Android: Requires google-services.json in app folder
+- **Android Camera**: MUST have camera permissions in AndroidManifest.xml
+- Firebase Functions: Deployed separately with proper CORS and regions
+- Stripe: Requires proper secret key configuration in Firebase Functions config
+- **Subscription Data**: Field name consistency critical for proper price display
+- **QR Scanner**: Test on real devices (emulator may not have camera)
+- **Referral System**: Requires npm install + pod install for new dependencies
+- **Deep Links**: Test with `xcrun simctl openurl` (iOS) or `adb shell am start` (Android) 
