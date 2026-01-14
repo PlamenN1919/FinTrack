@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import storageService from '../services/StorageService';
 import { useTransactions } from './TransactionContext';
+import { useAuth } from '../contexts/AuthContext';
 
 // Тип за контекстуално правило
 export interface ContextualRule {
@@ -37,11 +38,15 @@ interface BudgetContextType {
 // Създаване на контекста
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
 
-// Функция за генериране на дати за текущия месец
-const getCurrentMonthDates = () => {
-  const now = new Date();
-  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+// Функция за генериране на дати от регистрация на потребителя
+const getBudgetDatesFromUserRegistration = (userCreatedAt?: string) => {
+  // Ако има дата на регистрация, използваме месеца на регистрацията
+  // Ако няма, използваме текущия месец
+  const referenceDate = userCreatedAt ? new Date(userCreatedAt) : new Date();
+  
+  const startDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  const endDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
+  
   return {
     startDate: startDate.toISOString().split('T')[0],
     endDate: endDate.toISOString().split('T')[0],
@@ -50,8 +55,8 @@ const getCurrentMonthDates = () => {
 };
 
 // Примерни данни за бюджети - ДИНАМИЧНИ ДАТИ
-const createMockBudgets = (): Budget[] => {
-  const dates = getCurrentMonthDates();
+const createMockBudgets = (userCreatedAt?: string): Budget[] => {
+  const dates = getBudgetDatesFromUserRegistration(userCreatedAt);
   
   return [
     {
@@ -137,17 +142,16 @@ const createMockBudgets = (): Budget[] => {
   ];
 };
 
-const mockBudgets = createMockBudgets();
-
 // Provider компонент
 export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { authState } = useAuth();
 
   // Зареждане на данни при стартиране
   useEffect(() => {
     loadBudgets();
-  }, []);
+  }, [authState.user]);
 
   // Запазване на данни при промяна
   useEffect(() => {
@@ -163,14 +167,31 @@ export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       
       // Ако няма запазени данни, използваме mock данните
       if (savedBudgets.length === 0) {
+        // Създаваме mock бюджети с дата от регистрацията на потребителя
+        const userCreatedAt = authState.user?.createdAt;
+        const userCreatedAtString = userCreatedAt ? userCreatedAt.toISOString() : undefined;
+        const mockBudgets = createMockBudgets(userCreatedAtString);
+        
+        console.log('📊 Създаване на mock бюджети за нов потребител:', {
+          userCreatedAt: userCreatedAtString,
+          budgetPeriod: `${mockBudgets[0].startDate} - ${mockBudgets[0].endDate}`,
+          budgetsCount: mockBudgets.length,
+          userEmail: authState.user?.email
+        });
+        
         setBudgets(mockBudgets);
         await storageService.saveBudgets(mockBudgets);
       } else {
+        console.log('📊 Зареждане на запазени бюджети:', {
+          budgetsCount: savedBudgets.length,
+          userEmail: authState.user?.email
+        });
         setBudgets(savedBudgets);
       }
     } catch (error) {
       console.error('Error loading budgets:', error);
-      // При грешка използваме mock данните
+      // При грешка използваме mock данните с текущ месец
+      const mockBudgets = createMockBudgets();
       setBudgets(mockBudgets);
     } finally {
       setIsLoading(false);

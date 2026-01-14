@@ -86,30 +86,38 @@ return matchesCategory && isExpense && isInPeriod; // ✅ Филтрира по 
 - Транзакция от 28.12.2025 → ❌ НЕ СЕ ОТЧИТА (извън периода)
 - Транзакция от 15.01.2026 → ✅ ОТЧИТА СЕ (независимо дали бюджетът е създаден на 20.01.2026)
 
-### 2. Динамични mock бюджети
+### 2. Динамични mock бюджети (ОБНОВЕНО 14 Яну 2026)
 
 **След:**
 ```typescript
-// BudgetContext.tsx - ДИНАМИЧНИ ДАТИ ✅
-const getCurrentMonthDates = () => {
-  const now = new Date();
-  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+// BudgetContext.tsx - ДИНАМИЧНИ ДАТИ ОТ РЕГИСТРАЦИЯ ✅
+const getBudgetDatesFromUserRegistration = (userCreatedAt?: string) => {
+  // Ако има дата на регистрация, използваме месеца на регистрацията
+  // Ако няма, използваме текущия месец
+  const referenceDate = userCreatedAt ? new Date(userCreatedAt) : new Date();
+  
+  const startDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  const endDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
+  
   return {
-    startDate: startDate.toISOString().split('T')[0], // Първи ден на текущия месец
-    endDate: endDate.toISOString().split('T')[0],     // Последен ден на текущия месец
+    startDate: startDate.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0],
     createdAt: startDate.toISOString(),
   };
 };
 
-const mockBudgets = createMockBudgets(); // Винаги актуални дати
+// В loadBudgets():
+const userCreatedAt = authState.user?.createdAt;
+const userCreatedAtString = userCreatedAt ? userCreatedAt.toISOString() : undefined;
+const mockBudgets = createMockBudgets(userCreatedAtString);
 ```
 
 **Какво се променя:**
-- Mock бюджетите сега използват **текущия месец** автоматично
-- Ако е Януари 2026 → период: 01.01.2026 - 31.01.2026
-- Ако е Февруари 2026 → период: 01.02.2026 - 28.02.2026
-- Винаги актуални, не изискват ръчно обновяване
+- Mock бюджетите сега използват **месеца на регистрация** на потребителя
+- Ако потребител се регистрира на 15.01.2026 → период: 01.01.2026 - 31.01.2026
+- Ако потребител се регистрира на 05.02.2026 → период: 01.02.2026 - 28.02.2026
+- **По-логично поведение** - бюджетите покриват месеца, в който потребителят започва да използва приложението
+- Ако няма user data (fallback) → използва текущия месец
 
 ### 3. Правилни съобщения
 
@@ -136,9 +144,10 @@ Alert.alert('Успех',
 ### Файлове променени:
 
 1. **`src/utils/BudgetContext.tsx`** ✅
-   - Поправена логика за филтриране на транзакции (ред 254-265)
-   - Динамични mock бюджети с актуални дати (ред 40-125)
-   - Подобрено логване в конзолата (ред 271-279)
+   - Поправена логика за филтриране на транзакции
+   - Динамични mock бюджети с дати от регистрация на потребителя
+   - Подобрено логване в конзолата с детайли за потребителя
+   - Добавен import на `useAuth` за достъп до user данни
 
 2. **`src/screens/AddBudgetScreen.tsx`** ✅
    - Обновен Alert съобщение при създаване (ред 147-149)
@@ -198,12 +207,14 @@ Alert.alert('Успех',
 
 ### Сценарий 3: Mock бюджети при първо стартиране ✅
 
-1. Нов потребител стартира приложението
-2. Няма запазени бюджети → зареждат се mock бюджети
+1. Нов потребител се регистрира на 15.01.2026
+2. Стартира приложението за първи път
+3. Няма запазени бюджети → зареждат се mock бюджети
 
 **Резултат:**
-- ✅ Mock бюджетите имат актуални дати (текущ месец)
-- ✅ Готови да проследяват нови транзакции веднага
+- ✅ Mock бюджетите имат дати от **месеца на регистрация** (01.01.2026 - 31.01.2026)
+- ✅ Готови да проследяват транзакции от началото на месеца
+- ✅ По-логично поведение - потребителят вижда бюджети за целия месец, не само за оставащите дни
 
 ---
 
@@ -212,6 +223,14 @@ Alert.alert('Успех',
 ### Конзола logs:
 
 ```
+📊 Създаване на mock бюджети за нов потребител:
+{
+  userCreatedAt: "2026-01-15T10:30:00.000Z",
+  budgetPeriod: "2026-01-01 - 2026-01-31",
+  budgetsCount: 5,
+  userEmail: "user@example.com"
+}
+
 💰 Бюджет "Храна" обновен (за период 2026-01-01 - 2026-01-31):
 {
   period: "2026-01-01 - 2026-01-31",
