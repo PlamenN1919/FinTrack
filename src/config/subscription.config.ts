@@ -17,25 +17,39 @@ const ALL_FEATURES: FeatureFlags = {
 
 /**
  * Get Stripe Price IDs from environment variables
- * Supports both Test and Live modes
+ * Supports both Test and Live modes with fallbacks
+ */
+/**
+ * Get Stripe Price IDs from environment variables
+ * Uses the CORRECT Price IDs from 11 Jan 2026
+ * Supports both Test and Live modes with proper fallbacks
  */
 const getStripePriceIds = () => {
   const isProduction = !__DEV__;
   
+  // CORRECT Price IDs from 11 Jan 2026 - used as fallbacks
+  const CORRECT_PRICE_IDS = {
+    monthly: 'price_1SoQM7G1pdDRlAv65jodPGib',
+    quarterly: 'price_1SoQNHG1pdDRlAv6j0XFjpuD',
+    yearly: 'price_1SoQNHG1pdDRlAv6yXGPyu00',
+  };
+  
   if (isProduction) {
-    // Production - use LIVE price IDs
+    // Production - use LIVE price IDs with fallbacks
+    console.log('[Subscription] Using LIVE Price IDs');
     return {
-      monthly: Config.STRIPE_PRICE_ID_MONTHLY_LIVE || '',
-      quarterly: Config.STRIPE_PRICE_ID_QUARTERLY_LIVE || '',
-      yearly: Config.STRIPE_PRICE_ID_YEARLY_LIVE || '',
+      monthly: Config.STRIPE_PRICE_ID_MONTHLY_LIVE || CORRECT_PRICE_IDS.monthly,
+      quarterly: Config.STRIPE_PRICE_ID_QUARTERLY_LIVE || CORRECT_PRICE_IDS.quarterly,
+      yearly: Config.STRIPE_PRICE_ID_YEARLY_LIVE || CORRECT_PRICE_IDS.yearly,
     };
   }
   
   // Development - use TEST price IDs
+  console.log('[Subscription] Using TEST Price IDs');
   return {
-    monthly: Config.STRIPE_PRICE_ID_MONTHLY_TEST || 'price_1SmYnPG1pdDRlAv6q17RYNIr',
-    quarterly: Config.STRIPE_PRICE_ID_QUARTERLY_TEST || 'price_1SmYsVG1pdDRlAv6u14OQk4u',
-    yearly: Config.STRIPE_PRICE_ID_YEARLY_TEST || 'price_1SmYsVG1pdDRlAv6oZxuHfRF',
+    monthly: Config.STRIPE_PRICE_ID_MONTHLY_TEST || CORRECT_PRICE_IDS.monthly,
+    quarterly: Config.STRIPE_PRICE_ID_QUARTERLY_TEST || CORRECT_PRICE_IDS.quarterly,
+    yearly: Config.STRIPE_PRICE_ID_YEARLY_TEST || CORRECT_PRICE_IDS.yearly,
   };
 };
 

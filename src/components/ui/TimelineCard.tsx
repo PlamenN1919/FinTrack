@@ -4,7 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../utils/ThemeContext';
 
 interface TimelineStepProps {
-  icon: string;
+  icon: React.ReactNode; // Changed from string to ReactNode for icon components
   title: string;
   description: string;
   isLast?: boolean;
@@ -41,7 +41,9 @@ const TimelineStep: React.FC<TimelineStepProps & { isDark: boolean }> = ({
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Text style={styles.iconEmoji}>{icon}</Text>
+                <View style={styles.iconWrapper}>
+                  {icon}
+                </View>
               </LinearGradient>
             </View>
           </LinearGradient>
@@ -148,7 +150,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
+  iconWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   contentSection: {
     flex: 1,
     paddingTop: 8,

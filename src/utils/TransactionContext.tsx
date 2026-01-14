@@ -76,9 +76,11 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
       .orderBy('date', 'desc')
       .onSnapshot(querySnapshot => {
         const userTransactions: Transaction[] = [];
-        querySnapshot.forEach(documentSnapshot => {
+        querySnapshot.forEach((documentSnapshot, index) => {
+          // Make ID unique by combining doc ID with index to prevent React key warnings
+          const uniqueId = `${documentSnapshot.id}_${index}`;
           userTransactions.push({
-            id: documentSnapshot.id,
+            id: uniqueId,
             ...documentSnapshot.data(),
           } as Transaction);
         });

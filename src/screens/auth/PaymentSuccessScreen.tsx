@@ -45,6 +45,59 @@ const PaymentSuccessScreen: React.FC = () => {
     fullObject: subscription
   });
 
+  // CRITICAL: Save subscription to AsyncStorage IMMEDIATELY on mount
+  // This ensures subscription is saved even if user closes app before pressing button
+  useEffect(() => {
+    const saveSubscriptionImmediately = async () => {
+      try {
+        console.log('========================================');
+        console.log('[PaymentSuccessScreen] 💾 AUTO-SAVING subscription on mount...');
+        
+        if (!subscription || !subscription.id || !subscription.plan) {
+          console.log('[PaymentSuccessScreen] ⚠️ Missing subscription data, skipping auto-save');
+          return;
+        }
+        
+        if (!authState.user?.uid) {
+          console.log('[PaymentSuccessScreen] ⚠️ No user ID, skipping auto-save');
+          return;
+        }
+
+        const activeSubscription = {
+          id: subscription.id,
+          userId: subscription.userId || authState.user.uid,
+          plan: subscription.plan,
+          status: SubscriptionStatus.ACTIVE,
+          currentPeriodStart: subscription.currentPeriodStart || new Date(),
+          currentPeriodEnd: subscription.currentPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          cancelAtPeriodEnd: subscription.cancelAtPeriodEnd || false,
+          stripeCustomerId: subscription.stripeCustomerId || '',
+          stripeSubscriptionId: subscription.stripeSubscriptionId || '',
+          priceId: subscription.priceId || '',
+          amount: subscription.amount || 0,
+          currency: subscription.currency || 'EUR',
+          createdAt: subscription.createdAt || new Date(),
+          updatedAt: new Date()
+        };
+
+        console.log('[PaymentSuccessScreen] 💾 Saving subscription:', activeSubscription);
+        await setSubscription(activeSubscription);
+        console.log('[PaymentSuccessScreen] ✅ Subscription AUTO-SAVED successfully!');
+        console.log('========================================');
+        
+      } catch (error) {
+        console.error('[PaymentSuccessScreen] ❌ Failed to auto-save subscription:', error);
+      }
+    };
+
+    // Small delay to ensure component is fully mounted
+    const timer = setTimeout(() => {
+      saveSubscriptionImmediately();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [subscription, authState.user?.uid, setSubscription]);
+
   // Enhanced Animation References
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.6)).current;
@@ -235,112 +288,55 @@ const PaymentSuccessScreen: React.FC = () => {
   }, [backgroundFloat1, backgroundFloat2, buttonOpacity, buttonTranslateY, confetti1, confetti2, confetti3, confetti4, confetti5, contentOpacity, contentTranslateY, logoOpacity, logoScale, pulseAnim, successOpacity, successScale]);
 
   // Auto-navigate when user becomes ACTIVE_SUBSCRIBER
+  // NOTE: Auto-navigation removed - user must press button to continue
+  // The subscription is auto-saved on mount, so even if user closes app,
+  // they will go directly to Main App on next launch
   useEffect(() => {
     if (authState.userState === UserState.ACTIVE_SUBSCRIBER) {
-      console.log('[PaymentSuccessScreen] User is now ACTIVE_SUBSCRIBER - auto-navigating to Main App');
-      
-      // Small delay to let user see the success screen
-      const navigationTimer = setTimeout(() => {
-        console.log('[PaymentSuccessScreen] Navigating to Main App...');
-        // Navigation will happen automatically via AppNavigator
-        // AppNavigator checks userState and shows Main when ACTIVE_SUBSCRIBER
-      }, 2000);
-      
-      return () => clearTimeout(navigationTimer);
+      console.log('[PaymentSuccessScreen] ✅ User is now ACTIVE_SUBSCRIBER');
+      console.log('[PaymentSuccessScreen] Waiting for user to press "Continue" button...');
     }
-    
-    // Return empty cleanup function for other code paths
-    return () => {};
   }, [authState.userState]);
 
     const handleContinue = async () => {
     try {
-      console.log('[PaymentSuccessScreen] Starting navigation to main app...');
+      console.log('[PaymentSuccessScreen] 🚀 User pressed Continue button');
       console.log('[PaymentSuccessScreen] Current auth state:', authState.userState);
-      console.log('[PaymentSuccessScreen] Subscription data:', subscription);
       
-      // Validate required subscription fields
-      if (!subscription.id) {
-        throw new Error('Subscription ID is missing');
-      }
-      if (!subscription.plan) {
-        throw new Error('Subscription plan is missing');
-      }
-      if (!authState.user?.uid) {
-        throw new Error('User ID is missing');
-      }
+      // Subscription is already saved via auto-save on mount
+      // Just need to navigate to Main App
       
-      // Create active subscription object with validated data
-      const activeSubscription = {
-        id: subscription.id,
-        userId: subscription.userId || authState.user.uid,
-        plan: subscription.plan,
-        status: SubscriptionStatus.ACTIVE,
-        currentPeriodStart: subscription.currentPeriodStart || new Date(),
-        currentPeriodEnd: subscription.currentPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd || false,
-        stripeCustomerId: subscription.stripeCustomerId || '',
-        stripeSubscriptionId: subscription.stripeSubscriptionId || '',
-        priceId: subscription.priceId || '',
-        amount: subscription.amount || getPlanPrice(subscription.plan, getPlanPeriodForPrice()),
-        currency: subscription.currency || 'EUR',
-        createdAt: subscription.createdAt || new Date(),
-        updatedAt: new Date()
-      };
-      
-      console.log('[PaymentSuccessScreen] Setting active subscription:', activeSubscription);
-      
-      // Set subscription - this should automatically update userState to ACTIVE_SUBSCRIBER
-      await setSubscription(activeSubscription);
-      
-      console.log('[PaymentSuccessScreen] Subscription set! New auth state should be ACTIVE_SUBSCRIBER');
-      console.log('[PaymentSuccessScreen] Current userState after setSubscription:', authState.userState);
-
-      // REFERRAL SYSTEM: Check if there's a pending referral and process reward
+      // Process referral if any (non-blocking)
       try {
         const pendingReferrerId = await ReferralService.getPendingReferrerId();
-        
         if (pendingReferrerId) {
-          console.log('[PaymentSuccessScreen] Processing referral reward for referrer:', pendingReferrerId);
-          
-          // Process the referral reward
+          console.log('[PaymentSuccessScreen] Processing referral reward...');
           await ReferralService.processReferralReward(pendingReferrerId);
-          
-          // Clear the pending referrer ID
           await ReferralService.clearPendingReferrerId();
-          
-          console.log('[PaymentSuccessScreen] Referral reward processed successfully!');
-        } else {
-          console.log('[PaymentSuccessScreen] No pending referral found');
+          console.log('[PaymentSuccessScreen] Referral reward processed!');
         }
-      } catch (referralError: any) {
-        console.error('[PaymentSuccessScreen] Error processing referral:', referralError);
-        // Don't block the payment success flow if referral processing fails
-        // Just log the error
+      } catch (referralError) {
+        console.error('[PaymentSuccessScreen] Referral error (non-blocking):', referralError);
       }
       
-      // Navigation will happen automatically via useEffect when userState changes to ACTIVE_SUBSCRIBER
-      console.log('[PaymentSuccessScreen] Subscription set successfully. Waiting for state propagation...');
+      // Navigate to Main App by resetting navigation stack
+      // AppNavigator will see userState === ACTIVE_SUBSCRIBER and show Main
+      console.log('[PaymentSuccessScreen] ✅ Navigating to Main App...');
+      
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'SubscriptionPlans' as never }],
+      });
+      
+      // AppNavigator will automatically show Main because userState is ACTIVE_SUBSCRIBER
       
     } catch (error: any) {
       console.error('[PaymentSuccessScreen] Error:', error);
-      
-      // Show appropriate error message based on error type
-      const errorMessage = error.message || 'Възникна грешка при обработката на абонамента.';
-      
       Alert.alert(
         'Грешка',
-        `${errorMessage}\n\nМоля, опитайте отново или се свържете с поддръжката.`,
+        'Възникна грешка. Моля, опитайте отново.',
         [
-          { 
-            text: 'Опитай отново',
-            onPress: () => refreshAuthState()
-          },
-          {
-            text: 'Обратно към планове',
-            style: 'cancel',
-            onPress: () => navigation.navigate('SubscriptionPlans', { reason: 'payment_failed' })
-          }
+          { text: 'OK', onPress: () => refreshAuthState() }
         ]
       );
     }

@@ -12,6 +12,7 @@ import {
   Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -508,17 +509,17 @@ const WelcomeScreen: React.FC = () => {
             <TimelineCard
               steps={[
                 {
-                  icon: '📊',
+                  icon: <Icon name="chart-bar" size={28} color="#F8E3B4" />,
                   title: 'ПЛАНИРАЙ',
                   description: 'Създай цели и бюджети'
                 },
                 {
-                  icon: '👁️',
+                  icon: <Icon name="eye" size={28} color="#F8E3B4" />,
                   title: 'КОНТРОЛИРАЙ',
                   description: 'Следи разходите в реално време'
                 },
                 {
-                  icon: '📈',
+                  icon: <Icon name="trending-up" size={28} color="#F8E3B4" />,
                   title: 'РАСТЕШ',
                   description: 'Постигай целите си и спестявай'
                 }

@@ -99,49 +99,58 @@ const isSubscriptionExpired = (subscription: Subscription): boolean => {
 
 // Helper function to get correct user state based on subscription
 const getUserStateFromSubscription = (subscription: Subscription | null): UserState => {
-  console.log('[AuthContext] getUserStateFromSubscription called with:', {
-    hasSubscription: !!subscription,
-    subscriptionId: subscription?.id || 'null',
-    status: subscription?.status || 'null',
-    currentPeriodEnd: subscription?.currentPeriodEnd || 'null',
-    plan: subscription?.plan || 'null'
-  });
+  console.log('========================================');
+  console.log('[AuthContext] 🎯 getUserStateFromSubscription called');
+  console.log('[AuthContext] Has subscription?:', !!subscription);
+  
+  if (subscription) {
+    console.log('[AuthContext] 📋 Subscription Details:');
+    console.log('  - ID:', subscription.id || 'null');
+    console.log('  - Status:', subscription.status);
+    console.log('  - Plan:', subscription.plan || 'null');
+    console.log('  - Current Period End:', subscription.currentPeriodEnd);
+  }
+  console.log('========================================');
 
   if (!subscription) {
-    console.log('[AuthContext] No subscription -> REGISTERED_NO_SUBSCRIPTION');
+    console.log('[AuthContext] ❌ No subscription -> REGISTERED_NO_SUBSCRIPTION');
     return UserState.REGISTERED_NO_SUBSCRIPTION;
   }
 
   // Check if subscription has expired first (regardless of status)
   const expired = isSubscriptionExpired(subscription);
-  console.log('[AuthContext] Subscription expiration check:', {
+  console.log('[AuthContext] ⏰ Expiration check:', {
     expired,
     currentPeriodEnd: subscription.currentPeriodEnd,
     now: new Date()
   });
 
   if (expired) {
-    console.log('[AuthContext] Subscription is expired -> EXPIRED_SUBSCRIBER');
+    console.log('[AuthContext] ⚠️ Subscription is expired -> EXPIRED_SUBSCRIBER');
     return UserState.EXPIRED_SUBSCRIBER;
   }
 
   // Check actual status
-  console.log('[AuthContext] Checking subscription status:', subscription.status);
-  console.log('[AuthContext] SubscriptionStatus.ACTIVE value:', SubscriptionStatus.ACTIVE);
-  console.log('[AuthContext] Status comparison:', subscription.status === SubscriptionStatus.ACTIVE);
+  console.log('[AuthContext] 🔍 Checking subscription status:', subscription.status);
+  console.log('[AuthContext] 📌 SubscriptionStatus.ACTIVE value:', SubscriptionStatus.ACTIVE);
+  console.log('[AuthContext] ✓ Status comparison (status === ACTIVE):', subscription.status === SubscriptionStatus.ACTIVE);
 
   switch (subscription.status) {
     case SubscriptionStatus.ACTIVE:
-      console.log('[AuthContext] Status is ACTIVE -> ACTIVE_SUBSCRIBER');
+      console.log('[AuthContext] ✅ Status is ACTIVE -> ACTIVE_SUBSCRIBER');
+      console.log('========================================');
       return UserState.ACTIVE_SUBSCRIBER;
     case SubscriptionStatus.FAILED:
-      console.log('[AuthContext] Status is FAILED -> PAYMENT_FAILED');
+      console.log('[AuthContext] ❌ Status is FAILED -> PAYMENT_FAILED');
+      console.log('========================================');
       return UserState.PAYMENT_FAILED;
     case SubscriptionStatus.EXPIRED:
-      console.log('[AuthContext] Status is EXPIRED -> EXPIRED_SUBSCRIBER');
+      console.log('[AuthContext] ⚠️ Status is EXPIRED -> EXPIRED_SUBSCRIBER');
+      console.log('========================================');
       return UserState.EXPIRED_SUBSCRIBER;
     default:
-      console.log('[AuthContext] Status is OTHER (' + subscription.status + ') -> REGISTERED_NO_SUBSCRIPTION');
+      console.log('[AuthContext] ⚠️ Status is OTHER (' + subscription.status + ') -> REGISTERED_NO_SUBSCRIPTION');
+      console.log('========================================');
       return UserState.REGISTERED_NO_SUBSCRIPTION;
   }
 };
@@ -155,7 +164,12 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return { ...state, user: action.payload };
     case 'SET_SUBSCRIPTION':
       const newUserState = getUserStateFromSubscription(action.payload);
-      console.log('[AuthContext] SET_SUBSCRIPTION - updating userState to:', newUserState);
+      console.log('========================================');
+      console.log('[AuthContext] 🔄 SET_SUBSCRIPTION ACTION');
+      console.log('[AuthContext] Previous userState:', state.userState);
+      console.log('[AuthContext] New userState:', newUserState);
+      console.log('[AuthContext] Subscription:', action.payload?.status || 'null');
+      console.log('========================================');
       return { 
         ...state, 
         subscription: action.payload,
@@ -343,9 +357,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Load persisted state
   const loadPersistedState = useCallback(async () => {
     try {
+      console.log('========================================');
+      console.log('[AuthContext] 📦 Loading persisted state from AsyncStorage...');
+      
       // Check if AsyncStorage is available
       if (!AsyncStorageWrapper || typeof AsyncStorageWrapper.getItem !== 'function') {
-        console.log('[AuthContext] AsyncStorage not available');
+        console.log('[AuthContext] ❌ AsyncStorage not available');
+        console.log('========================================');
         return { user: null, subscription: null };
       }
 
@@ -354,25 +372,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         AsyncStorageWrapper.getItem(STORAGE_KEYS.SUBSCRIPTION),
       ]);
 
+      console.log('[AuthContext] AsyncStorage User:', userJson ? '✅ Found' : '❌ Not found');
+      console.log('[AuthContext] AsyncStorage Subscription:', subscriptionJson ? '✅ Found' : '❌ Not found');
+
       const user = userJson ? JSON.parse(userJson) : null;
       const subscription = subscriptionJson ? JSON.parse(subscriptionJson) : null;
 
       if (user) {
+        console.log('[AuthContext] 👤 Persisted User:');
+        console.log('  - UID:', user.uid);
+        console.log('  - Email:', user.email);
+        
         // Convert date strings back to Date objects
         user.createdAt = new Date(user.createdAt);
         user.lastLoginAt = new Date(user.lastLoginAt);
       }
 
       if (subscription) {
+        console.log('[AuthContext] 💳 Persisted Subscription:');
+        console.log('  - Status:', subscription.status);
+        console.log('  - Plan:', subscription.plan || subscription.planId || 'null');
+        console.log('  - End Date (raw):', subscription.currentPeriodEnd);
+        
         subscription.currentPeriodStart = new Date(subscription.currentPeriodStart);
         subscription.currentPeriodEnd = new Date(subscription.currentPeriodEnd);
         subscription.createdAt = new Date(subscription.createdAt);
         subscription.updatedAt = new Date(subscription.updatedAt);
+        
+        console.log('  - End Date (parsed):', subscription.currentPeriodEnd);
+        console.log('  - Is Expired?:', new Date() > subscription.currentPeriodEnd);
       }
 
+      console.log('========================================');
       return { user, subscription };
     } catch (error) {
-      console.error('Failed to load persisted state:', error);
+      console.error('[AuthContext] ❌ Failed to load persisted state:', error);
+      console.log('========================================');
       return { user: null, subscription: null };
     }
   }, []);
@@ -410,7 +445,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         if (firebaseUser) {
           // User is signed in
-          console.log('[AuthContext] Firebase user signed in:', firebaseUser.uid);
+          console.log('========================================');
+          console.log('[AuthContext] 🔐 Firebase user signed in:', firebaseUser.uid);
+          console.log('[AuthContext] 📧 Email:', firebaseUser.email);
+          console.log('========================================');
+          
           const user = mapFirebaseUser(firebaseUser);
           dispatch({ type: 'SET_USER', payload: user });
 
@@ -424,14 +463,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await setUserProperty('provider', user.provider);
 
           // Fetch subscription from Firestore
+          console.log('[AuthContext] 🔍 Fetching subscription from Firestore...');
           const subscriptionDoc = await db().collection('subscriptions').doc(user.uid).get();
+          
           if (subscriptionDoc.exists()) {
             const subData = subscriptionDoc.data() as Subscription;
+            console.log('========================================');
+            console.log('[AuthContext] ✅ SUBSCRIPTION FOUND in Firestore!');
+            console.log('[AuthContext] 📋 Status:', subData.status);
+            console.log('[AuthContext] 💳 Plan:', subData.plan);
+            console.log('[AuthContext] 📅 Current Period End:', subData.currentPeriodEnd);
+            console.log('[AuthContext] 🆔 Stripe Sub ID:', subData.stripeSubscriptionId);
+            console.log('========================================');
+            
             // Convert Firestore Timestamps to JS Dates
             subData.currentPeriodStart = (subData.currentPeriodStart as any).toDate();
             subData.currentPeriodEnd = (subData.currentPeriodEnd as any).toDate();
             subData.createdAt = (subData.createdAt as any).toDate();
             subData.updatedAt = (subData.updatedAt as any).toDate();
+            
+            console.log('[AuthContext] 📅 Converted End Date:', subData.currentPeriodEnd);
+            console.log('[AuthContext] 📅 Now:', new Date());
+            console.log('[AuthContext] ⏰ Is Expired?:', new Date() > subData.currentPeriodEnd);
+            
             dispatch({ type: 'SET_SUBSCRIPTION', payload: subData });
             await persistState(user, subData);
             
@@ -441,12 +495,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await setUserProperty('subscription_status', subData.status);
             await setUserProperty('subscription_plan', subData.plan || 'unknown');
           } else {
-            dispatch({ type: 'SET_SUBSCRIPTION', payload: null });
-            await persistState(user, null);
+            console.log('========================================');
+            console.log('[AuthContext] ⚠️ NO SUBSCRIPTION in Firestore, checking AsyncStorage...');
+            console.log('[AuthContext] User ID:', user.uid);
             
-            // Set no subscription attributes
-            setCrashlyticsAttribute('subscription_status', 'none');
-            await setUserProperty('subscription_status', 'none');
+            // Try to load from AsyncStorage (fallback for when webhook hasn't synced yet)
+            const { subscription: cachedSubscription } = await loadPersistedState();
+            
+            if (cachedSubscription && cachedSubscription.status === 'active') {
+              console.log('[AuthContext] ✅ FOUND CACHED SUBSCRIPTION in AsyncStorage!');
+              console.log('[AuthContext] 📋 Cached Status:', cachedSubscription.status);
+              console.log('[AuthContext] 💳 Cached Plan:', cachedSubscription.plan);
+              console.log('[AuthContext] 📅 Cached End Date:', cachedSubscription.currentPeriodEnd);
+              
+              // Check if cached subscription is still valid (not expired)
+              const now = new Date();
+              const endDate = new Date(cachedSubscription.currentPeriodEnd);
+              const isExpired = now > endDate;
+              
+              console.log('[AuthContext] ⏰ Cached subscription expired?:', isExpired);
+              
+              if (!isExpired) {
+                console.log('[AuthContext] ✅ Using cached subscription (still valid)');
+                dispatch({ type: 'SET_SUBSCRIPTION', payload: cachedSubscription });
+                
+                // Set subscription attributes for tracking
+                setCrashlyticsAttribute('subscription_status', cachedSubscription.status);
+                setCrashlyticsAttribute('subscription_plan', cachedSubscription.plan || 'unknown');
+                await setUserProperty('subscription_status', cachedSubscription.status);
+                await setUserProperty('subscription_plan', cachedSubscription.plan || 'unknown');
+              } else {
+                console.log('[AuthContext] ⚠️ Cached subscription has expired');
+                dispatch({ type: 'SET_SUBSCRIPTION', payload: null });
+                await persistState(user, null);
+                setCrashlyticsAttribute('subscription_status', 'expired');
+                await setUserProperty('subscription_status', 'expired');
+              }
+            } else {
+              console.log('[AuthContext] ❌ NO SUBSCRIPTION FOUND anywhere');
+              console.log('========================================');
+              
+              dispatch({ type: 'SET_SUBSCRIPTION', payload: null });
+              await persistState(user, null);
+              
+              // Set no subscription attributes
+              setCrashlyticsAttribute('subscription_status', 'none');
+              await setUserProperty('subscription_status', 'none');
+            }
+            console.log('========================================');
           }
         } else {
           // User is signed out
@@ -476,8 +572,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return subscriber;
   }, [initializeServices, loadPersistedState, persistState]);
 
-  // Update user state when user or subscription changes
+  // Update user state when user changes (but NOT on every subscription change)
+  // Subscription changes are handled by SET_SUBSCRIPTION action in reducer
+  // This useEffect only handles user logout/login state changes
   useEffect(() => {
+    // Only update userState when user changes (login/logout)
+    // Skip if we're still loading or not initialized
+    if (state.isLoading || !state.isInitialized) {
+      console.log('[AuthContext] Skipping userState update - still loading or not initialized');
+      return;
+    }
+
     console.log('[AuthContext] useEffect triggered for UserState update:', {
       currentUserState: state.userState,
       hasUser: !!state.user,
@@ -487,15 +592,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading: state.isLoading,
     });
     
-    const newUserState = determineUserState(state.user, state.subscription);
-    if (newUserState !== state.userState) {
-      console.log('[AuthContext] User state changing from', state.userState, 'to', newUserState);
-      dispatch({ type: 'SET_USER_STATE', payload: newUserState });
-      console.log('[AuthContext] User state changed to:', newUserState);
-    } else {
-      console.log('[AuthContext] User state remains:', state.userState);
+    // If user logged out, set to UNREGISTERED
+    if (!state.user && state.userState !== UserState.UNREGISTERED) {
+      console.log('[AuthContext] User logged out - setting to UNREGISTERED');
+      dispatch({ type: 'SET_USER_STATE', payload: UserState.UNREGISTERED });
+      return;
     }
-  }, [state.user, state.subscription, state.userState]);
+    
+    // If user logged in but we haven't determined final state yet, wait for subscription
+    // The SET_SUBSCRIPTION action will handle setting the correct userState
+  }, [state.user, state.isLoading, state.isInitialized, state.userState, state.subscription]);
 
   // --- REAL AUTHENTICATION METHODS ---
   const signInWithEmail = useCallback(async (credentials: LoginCredentials): Promise<User> => {
@@ -752,19 +858,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setSubscription = useCallback(async (subscription: Subscription): Promise<void> => {
     try {
-      console.log('[AuthContext] Setting subscription:', subscription);
-      console.log('[AuthContext] Current state before setting subscription:', { 
-        user: state.user?.uid, 
-        currentSubscription: state.subscription?.status,
-        userState: state.userState 
-      });
+      console.log('========================================');
+      console.log('[AuthContext] 💾 setSubscription CALLED!');
+      console.log('[AuthContext] Subscription to save:', JSON.stringify(subscription, null, 2));
+      console.log('[AuthContext] Current user:', state.user?.uid || 'null');
+      console.log('[AuthContext] Current userState:', state.userState);
+      console.log('========================================');
       
       dispatch({ type: 'SET_SUBSCRIPTION', payload: subscription });
-      await persistState(state.user, subscription);
       
-      console.log('[AuthContext] Subscription set successfully');
+      console.log('[AuthContext] 💾 Saving to AsyncStorage...');
+      await persistState(state.user, subscription);
+      console.log('[AuthContext] ✅ Subscription saved to AsyncStorage!');
+      
+      console.log('[AuthContext] ✅ setSubscription completed successfully!');
+      console.log('========================================');
     } catch (error: any) {
-      console.error('[AuthContext] Failed to set subscription:', error);
+      console.error('[AuthContext] ❌ Failed to set subscription:', error);
       const authError = createAuthError(
         AuthErrorCode.UNKNOWN_ERROR,
         'Failed to set subscription'
@@ -772,7 +882,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: 'SET_ERROR', payload: authError });
       throw authError;
     }
-  }, [state.user, persistState]);
+  }, [state.user, state.userState, persistState]);
 
   const updateProfile = useCallback(async (updates: Partial<User>): Promise<void> => {
     throw createAuthError(AuthErrorCode.UNKNOWN_ERROR, 'Profile update not implemented yet');

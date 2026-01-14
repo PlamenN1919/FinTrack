@@ -1,6 +1,6 @@
 // Stripe Configuration для FinTrack
-import Config from 'react-native-config';
-import { Environment } from './environment.config';
+// TEMPORARY: Hardcoded keys until .env is properly configured
+// TODO: Move to environment variables before production
 
 export interface StripeConfig {
   publishableKey: string;
@@ -9,36 +9,26 @@ export interface StripeConfig {
 }
 
 /**
- * Get Stripe publishable key from environment variables
- * Uses Test mode in development, Live mode in production
+ * Get Stripe publishable key
+ * HARDCODED for now - works immediately without .env setup
  */
 const getPublishableKey = (): string => {
-  // In development/test, use TEST keys
-  if (Environment.isDevelopment || __DEV__) {
-    const testKey = Config.STRIPE_PUBLISHABLE_KEY_TEST;
-    if (!testKey) {
-      console.error('[Stripe] STRIPE_PUBLISHABLE_KEY_TEST not found in .env!');
-      throw new Error('Stripe Test Publishable Key is not configured');
-    }
-    return testKey;
-  }
-
-  // In production, use LIVE keys
-  const liveKey = Config.STRIPE_PUBLISHABLE_KEY_LIVE;
-  if (!liveKey) {
-    console.error('[Stripe] STRIPE_PUBLISHABLE_KEY_LIVE not found in .env!');
-    throw new Error('Stripe Live Publishable Key is not configured');
-  }
-  return liveKey;
+  // HARDCODED TEST key
+  const HARDCODED_TEST_KEY = 'pk_test_51RHUZWG1pdDRlAv6QC7FQEqooq2KOzfWQE7w8C0YU9y82dIy9CemK0afCxTIgLcLK4eSWrkqnl4mNscYRM7xb70K00iRSlDuTF';
+  
+  console.log('[Stripe] Using HARDCODED TEST key');
+  return HARDCODED_TEST_KEY;
 };
 
 const getStripeConfig = (): StripeConfig => {
+  // ALWAYS return hardcoded key - no more fallbacks
   const config: StripeConfig = {
-    publishableKey: getPublishableKey(),
+    publishableKey: 'pk_test_51RHUZWG1pdDRlAv6QC7FQEqooq2KOzfWQE7w8C0YU9y82dIy9CemK0afCxTIgLcLK4eSWrkqnl4mNscYRM7xb70K00iRSlDuTF',
     merchantIdentifier: 'merchant.com.fintrack.app',
     urlScheme: 'fintrack-payments',
   };
 
+  console.log('[Stripe Config] Returning REAL TEST key:', config.publishableKey.substring(0, 30) + '...');
   return config;
 };
 

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { initStripe, StripeProvider } from '@stripe/stripe-react-native';
-import { stripeConfig } from '../config/stripe.config';
 
 interface StripeContextType {
   isInitialized: boolean;
@@ -16,22 +15,28 @@ interface StripeContextProviderProps {
   children: React.ReactNode;
 }
 
+// HARDCODED Stripe TEST publishable key
+// TODO: Move to environment variable before production
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51RHUZWG1pdDRlAv6QC7FQEqooq2KOzfWQE7w8C0YU9y82dIy9CemK0afCxTIgLcLK4eSWrkqnl4mNscYRM7xb70K00iRSlDuTF';
+
 export const StripeContextProvider: React.FC<StripeContextProviderProps> = ({ children }) => {
+  console.log('[StripeContext] StripeContextProvider component rendering...');
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('[StripeContext] useEffect triggered - starting initialization...');
     const initializeStripe = async () => {
       try {
-        console.log('[Stripe] Initializing with key:', stripeConfig.publishableKey.substring(0, 30) + '...');
+        console.log('[Stripe] Initializing with key:', STRIPE_PUBLISHABLE_KEY.substring(0, 30) + '...');
         await initStripe({
-          publishableKey: stripeConfig.publishableKey,
-          merchantIdentifier: stripeConfig.merchantIdentifier,
-          urlScheme: stripeConfig.urlScheme,
+          publishableKey: STRIPE_PUBLISHABLE_KEY,
+          merchantIdentifier: 'merchant.com.fintrack.app',
+          urlScheme: 'fintrack-payments',
         });
         
         setIsInitialized(true);
-        console.log('[Stripe] Successfully initialized with key ending:', stripeConfig.publishableKey.slice(-10));
+        console.log('[Stripe] Successfully initialized!');
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown Stripe initialization error';
         setError(errorMessage);
@@ -45,9 +50,9 @@ export const StripeContextProvider: React.FC<StripeContextProviderProps> = ({ ch
   return (
     <StripeContext.Provider value={{ isInitialized, error }}>
       <StripeProvider
-        publishableKey={stripeConfig.publishableKey}
-        merchantIdentifier={stripeConfig.merchantIdentifier}
-        urlScheme={stripeConfig.urlScheme}
+        publishableKey={STRIPE_PUBLISHABLE_KEY}
+        merchantIdentifier="merchant.com.fintrack.app"
+        urlScheme="fintrack-payments"
       >
         {children as React.ReactElement}
       </StripeProvider>
