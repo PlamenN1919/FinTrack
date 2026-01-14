@@ -48,6 +48,7 @@
 - **QR Scanner черен екран** - сменена библиотека от deprecated `react-native-camera` към `react-native-camera-kit` (6 Яну 2026)
 - **Stripe цени миграция** - създадени нови EUR Stripe subscriptions и обновени всички Price IDs (6 Яну 2026)
 - **BGN валута грешка** - поправен остатъчен BGN fallback в Firebase Functions (11 Яну 2026)
+- **Budget tracking проблем** - поправена логика за филтриране на транзакции по период вместо по createdAt, динамични mock бюджети (14 Яну 2026)
 
 ## Текущ статус
 🎉 **ПЪЛНИЯТ PAYMENT FLOW РАБОТИ + ОПТИМИЗИРАНА НАВИГАЦИЯ + REFERRAL + QR SCANNER + ИНТЕЛИГЕНТНИ ПРЕДВИЖДАНИЯ + EUR ЦЕНИ** - Всички основни проблеми са решени:

@@ -37,89 +37,107 @@ interface BudgetContextType {
 // Създаване на контекста
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
 
-// Примерни данни за бюджети
-const mockBudgets: Budget[] = [
-  {
-    id: '1',
-    category: 'Храна',
-    budget: 500,
-    spent: 0, // Ще се изчислява динамично
-    period: 'monthly',
-    contextualRules: [
-      { type: 'seasonal', description: 'Увеличение с 20% през декември' },
-      { type: 'compensatory', description: 'Намаление с 10% при превишаване на забавления' }
-    ],
-    isActive: true,
-    color: '#FF6B6B',
-    icon: '🍕',
-    createdAt: '2024-05-01T00:00:00.000Z',
-    startDate: '2024-05-01',
-    endDate: '2024-05-31',
-  },
-  {
-    id: '2',
-    category: 'Транспорт',
-    budget: 200,
-    spent: 0, // Ще се изчислява динамично
-    period: 'monthly',
-    contextualRules: [
-      { type: 'weather', description: 'Увеличение с 15% при лошо време' }
-    ],
-    isActive: true,
-    color: '#4ECDC4',
-    icon: '🚗',
-    createdAt: '2024-05-01T00:00:00.000Z',
-    startDate: '2024-05-01',
-    endDate: '2024-05-31',
-  },
-  {
-    id: '3',
-    category: 'Забавления',
-    budget: 150,
-    spent: 0, // Ще се изчислява динамично
-    period: 'monthly',
-    contextualRules: [
-      { type: 'social', description: 'Увеличение с 30% в уикендите' },
-      { type: 'emotional', description: 'Намаление с 25% при стрес' }
-    ],
-    isActive: true,
-    color: '#45B7D1',
-    icon: '🎬',
-    createdAt: '2024-05-01T00:00:00.000Z',
-    startDate: '2024-05-01',
-    endDate: '2024-05-31',
-  },
-  {
-    id: '4',
-    category: 'Битови',
-    budget: 350,
-    spent: 0, // Ще се изчислява динамично
-    period: 'monthly',
-    contextualRules: [
-      { type: 'seasonal', description: 'Увеличение с 40% през зимата' }
-    ],
-    isActive: true,
-    color: '#96CEB4',
-    icon: '🏠',
-    createdAt: '2024-05-01T00:00:00.000Z',
-    startDate: '2024-05-01',
-    endDate: '2024-05-31',
-  },
-  {
-    id: '5',
-    category: 'Здраве',
-    budget: 100,
-    spent: 0, // Ще се изчислява динамично
-    period: 'monthly',
-    contextualRules: [],
-    isActive: true,
-    color: '#FFEAA7',
-    icon: '🏥',
-    createdAt: '2024-05-01T00:00:00.000Z',
-    startDate: '2024-05-01',
-    endDate: '2024-05-31',
-  },
-];
+// Функция за генериране на дати за текущия месец
+const getCurrentMonthDates = () => {
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    startDate: startDate.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0],
+    createdAt: startDate.toISOString(),
+  };
+};
+
+// Примерни данни за бюджети - ДИНАМИЧНИ ДАТИ
+const createMockBudgets = (): Budget[] => {
+  const dates = getCurrentMonthDates();
+  
+  return [
+    {
+      id: '1',
+      category: 'Храна',
+      budget: 500,
+      spent: 0, // Ще се изчислява динамично
+      period: 'monthly',
+      contextualRules: [
+        { type: 'seasonal', description: 'Увеличение с 20% през декември' },
+        { type: 'compensatory', description: 'Намаление с 10% при превишаване на забавления' }
+      ],
+      isActive: true,
+      color: '#FF6B6B',
+      icon: '🍕',
+      createdAt: dates.createdAt,
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+    },
+    {
+      id: '2',
+      category: 'Транспорт',
+      budget: 200,
+      spent: 0, // Ще се изчислява динамично
+      period: 'monthly',
+      contextualRules: [
+        { type: 'weather', description: 'Увеличение с 15% при лошо време' }
+      ],
+      isActive: true,
+      color: '#4ECDC4',
+      icon: '🚗',
+      createdAt: dates.createdAt,
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+    },
+    {
+      id: '3',
+      category: 'Забавления',
+      budget: 150,
+      spent: 0, // Ще се изчислява динамично
+      period: 'monthly',
+      contextualRules: [
+        { type: 'social', description: 'Увеличение с 30% в уикендите' },
+        { type: 'emotional', description: 'Намаление с 25% при стрес' }
+      ],
+      isActive: true,
+      color: '#45B7D1',
+      icon: '🎬',
+      createdAt: dates.createdAt,
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+    },
+    {
+      id: '4',
+      category: 'Битови',
+      budget: 350,
+      spent: 0, // Ще се изчислява динамично
+      period: 'monthly',
+      contextualRules: [
+        { type: 'seasonal', description: 'Увеличение с 40% през зимата' }
+      ],
+      isActive: true,
+      color: '#96CEB4',
+      icon: '🏠',
+      createdAt: dates.createdAt,
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+    },
+    {
+      id: '5',
+      category: 'Здраве',
+      budget: 100,
+      spent: 0, // Ще се изчислява динамично
+      period: 'monthly',
+      contextualRules: [],
+      isActive: true,
+      color: '#FFEAA7',
+      icon: '🏥',
+      createdAt: dates.createdAt,
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+    },
+  ];
+};
+
+const mockBudgets = createMockBudgets();
 
 // Provider компонент
 export const BudgetProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -247,17 +265,18 @@ const BudgetCalculationsWrapper: React.FC<{ children: ReactNode }> = ({ children
     // Обновяване на всеки бюджет с реални данни
     budgets.forEach(budget => {
       if (budget.isActive) {
-        // Дата на създаване на бюджета
-        const budgetCreatedDate = new Date(budget.createdAt);
+        // Начало и край на периода на бюджета
+        const budgetStartDate = new Date(budget.startDate);
+        const budgetEndDate = new Date(budget.endDate);
         
-        // Филтриране на транзакциите само за тези направени СЛЕД създаването на бюджета
+        // Филтриране на транзакциите по период на бюджета (startDate до endDate)
         const relevantTransactions = transactions.filter(transaction => {
           const transactionDate = new Date(transaction.date);
-          const transactionCreatedDate = new Date(transaction.createdAt);
+          const isInPeriod = transactionDate >= budgetStartDate && transactionDate <= budgetEndDate;
+          const isExpense = transaction.amount < 0;
+          const matchesCategory = transaction.category === budget.category;
           
-          return transaction.category === budget.category && 
-                 transaction.amount < 0 && // Само разходи
-                 transactionCreatedDate >= budgetCreatedDate; // Само транзакции след създаване на бюджета
+          return matchesCategory && isExpense && isInPeriod;
         });
 
         // Изчисляване на изразходваните средства за тази категория
@@ -268,8 +287,8 @@ const BudgetCalculationsWrapper: React.FC<{ children: ReactNode }> = ({ children
         if (budget.spent !== categorySpent) {
           updateBudget(budget.id, { spent: categorySpent });
           
-          console.log(`💰 Бюджет "${budget.category}" обновен (само транзакции след създаване):`, {
-            budgetCreated: budget.createdAt,
+          console.log(`💰 Бюджет "${budget.category}" обновен (за период ${budget.startDate} - ${budget.endDate}):`, {
+            period: `${budget.startDate} - ${budget.endDate}`,
             budget: budget.budget,
             spent: categorySpent,
             remaining: budget.budget - categorySpent,

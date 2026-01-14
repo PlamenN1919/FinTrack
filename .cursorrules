@@ -245,6 +245,7 @@ firebase deploy --only functions
 - ✅ **QR Scanner Black Screen (FINAL FIX)**: Removed ALL conflicting camera libraries - only camera-kit remains (6 Яну 2026 вечер)
 - ✅ **Stripe Prices Migration**: Migrated from BGN to EUR with new Price IDs (6 Яну 2026)
 - ✅ **BGN Currency Error**: Fixed residual BGN fallback in Firebase Functions - changed to EUR (11 Яну 2026)
+- ✅ **Budget Tracking Not Working**: Fixed transaction filtering logic to use budget period (startDate-endDate) instead of createdAt, updated mock budgets to use current month (14 Яну 2026)
 
 ## Testing Patterns
 
