@@ -80,8 +80,8 @@ const developmentConfig: EnvironmentConfig = {
     },
   },
   stripe: {
-    publishableKey: 'pk_test_your_test_key_here',
-    merchantIdentifier: 'merchant.com.fintrack.dev',
+    publishableKey: 'pk_live_51RHUZWG1pdDRlAv6QmXDa9GYBXlCxLZo1XFbXQYRJhs98fzMbkxGgIBkHX7FyXp1jOEZuGmTGmqmREA2siiVajcj00KVZbWE63',
+    merchantIdentifier: 'merchant.com.fintrack.app',
   },
   googleSignIn: {
     webClientId: 'your-web-client-id.googleusercontent.com',
@@ -121,8 +121,8 @@ const productionConfig: EnvironmentConfig = {
     },
   },
   stripe: {
-    publishableKey: 'pk_live_your_live_key_here',
-    merchantIdentifier: 'merchant.com.fintrack',
+    publishableKey: 'pk_live_51RHUZWG1pdDRlAv6QmXDa9GYBXlCxLZo1XFbXQYRJhs98fzMbkxGgIBkHX7FyXp1jOEZuGmTGmqmREA2siiVajcj00KVZbWE63',
+    merchantIdentifier: 'merchant.com.fintrack.app',
   },
   googleSignIn: {
     webClientId: 'your-prod-web-client-id.googleusercontent.com',

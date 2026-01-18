@@ -169,6 +169,7 @@ const SimpleAnimatedCard: React.FC<SimpleAnimatedCardProps> = ({
       onPressOut={handlePressOut}
       disabled={disabled}
       activeOpacity={1}
+      needsOffscreenAlphaCompositing={true}
       style={[
         getVariantStyle(),
         {

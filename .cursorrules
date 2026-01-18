@@ -229,8 +229,57 @@ firebase deploy --only functions
 9. **Price Display Logic**: Always support both field names for backward compatibility
 10. **Referral Functions Auth**: ALL service methods calling Firebase Functions MUST validate auth token first
 
+## Gamification Streak Patterns ✅ НОВО (17 Яну 2026)
+
+**Date Utilities - ALWAYS use for consistent date handling:**
+```typescript
+// ✅ CORRECT - Use date utilities from src/utils/dateUtils.ts
+import {
+  getTodayDateString,       // Returns "YYYY-MM-DD"
+  getDaysDifference,        // Calculates days between dates
+  isSameDay,                // Checks if two dates are same day
+  isToday,                  // Checks if date is today
+  normalizeDateToStartOfDay // Normalizes date to 00:00:00.000
+} from '../utils/dateUtils';
+
+const today = getTodayDateString(); // "2026-01-17"
+
+// ❌ WRONG - Unreliable, timezone issues
+const today = new Date().toDateString(); // "Fri Jan 17 2026"
+```
+
+**Streak Update Pattern - CRITICAL:**
+```typescript
+// ✅ CORRECT - Update streak AFTER adding transaction
+await addTransaction(transactionData);
+
+const streakResult = gamificationService.updateStreakForTransaction(transactionData.date);
+
+if (streakResult.isContinued && streakResult.isFirstOfDay) {
+  showGamificationNotification(`🔥 Streak продължава! ${streakResult.streakDays} дни`, ...);
+}
+
+// ❌ WRONG - Don't call checkDailyStreak() manually
+gamificationService.checkDailyStreak(); // This is only for app startup
+```
+
+**Streak Rules:**
+1. Streak увеличава САМО при първа транзакция за деня
+2. Consecutive days (следващ ден) → streak += 1
+3. Gap от 2+ дни → streak reset на 1
+4. Backdated транзакции НЕ променят streak
+5. Множество транзакции на един ден → streak остава същия
+6. Всеки 7 дни consecutive → +25 XP bonus
+
+**lastActiveDate Format:**
+- Винаги ISO format: "YYYY-MM-DD"
+- НЕ използвай `toDateString()` или други формати
+- Валидирай с `isValidISODateString()` преди употреба
+
 ## Known Issues Fixed
 
+- ✅ **Subscription Not Saving Bug (CRITICAL)**: Fixed Firebase Functions to properly save subscriptions to Firestore - createStripeSubscription now saves directly to Firestore + new confirmSubscriptionPayment function updates status to 'active' after payment + PaymentSuccessScreen calls both (18 Яну 2026)
+- ✅ **Login Navigation Bug (CRITICAL)**: Fixed race condition in AuthContext reducer - SET_USER now sets userState to REGISTERED_NO_SUBSCRIPTION immediately (16 Яну 2026)
 - ✅ Firebase SDK conflict in StripeService.ts resolved
 - ✅ Stripe secret key configuration corrected (was using publishable key)
 - ✅ Functions v1/v2 deployment conflicts resolved
@@ -246,6 +295,7 @@ firebase deploy --only functions
 - ✅ **Stripe Prices Migration**: Migrated from BGN to EUR with new Price IDs (6 Яну 2026)
 - ✅ **BGN Currency Error**: Fixed residual BGN fallback in Firebase Functions - changed to EUR (11 Яну 2026)
 - ✅ **Budget Tracking Not Working**: Fixed transaction filtering logic to use budget period (startDate-endDate) instead of createdAt, updated mock budgets to use current month (14 Яну 2026)
+- ✅ **Streak Logic Broken**: Complete refactor with proper date handling, transaction-based streak, comprehensive tests (17 Яну 2026)
 
 ## Testing Patterns
 
@@ -378,12 +428,14 @@ const validateQRData = (qrData: string): boolean => {
 
 ## Referral System Patterns ⚠️ CRITICAL
 
-**⚠️ СТАТУС: ВРЕМЕННО СКРИТА (9 Яну 2026)**
-Referral функционалността е скрита от UI, но backend логиката е активна:
-- `ReferralCard` компонент е коментиран в `ProfileScreen.tsx`
-- `ReferralScreen` остава в навигацията, но няма визуален достъп
+**⚠️ СТАТУС: ВРЕМЕННО ЗАКЛЮЧЕНА (16 Яну 2026)**
+Referral функционалността ("Покани приятел") е временно заключена с визуален overlay:
+- `isLocked` state контролира достъпа в `ReferralCard.tsx`
+- Показва замъглен екран с текст "Очаквайте скоро..."
+- Бутонът "Сподели линк" е деактивиран и показва "🔒 Заключено"
+- Alert съобщение при опит за използване: "Покани приятел скоро ще бъде достъпна"
 - Backend: `ReferralService`, Firebase Functions работят нормално
-- За активиране: премахни коментарите в `ProfileScreen.tsx`
+- За активиране: промени `const [isLocked] = useState(true)` на `useState(false)` в `ReferralCard.tsx`
 
 **Complete Referral Flow Implementation:**
 

@@ -60,11 +60,11 @@ const getOrCreateCustomer = async (userId: string, email: string | undefined) =>
 
 // Helper function to get plan ID from Stripe price ID
 const getPlanIdFromPriceId = (priceId: string): string => {
-  // Map Stripe price IDs to plan IDs (TEST mode EUR prices - 11 Jan 2026)
+  // Map Stripe price IDs to plan IDs (LIVE mode EUR prices - 18 Jan 2026)
   const priceIdToPlanId: Record<string, string> = {
-    'price_1SoQM7G1pdDRlAv65jodPGib': 'monthly',
-    'price_1SoQNHG1pdDRlAv6j0XFjpuD': 'quarterly', 
-    'price_1SoQNHG1pdDRlAv6yXGPyu00': 'yearly',
+    'price_1SmYnPG1pdDRlAv6q17RYNIr': 'monthly',
+    'price_1SmYsVG1pdDRlAv6u14OQk4u': 'quarterly', 
+    'price_1SmYsVG1pdDRlAv6oZxuHfRF': 'yearly',
   };
   
   const planId = priceIdToPlanId[priceId];
@@ -184,15 +184,34 @@ const handleInvoicePaymentSucceeded = async (invoice: Stripe.Invoice) => {
     const userId = await getUserIdFromCustomerId(subscription.customer as string);
     
     if (userId) {
-      // Update subscription status to active
-      await admin.firestore().collection('subscriptions').doc(userId).update({
+      // Get planId from price
+      let planId = 'monthly'; // default
+      try {
+        planId = getPlanIdFromPriceId(subscription.items.data[0].price.id);
+      } catch (e) {
+        logger.warn(`Could not determine planId from price, using default: monthly`);
+      }
+      
+      // Use SET with merge to create OR update subscription document
+      // This ensures the subscription is saved even if customer.subscription.created webhook wasn't received
+      await admin.firestore().collection('subscriptions').doc(userId).set({
+        id: subscription.id,
+        userId: userId,
+        plan: planId,
         status: 'active',
+        stripeCustomerId: subscription.customer,
+        stripeSubscriptionId: subscription.id,
+        priceId: subscription.items.data[0].price.id,
+        amount: subscription.items.data[0].price.unit_amount! / 100,
+        currency: subscription.currency.toUpperCase(),
         currentPeriodStart: admin.firestore.Timestamp.fromDate(new Date((subscription as any).current_period_start * 1000)),
         currentPeriodEnd: admin.firestore.Timestamp.fromDate(new Date((subscription as any).current_period_end * 1000)),
+        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end || false,
+        createdAt: admin.firestore.Timestamp.now(),
         updatedAt: admin.firestore.Timestamp.now(),
-      });
+      }, { merge: true });
       
-      logger.info(`Successfully updated subscription to active for user ${userId}`);
+      logger.info(`Successfully created/updated subscription to active for user ${userId}`);
     }
   }
 };
@@ -206,11 +225,13 @@ const handleInvoicePaymentFailed = async (invoice: Stripe.Invoice) => {
     const userId = await getUserIdFromCustomerId(subscription.customer as string);
     
     if (userId) {
-      // Update subscription status to failed
-      await admin.firestore().collection('subscriptions').doc(userId).update({
+      // Use SET with merge to create OR update subscription document with failed status
+      await admin.firestore().collection('subscriptions').doc(userId).set({
+        userId: userId,
         status: 'failed',
+        stripeSubscriptionId: subscription.id,
         updatedAt: admin.firestore.Timestamp.now(),
-      });
+      }, { merge: true });
       
       logger.info(`Successfully updated subscription to failed for user ${userId}`);
     }
@@ -591,22 +612,18 @@ export const createStripeSubscription = functions.https.onCall(async (data, cont
 
     logger.info(`PlanId validation passed: ${planId}`);
 
-    // Get user's Stripe customer ID
-    const userDoc = await admin.firestore().collection('users').doc(userId).get();
-    if (!userDoc.exists) {
-      logger.error(`User document not found for userId: ${userId}`);
-      throw new functions.https.HttpsError('not-found', 'User not found.');
-    }
-
-    const userData = userDoc.data();
-    const stripeCustomerId = userData?.stripeCustomerId;
+    // Get user email for customer creation
+    const userEmail = context.auth?.token?.email;
+    
+    // Get or create Stripe customer ID (this ensures the customer exists)
+    const stripeCustomerId = await getOrCreateCustomer(userId, userEmail);
     
     if (!stripeCustomerId) {
-      logger.error(`User ${userId} does not have a Stripe customer ID`);
-      throw new functions.https.HttpsError('failed-precondition', 'User does not have a Stripe customer ID.');
+      logger.error(`Failed to get or create Stripe customer for user ${userId}`);
+      throw new functions.https.HttpsError('failed-precondition', 'Could not create Stripe customer.');
     }
 
-    logger.info(`Found Stripe customer ID: ${stripeCustomerId}`);
+    logger.info(`Found/Created Stripe customer ID: ${stripeCustomerId}`);
 
     // Get the Stripe Price ID for the plan
     let priceId: string;
@@ -724,6 +741,47 @@ export const createStripeSubscription = functions.https.onCall(async (data, cont
 
     // Get plan config for response data
     const planConfig = प्लांस[planId as keyof typeof प्लांस];
+    
+    // CRITICAL FIX: Save subscription to Firestore IMMEDIATELY after creation
+    // This ensures the subscription is saved even if webhooks are delayed or fail
+    const now = new Date();
+    let periodEndDate = new Date(now);
+    
+    switch (planId) {
+      case 'monthly':
+        periodEndDate.setMonth(periodEndDate.getMonth() + 1);
+        break;
+      case 'quarterly':
+        periodEndDate.setMonth(periodEndDate.getMonth() + 3);
+        break;
+      case 'yearly':
+        periodEndDate.setFullYear(periodEndDate.getFullYear() + 1);
+        break;
+    }
+    
+    // Save subscription to Firestore with status 'incomplete' initially
+    // Webhook will update to 'active' after payment succeeds
+    const subscriptionDoc = {
+      id: subscription.id,
+      userId: userId,
+      plan: planId,
+      status: subscription.status, // Will be 'incomplete' initially
+      stripeCustomerId: stripeCustomerId,
+      stripeSubscriptionId: subscription.id,
+      priceId: priceId,
+      amount: planConfig ? planConfig.price : 0,
+      currency: (subscription.currency || 'eur').toUpperCase(),
+      currentPeriodStart: admin.firestore.Timestamp.fromDate(now),
+      currentPeriodEnd: admin.firestore.Timestamp.fromDate(periodEndDate),
+      cancelAtPeriodEnd: false,
+      createdAt: admin.firestore.Timestamp.now(),
+      updatedAt: admin.firestore.Timestamp.now(),
+    };
+    
+    logger.info(`Saving subscription to Firestore for user ${userId}:`, subscriptionDoc);
+    await admin.firestore().collection('subscriptions').doc(userId).set(subscriptionDoc, { merge: true });
+    logger.info(`✅ Subscription saved to Firestore for user ${userId}`);
+    
     const responseData = {
       subscriptionId: subscription.id,
       clientSecret: paymentIntent.client_secret,
@@ -753,6 +811,60 @@ export const createStripeSubscription = functions.https.onCall(async (data, cont
     // Log the actual error for debugging
     logger.error(`Unexpected error: ${error.message}`, error);
     throw new functions.https.HttpsError('internal', `Failed to create subscription: ${error.message}`);
+  }
+});
+
+// NEW: Confirm subscription payment - called by client after successful payment
+export const confirmSubscriptionPayment = functions.https.onCall(async (data, context) => {
+  // Check authentication
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
+  }
+
+  const { subscriptionId, paymentIntentId } = data;
+  const userId = context.auth.uid;
+
+  logger.info(`Confirming subscription payment for user ${userId}, subscription ${subscriptionId}`);
+
+  try {
+    // Update subscription status to active in Firestore
+    const subscriptionRef = admin.firestore().collection('subscriptions').doc(userId);
+    const subscriptionDoc = await subscriptionRef.get();
+    
+    if (!subscriptionDoc.exists) {
+      logger.error(`No subscription found for user ${userId}`);
+      throw new functions.https.HttpsError('not-found', 'No subscription found for user.');
+    }
+
+    // Verify the subscription ID matches
+    const existingData = subscriptionDoc.data();
+    if (existingData?.stripeSubscriptionId !== subscriptionId) {
+      logger.warn(`Subscription ID mismatch for user ${userId}. Expected: ${existingData?.stripeSubscriptionId}, Got: ${subscriptionId}`);
+      // Continue anyway as this might be a race condition with webhook
+    }
+
+    // Update to active status
+    await subscriptionRef.update({
+      status: 'active',
+      paymentIntentId: paymentIntentId,
+      updatedAt: admin.firestore.Timestamp.now(),
+    });
+
+    logger.info(`✅ Subscription status updated to active for user ${userId}`);
+
+    return {
+      success: true,
+      message: 'Subscription activated successfully',
+    };
+
+  } catch (error: any) {
+    logger.error('Error confirming subscription payment:', error);
+    
+    if (error.code && error.code.startsWith('functions/')) {
+      throw error;
+    }
+    
+    throw new functions.https.HttpsError('internal', `Failed to confirm subscription: ${error.message}`);
   }
 });
 

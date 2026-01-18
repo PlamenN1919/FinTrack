@@ -20,37 +20,19 @@ const ALL_FEATURES: FeatureFlags = {
  * Supports both Test and Live modes with fallbacks
  */
 /**
- * Get Stripe Price IDs from environment variables
- * Uses the CORRECT Price IDs from 11 Jan 2026
- * Supports both Test and Live modes with proper fallbacks
+ * Get Stripe Price IDs
+ * PRODUCTION MODE - Using LIVE Price IDs from 18 Jan 2026
  */
 const getStripePriceIds = () => {
-  const isProduction = !__DEV__;
-  
-  // CORRECT Price IDs from 11 Jan 2026 - used as fallbacks
-  const CORRECT_PRICE_IDS = {
-    monthly: 'price_1SoQM7G1pdDRlAv65jodPGib',
-    quarterly: 'price_1SoQNHG1pdDRlAv6j0XFjpuD',
-    yearly: 'price_1SoQNHG1pdDRlAv6yXGPyu00',
+  // LIVE Price IDs - Production mode
+  const LIVE_PRICE_IDS = {
+    monthly: 'price_1SmYnPG1pdDRlAv6q17RYNIr',
+    quarterly: 'price_1SmYsVG1pdDRlAv6u14OQk4u',
+    yearly: 'price_1SmYsVG1pdDRlAv6oZxuHfRF',
   };
   
-  if (isProduction) {
-    // Production - use LIVE price IDs with fallbacks
-    console.log('[Subscription] Using LIVE Price IDs');
-    return {
-      monthly: Config.STRIPE_PRICE_ID_MONTHLY_LIVE || CORRECT_PRICE_IDS.monthly,
-      quarterly: Config.STRIPE_PRICE_ID_QUARTERLY_LIVE || CORRECT_PRICE_IDS.quarterly,
-      yearly: Config.STRIPE_PRICE_ID_YEARLY_LIVE || CORRECT_PRICE_IDS.yearly,
-    };
-  }
-  
-  // Development - use TEST price IDs
-  console.log('[Subscription] Using TEST Price IDs');
-  return {
-    monthly: Config.STRIPE_PRICE_ID_MONTHLY_TEST || CORRECT_PRICE_IDS.monthly,
-    quarterly: Config.STRIPE_PRICE_ID_QUARTERLY_TEST || CORRECT_PRICE_IDS.quarterly,
-    yearly: Config.STRIPE_PRICE_ID_YEARLY_TEST || CORRECT_PRICE_IDS.yearly,
-  };
+  console.log('[Subscription] Using LIVE Price IDs');
+  return LIVE_PRICE_IDS;
 };
 
 const priceIds = getStripePriceIds();
@@ -165,11 +147,11 @@ export const getSavingsAmount = (plan: SubscriptionPlan, period: 'quarterly' | '
   return (monthlyPrice * periodsCount) - totalPrice;
 };
 
-// Stripe Price IDs за различните планове (TEST mode EUR цени - 11 Яну 2026)
+// Stripe Price IDs за различните планове (LIVE mode EUR цени - 18 Яну 2026)
 export const STRIPE_PRICE_IDS = {
-  MONTHLY_EUR: 'price_1SoQM7G1pdDRlAv65jodPGib',
-  QUARTERLY_EUR: 'price_1SoQNHG1pdDRlAv6j0XFjpuD', 
-  YEARLY_EUR: 'price_1SoQNHG1pdDRlAv6yXGPyu00',
+  MONTHLY_EUR: 'price_1SmYnPG1pdDRlAv6q17RYNIr',
+  QUARTERLY_EUR: 'price_1SmYsVG1pdDRlAv6u14OQk4u', 
+  YEARLY_EUR: 'price_1SmYsVG1pdDRlAv6oZxuHfRF',
 } as const;
 
 // Валидация на планове

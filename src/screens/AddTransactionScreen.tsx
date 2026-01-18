@@ -6,6 +6,7 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Pressable,
   Alert,
   Platform,
   StatusBar,
@@ -138,6 +139,37 @@ const AddTransactionScreen: React.FC = () => {
     
     // 🎮 ГЕЙМИФИКАЦИЯ: Проверяваме постижения и мисии
     try {
+      // 🔥 ВАЖНО: Актуализираме streak при добавяне на транзакция
+      const streakResult = gamificationService.updateStreakForTransaction(transactionData.date);
+      console.log('📊 Streak updated:', streakResult);
+      
+      // Показваме нотификация за streak промяна (само при нова/продължена серия)
+      if (streakResult.isNewStreak && streakResult.streakDays === 1) {
+        showGamificationNotification(
+          '🔥 Streak започна!',
+          'Започнахте нова серия от последователни дни с транзакции!',
+          '🔥',
+          '#FF5722',
+          0
+        );
+      } else if (streakResult.isContinued && streakResult.isFirstOfDay) {
+        showGamificationNotification(
+          '🔥 Streak продължава!',
+          `${streakResult.streakDays} дни последователно!`,
+          '🔥',
+          '#FF5722',
+          0
+        );
+      } else if (streakResult.wasReset) {
+        showGamificationNotification(
+          '💔 Streak прекъсна',
+          'Започвате отново от 1 ден. Не се отказвайте!',
+          '💪',
+          '#FFC107',
+          0
+        );
+      }
+
       // Проверяваме постижения за добавяне на транзакция
       const updatedAchievements = gamificationService.checkAchievementsForAction('add_transaction', {
         category: transactionData.category,
@@ -150,7 +182,7 @@ const AddTransactionScreen: React.FC = () => {
       // Проверяваме мисии за дневна активност
       const updatedMissions = gamificationService.checkMissionsForAction('daily_activity_completed', {
         transactionCount: 1,
-        date: new Date().toDateString(),
+        date: transactionData.date,
       });
 
       // Добавяме XP за транзакцията
@@ -289,59 +321,67 @@ const AddTransactionScreen: React.FC = () => {
             Тип транзакция
           </Text>
           <View style={styles.typeSelector}>
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                isExpense && styles.typeButtonActive,
-                { 
-                  borderColor: isExpense ? '#F44336' : 'rgba(244, 67, 54, 0.3)',
-                  backgroundColor: isExpense ? 'transparent' : 'rgba(244, 67, 54, 0.05)'
-                }
-              ]}
-              onPress={() => setIsExpense(true)}
-              activeOpacity={0.8}
+            <Pressable 
+              onPress={() => setIsExpense(true)} 
+              style={{ 
+                flex: 1, 
+                height: 60, 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                borderRadius: 16,
+                borderWidth: isExpense ? 0 : 1.5,
+                borderColor: '#FFCDD2',
+                backgroundColor: isExpense ? 'transparent' : '#FFEBEE',
+                overflow: 'hidden',
+              }}
+              android_ripple={null}
             >
-              <LinearGradient
-                colors={isExpense ? ['#FF5722', '#F44336', '#E53935'] : ['transparent', 'transparent']}
-                style={styles.typeButtonGradient}
-              >
-                <View style={styles.typeButtonIconContainer}>
-                  <Text style={[
-                    styles.typeButtonIcon,
-                    { 
-                      color: isExpense ? '#FFFFFF' : '#F44336',
-                    }
-                  ]}>−</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
+              {isExpense && (
+                <LinearGradient
+                  colors={['#FF5722', '#F44336', '#E53935']}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+              )}
+              <Text style={{ 
+                fontSize: 32,
+                fontWeight: '200',
+                textAlign: 'center',
+                color: isExpense ? '#FFFFFF' : '#F44336',
+              }}>−</Text>
+            </Pressable>
             
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                !isExpense && styles.typeButtonActive,
-                { 
-                  borderColor: !isExpense ? '#4CAF50' : 'rgba(76, 175, 80, 0.3)',
-                  backgroundColor: !isExpense ? 'transparent' : 'rgba(76, 175, 80, 0.05)'
-                }
-              ]}
-              onPress={() => setIsExpense(false)}
-              activeOpacity={0.8}
+            <Pressable 
+              onPress={() => setIsExpense(false)} 
+              style={{ 
+                flex: 1, 
+                height: 60, 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                borderRadius: 16,
+                borderWidth: !isExpense ? 0 : 1.5,
+                borderColor: '#C8E6C9',
+                backgroundColor: !isExpense ? 'transparent' : '#E8F5E9',
+                overflow: 'hidden',
+              }}
+              android_ripple={null}
             >
-              <LinearGradient
-                colors={!isExpense ? ['#66BB6A', '#4CAF50', '#43A047'] : ['transparent', 'transparent']}
-                style={styles.typeButtonGradient}
-              >
-                <View style={styles.typeButtonIconContainer}>
-                  <Text style={[
-                    styles.typeButtonIcon,
-                    { 
-                      color: !isExpense ? '#FFFFFF' : '#4CAF50',
-                    }
-                  ]}>+</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
+              {!isExpense && (
+                <LinearGradient
+                  colors={['#66BB6A', '#4CAF50', '#43A047']}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                />
+              )}
+              <Text style={{ 
+                fontSize: 32,
+                fontWeight: '200',
+                textAlign: 'center',
+                color: !isExpense ? '#FFFFFF' : '#4CAF50',
+              }}>+</Text>
+            </Pressable>
           </View>
         </SimpleAnimatedCard>
 
@@ -374,13 +414,12 @@ const AddTransactionScreen: React.FC = () => {
             contentContainerStyle={styles.categoryContainer}
           >
             {Object.entries(categoryOptions).map(([key, categoryData]) => (
-              <TouchableOpacity
+              <Pressable
                 key={key}
                 style={[
                   styles.categoryChip,
                   category === categoryData.name && { 
                     backgroundColor: theme.colors.primary,
-                    borderColor: theme.colors.primary,
                     elevation: 6,
                     shadowColor: theme.colors.primary,
                     shadowOffset: { width: 0, height: 4 },
@@ -390,7 +429,6 @@ const AddTransactionScreen: React.FC = () => {
                   }
                 ]}
                 onPress={() => selectCategory(key, categoryData)}
-                activeOpacity={0.8}
               >
                 <Text style={styles.categoryChipIcon}>
                   {categoryData.icons?.[0] || '📝'}
@@ -407,7 +445,7 @@ const AddTransactionScreen: React.FC = () => {
                 >
                   {categoryData.name}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </ScrollView>
         </SimpleAnimatedCard>
@@ -425,12 +463,13 @@ const AddTransactionScreen: React.FC = () => {
             >
               {Object.entries(categoryOptions)
                 .find(([key, categoryData]) => categoryData.name === category)?.[1]?.icons?.map((icon: string, index: number) => (
-                <TouchableOpacity
+                <Pressable
                   key={index}
                   style={[
                     styles.iconButton,
                     selectedIcon === icon && { 
                       backgroundColor: theme.colors.primary + '20',
+                      borderWidth: 2,
                       borderColor: theme.colors.primary,
                       elevation: 6,
                       shadowColor: theme.colors.primary,
@@ -441,10 +480,9 @@ const AddTransactionScreen: React.FC = () => {
                     }
                   ]}
                   onPress={() => setSelectedIcon(icon)}
-                  activeOpacity={0.8}
                 >
                   <Text style={styles.iconText}>{icon}</Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </ScrollView>
           </SimpleAnimatedCard>
@@ -457,17 +495,15 @@ const AddTransactionScreen: React.FC = () => {
           </Text>
           <View style={styles.paymentMethodContainer}>
             {Object.values(PAYMENT_METHODS).map((method: { key: string; name: string; icon: string }) => (
-               <TouchableOpacity
+               <Pressable
                 key={method.key}
                 style={[
-                  styles.categoryChip, // Reusing similar style
+                  styles.categoryChip,
                   paymentMethod === method.key && { 
                     backgroundColor: theme.colors.primary,
-                    borderColor: theme.colors.primary,
                   }
                 ]}
                 onPress={() => setPaymentMethod(method.key)}
-                activeOpacity={0.8}
               >
                 <Text style={styles.categoryChipIcon}>
                   {method.icon}
@@ -484,7 +520,7 @@ const AddTransactionScreen: React.FC = () => {
                 >
                   {method.name}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
         </SimpleAnimatedCard>
@@ -548,12 +584,13 @@ const AddTransactionScreen: React.FC = () => {
           </Text>
           <View style={styles.emotionsGrid}>
             {emotions.map((item) => (
-              <TouchableOpacity
+              <Pressable
                 key={item.id}
                 style={[
                   styles.emotionButton,
                   emotion === item.id && { 
                     backgroundColor: theme.colors.primary + '15',
+                    borderWidth: 2,
                     borderColor: theme.colors.primary,
                     elevation: 4,
                     shadowColor: theme.colors.primary,
@@ -564,7 +601,6 @@ const AddTransactionScreen: React.FC = () => {
                   }
                 ]}
                 onPress={() => setEmotion(item.id)}
-                activeOpacity={0.8}
               >
                 <Text style={styles.emotionIcon}>{item.icon}</Text>
                 <Text 
@@ -579,7 +615,7 @@ const AddTransactionScreen: React.FC = () => {
                 >
                   {item.label}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
         </SimpleAnimatedCard>
@@ -712,14 +748,9 @@ const styles = StyleSheet.create({
   },
   typeButton: {
     flex: 1,
-    borderRadius: 20,
-    borderWidth: 2,
-    overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 60,
   },
   typeButtonActive: {
     elevation: 8,
@@ -730,22 +761,21 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.02 }],
   },
   typeButtonGradient: {
-    alignItems: 'center',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
     justifyContent: 'center',
-    borderRadius: 18,
-    height: 60,
-  },
-  typeButtonIconContainer: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
   },
   typeButtonIcon: {
     fontSize: 32,
     fontWeight: '200',
     textAlign: 'center',
     includeFontPadding: false,
+    zIndex: 2,
   },
   typeButtonText: {
     fontSize: 15,
@@ -807,17 +837,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 18,
     paddingVertical: 14,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-    borderWidth: 2,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
     marginRight: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
     minHeight: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FAFAFA',
   },
   categoryChipIcon: {
     fontSize: 20,
@@ -837,18 +862,13 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 64,
     height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(0, 0, 0, 0.04)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
     marginRight: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    borderRadius: 32,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FAFAFA',
   },
   iconText: {
     fontSize: 28,
@@ -863,19 +883,14 @@ const styles = StyleSheet.create({
   },
   emotionButton: {
     width: '30%',
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(0,0,0,0.08)',
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
     padding: 18,
     alignItems: 'center',
     minHeight: 88,
     justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#FAFAFA',
   },
   emotionIcon: {
     fontSize: 32,

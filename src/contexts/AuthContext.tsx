@@ -161,7 +161,30 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     case 'SET_USER':
-      return { ...state, user: action.payload };
+      // CRITICAL FIX: When user logs in, immediately set userState to REGISTERED_NO_SUBSCRIPTION
+      // This prevents showing Welcome screen to logged-in users while subscription loads
+      // The final userState will be determined by SET_SUBSCRIPTION action
+      if (action.payload) {
+        // User is logging in - set temporary state until subscription loads
+        console.log('[AuthContext] SET_USER: User logging in, setting temporary state REGISTERED_NO_SUBSCRIPTION');
+        return { 
+          ...state, 
+          user: action.payload,
+          // Only change userState if currently UNREGISTERED (prevents overwriting valid states)
+          userState: state.userState === UserState.UNREGISTERED 
+            ? UserState.REGISTERED_NO_SUBSCRIPTION 
+            : state.userState
+        };
+      } else {
+        // User is logging out - clear everything and set to UNREGISTERED
+        console.log('[AuthContext] SET_USER: User logging out, setting state to UNREGISTERED');
+        return { 
+          ...state, 
+          user: null,
+          subscription: null,
+          userState: UserState.UNREGISTERED
+        };
+      }
     case 'SET_SUBSCRIPTION':
       const newUserState = getUserStateFromSubscription(action.payload);
       console.log('========================================');

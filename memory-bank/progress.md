@@ -34,6 +34,9 @@
 - **Firestore Security Rules** - добра защита (88/100)
 
 ## Решени проблеми ✅
+- **КРИТИЧЕН: Абонаментът не се записва във Firestore** - поправено: `createStripeSubscription` вече записва директно във Firestore + нова `confirmSubscriptionPayment` функция обновява статуса към 'active' (18 Яну 2026)
+- **Критичен навигационен бъг при логин** - поправен race condition в AuthContext reducer, потребителите вече не виждат Welcome екран при логване (16 Яну 2026)
+- **Заключване на "Покани приятел"** - функцията е временно заключена с визуален overlay, подобно на QR Scanner (16 Яну 2026)
 - **Firebase SDK конфликт** - заменил web Firebase SDK с React Native Firebase SDK в StripeService.ts
 - **Payment Intent грешка** - поправил неправилното използване на Firebase Functions
 - **Stripe конфигурация** - поправил publishable key с правилния secret key
@@ -113,32 +116,32 @@
 - **Динамичен initial route в AuthNavigator въз основа на UserState**
 - **QR Scanner с отлична архитектура и security validation**
 
-## Stripe EUR Цени ✅
+## Stripe LIVE Mode ✅
 
-### Статус: МИГРИРАНИ КЪМ EUR 🎉 (6 Яну 2026)
+### Статус: PRODUCTION READY 🎉 (18 Яну 2026)
 
-**Нови Stripe Price IDs (Test Mode):**
+**Stripe е в LIVE MODE!**
+
+**Live Price IDs:**
 - **Monthly**: `price_1SmYnPG1pdDRlAv6q17RYNIr` - 12.99 EUR/месец
 - **Quarterly**: `price_1SmYsVG1pdDRlAv6u14OQk4u` - 29.99 EUR/3 месеца (9.99 EUR/месец)
 - **Yearly**: `price_1SmYsVG1pdDRlAv6oZxuHfRF` - 75.99 EUR/година (6.33 EUR/месец)
 
-**Промени:**
-- Валута сменена от BGN → EUR навсякъде
-- Годишна цена намалена от 99.99 EUR → 75.99 EUR (по-атрактивна - 51% отстъпка)
-- Всички Price IDs обновени в клиентския код и Firebase Functions
-- Firebase Functions успешно деплойнати с нова конфигурация
+**Конфигурация:**
+- Live Publishable Key: `pk_live_51RHUZWG1pdDRlAv6Qm...` ✅
+- Live Secret Key: Конфигуриран в Firebase Functions ✅
+- Всички 14 Firebase Functions деплойнати с Live config ✅
 
-**Файлове променени:**
-- `src/config/subscription.config.ts` - клиентска конфигурация
-- `functions/src/index.ts` - server-side цени и Price ID mapping
-- `functions/src/config/subscription.config.ts` - Functions конфигурация
+**Файлове обновени (18 Яну 2026):**
+- `src/config/stripe.config.ts` - Live Publishable Key
+- `src/config/subscription.config.ts` - Live Price IDs
+- `functions/src/index.ts` - Live Price ID mapping
+- `functions/src/config/subscription.config.ts` - Live Price IDs
 
-**⚠️ ВАЖНО за Production:**
-Когато преминеш към Live mode в Stripe, трябва да:
-1. Създадеш СЪЩИТЕ цени в Live mode
-2. Получиш НОВИ Price IDs за Live mode
-3. Обновиш конфигурацията с Live Price IDs
-4. Деплойнаш Firebase Functions отново
+**⚠️ ВАЖНО:**
+- Приложението вече приема РЕАЛНИ плащания!
+- Тестови карти (4242...) НЯМА да работят
+- Използвайте реални карти за плащания
 
 ---
 

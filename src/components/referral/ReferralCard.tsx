@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Animated,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../utils/ThemeContext';
@@ -19,8 +20,39 @@ const ReferralCard: React.FC<ReferralCardProps> = ({ onPress }) => {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [referralLink, setReferralLink] = useState<ReferralLink | null>(null);
+  
+  // 🔒 Функцията е временно заключена - промени на false за да активираш
+  const [isLocked] = useState(true);
+  const lockedOpacity = useRef(new Animated.Value(0)).current;
+
+  // Анимация на locked overlay
+  useEffect(() => {
+    if (isLocked) {
+      Animated.timing(lockedOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(lockedOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isLocked]);
 
   const handleGenerateAndShare = async () => {
+    // Ако е заключено, показваме съобщение
+    if (isLocked) {
+      Alert.alert(
+        '🔒 Функцията е временно недостъпна',
+        'Покани приятел скоро ще бъде достъпна. Очаквайте скоро!',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     if (loading) return;
     
     setLoading(true);
@@ -56,55 +88,95 @@ const ReferralCard: React.FC<ReferralCardProps> = ({ onPress }) => {
     }
   };
 
+  const handleCardPress = () => {
+    if (isLocked) {
+      Alert.alert(
+        '🔒 Функцията е временно недостъпна',
+        'Покани приятел скоро ще бъде достъпна. Очаквайте скоро!',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    onPress();
+  };
+
   return (
     <TouchableOpacity 
       style={[styles.container, { backgroundColor: theme.colors.card }]}
-      onPress={onPress}
+      onPress={handleCardPress}
       activeOpacity={0.9}
     >
       <View style={[styles.content, { backgroundColor: theme.colors.card }]}>
+        {/* Locked Overlay */}
+        {isLocked && (
+          <Animated.View style={[styles.lockedOverlay, { opacity: lockedOpacity }]}>
+            <View style={styles.lockedContent}>
+              <Text style={styles.lockedIcon}>🔒</Text>
+              <Text style={styles.lockedTitle}>Очаквайте скоро...</Text>
+              <Text style={styles.lockedSubtitle}>
+                Покани приятел скоро ще бъде достъпна
+              </Text>
+            </View>
+          </Animated.View>
+        )}
+
         {/* Reward Banner */}
-        <View style={styles.rewardBanner}>
+        <View style={[styles.rewardBanner, isLocked && styles.lockedElement]}>
           <LinearGradient
-            colors={theme.colors.accentGradient}
+            colors={isLocked ? ['#9CA3AF', '#6B7280'] : theme.colors.accentGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.rewardBannerGradient}
           >
-            <Text style={styles.rewardEmoji}>🎁</Text>
+            <Text style={[styles.rewardEmoji, isLocked && styles.lockedText]}>
+              {isLocked ? '🔒' : '🎁'}
+            </Text>
             <View style={styles.rewardText}>
-              <Text style={styles.rewardTitle}>Покани приятел</Text>
-              <Text style={styles.rewardSubtitle}>Спечели 1 месец безплатно</Text>
+              <Text style={[styles.rewardTitle, isLocked && styles.lockedText]}>
+                Покани приятел
+              </Text>
+              <Text style={[styles.rewardSubtitle, isLocked && styles.lockedText]}>
+                {isLocked ? 'Скоро ще бъде достъпна' : 'Спечели 1 месец безплатно'}
+              </Text>
             </View>
           </LinearGradient>
         </View>
 
         {/* Description */}
-        <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-          Когато приятелят ти закупи абонамент, ти автоматично получаваш 1 месец безплатно!
+        <Text style={[
+          styles.description, 
+          { color: theme.colors.textSecondary },
+          isLocked && styles.lockedDescription
+        ]}>
+          {isLocked 
+            ? 'Тази функция скоро ще бъде налична. Следете за актуализации!'
+            : 'Когато приятелят ти закупи абонамент, ти автоматично получаваш 1 месец безплатно!'
+          }
         </Text>
 
         {/* Action Button */}
         <TouchableOpacity
-          style={styles.actionButton}
+          style={[styles.actionButton, isLocked && styles.lockedButton]}
           onPress={handleGenerateAndShare}
-          disabled={loading}
+          disabled={loading || isLocked}
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={theme.colors.primaryGradient}
+            colors={isLocked ? ['#9CA3AF', '#6B7280'] : theme.colors.primaryGradient}
             style={styles.buttonGradient}
           >
             {loading ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
-              <Text style={styles.buttonText}>🚀 Сподели линк</Text>
+              <Text style={styles.buttonText}>
+                {isLocked ? '🔒 Заключено' : '🚀 Сподели линк'}
+              </Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* Current referral link preview */}
-        {referralLink && (
+        {/* Current referral link preview - скрит когато е заключено */}
+        {referralLink && !isLocked && (
           <View style={styles.linkPreview}>
             <Text style={[styles.linkLabel, { color: theme.colors.textSecondary }]}>
               Твоят линк:
@@ -135,6 +207,59 @@ const styles = StyleSheet.create({
   content: {
     borderRadius: 16,
     padding: 20,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  
+  // Locked overlay стилове
+  lockedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    borderRadius: 16,
+  },
+  lockedContent: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  lockedIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  lockedTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  lockedSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  lockedElement: {
+    opacity: 0.5,
+  },
+  lockedText: {
+    opacity: 0.7,
+  },
+  lockedDescription: {
+    opacity: 0.6,
+  },
+  lockedButton: {
+    opacity: 0.7,
   },
   rewardBanner: {
     borderRadius: 12,
@@ -214,5 +339,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ReferralCard; 
 export default ReferralCard; 

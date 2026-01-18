@@ -1,6 +1,158 @@
 # Active Context - FinTrack
 
 ## ПОСЛЕДНА ПРОМЯНА - ЗАВЪРШЕНА ✅
+**Критична поправка: Абонаментът не се записва във Firestore** - 18 Яну 2026
+
+### Проблем:
+- След успешно плащане абонаментът **НЕ се записваше във Firestore**
+- При следващо стартиране → потребителят се третираше като "без абонамент"
+- Пренасочваше се към екрана за избор на план
+
+### Първопричина - ИДЕНТИФИЦИРАНА ✅:
+1. **`createStripeSubscription`** създаваше Stripe subscription но **НЕ записваше във Firestore**
+2. Webhook handlers (`customer.subscription.created`) трябваше да запишат, но не винаги се получаваха навреме
+3. **`PaymentSuccessScreen`** записваше САМО в AsyncStorage, НЕ във Firestore
+4. **`AuthContext`** при следващо стартиране четеше от Firestore → празно → "без абонамент"
+
+### Решение - ПРИЛОЖЕНО ✅:
+
+#### 1. `createStripeSubscription` сега записва директно във Firestore ✅
+```typescript
+// CRITICAL FIX: Save subscription to Firestore IMMEDIATELY after creation
+const subscriptionDoc = {
+  id: subscription.id,
+  userId: userId,
+  plan: planId,
+  status: subscription.status, // 'incomplete' initially
+  // ... full subscription data
+};
+
+await admin.firestore().collection('subscriptions').doc(userId).set(subscriptionDoc, { merge: true });
+```
+
+#### 2. Нова функция `confirmSubscriptionPayment` ✅
+- Извиква се от клиента след успешно плащане
+- Обновява статуса към 'active' във Firestore
+- Гарантира записване дори ако webhook-ът закъснее
+
+#### 3. `PaymentSuccessScreen` обновен ✅
+- Извиква `confirmSubscriptionPaymentCallable` за Firestore update
+- После записва в AsyncStorage като fallback
+
+### Файлове променени ✅:
+- `functions/src/index.ts` - добавен Firestore запис + нова `confirmSubscriptionPayment` функция
+- `src/config/firebase.config.ts` - експортната нова callable функция
+- `src/screens/auth/PaymentSuccessScreen.tsx` - извиква Firestore потвърждение
+
+### Firebase Functions Deploy ✅:
+```
+✔ confirmSubscriptionPayment - НОВА функция създадена
+✔ createStripeSubscription - обновена с Firestore запис
+✔ All 14 functions deployed successfully
+```
+
+### Как работи СЕГА:
+1. Потребител избира план → `createStripeSubscription` извиква се
+2. Stripe subscription се създава + **записва се във Firestore** (status: incomplete)
+3. Плащане → успешно → `PaymentSuccessScreen`
+4. `confirmSubscriptionPayment` се извиква → **Firestore status: active**
+5. AsyncStorage се обновява като локален cache
+6. При следващо стартиране → Firestore има subscription → ACTIVE_SUBSCRIBER ✅
+
+### Статус: ГОТОВО ЗА ТЕСТВАНЕ ✅
+
+---
+
+## ПРЕДИШНА ПРОМЯНА - ЗАВЪРШЕНА ✅
+**Критична поправка на навигационния поток при логин** - 16 Яну 2026
+
+### Проблем:
+- При **първо логване** потребителят се вкарваше в **Welcome екран** вместо в SubscriptionPlans
+- При **второ логване** със същите данни → вкарваше правилно в SubscriptionPlans
+- Непоследователно и объркващо поведение
+
+---
+
+## ПРЕДИШНА ПРОМЯНА - ЗАВЪРШЕНА ✅
+**Критична поправка на навигационния поток при логин** - 16 Яну 2026
+
+### Проблем:
+- При **първо логване** потребителят се вкарваше в **Welcome екран** вместо в SubscriptionPlans
+- При **второ логване** със същите данни → вкарваше правилно в SubscriptionPlans
+- Непоследователно и объркващо поведение
+
+### Първопричина - ИДЕНТИФИЦИРАНА ✅:
+**Race condition в AuthContext reducer:**
+1. `SET_USER` action НЕ променяше `userState` - оставаше `UNREGISTERED`
+2. `AuthNavigator` виждаше `UNREGISTERED` → показваше Welcome екран
+3. По-късно `SET_SUBSCRIPTION` се извикваше → `userState` ставаше правилен
+4. Но потребителят вече беше на Welcome екран
+
+При второ логване AsyncStorage имаше кеширани данни и timing-ът беше различен.
+
+### Решение - ПРИЛОЖЕНО ✅:
+
+#### Поправка в AuthContext.tsx reducer:
+```typescript
+case 'SET_USER':
+  // CRITICAL FIX: When user logs in, immediately set userState to REGISTERED_NO_SUBSCRIPTION
+  // This prevents showing Welcome screen to logged-in users while subscription loads
+  if (action.payload) {
+    // User is logging in - set temporary state until subscription loads
+    return { 
+      ...state, 
+      user: action.payload,
+      // Only change userState if currently UNREGISTERED (prevents overwriting valid states)
+      userState: state.userState === UserState.UNREGISTERED 
+        ? UserState.REGISTERED_NO_SUBSCRIPTION 
+        : state.userState
+    };
+  } else {
+    // User is logging out - clear everything and set to UNREGISTERED
+    return { 
+      ...state, 
+      user: null,
+      subscription: null,
+      userState: UserState.UNREGISTERED
+    };
+  }
+```
+
+### Файлове променени ✅:
+- `src/contexts/AuthContext.tsx` - поправен SET_USER action в reducer-а
+- `functions/src/index.ts` - поправени `createStripeSubscription`, `handleInvoicePaymentSucceeded`, `handleInvoicePaymentFailed`
+
+### Firebase Functions Deploy ✅:
+- `createStripeSubscription` - сега използва `getOrCreateCustomer()` автоматично
+- `stripeWebhook` - сега използва `set({ ... }, { merge: true })` вместо `update()`
+
+### Как работи СЕГА:
+1. Потребител се логва → `onAuthStateChanged` се извиква
+2. `SET_USER` се извиква → `userState` става `REGISTERED_NO_SUBSCRIPTION` незабавно
+3. `AuthNavigator` вижда `REGISTERED_NO_SUBSCRIPTION` → показва `SubscriptionPlans`
+4. Firestore query завършва → `SET_SUBSCRIPTION` се извиква → `userState` се актуализира
+
+### Статус: ГОТОВО ЗА ТЕСТВАНЕ ✅
+
+---
+
+## ПРЕДИШНА ПРОМЯНА - ЗАВЪРШЕНА ✅
+**Заключване на "Покани приятел" функцията** - 16 Яну 2026
+
+### Какво беше направено:
+- Добавен `isLocked` state в `ReferralCard.tsx` (подобно на QR Scanner)
+- Добавен визуален locked overlay с анимация
+- Бутонът "Сподели линк" сега показва "🔒 Заключено"
+- Alert съобщение при опит за използване
+- Деактивирани всички интерактивни елементи когато е заключено
+- Функцията е скрита за потребителите, но backend логиката е активна
+
+### За активиране в бъдеще:
+Промени `const [isLocked] = useState(true)` на `useState(false)` в `src/components/referral/ReferralCard.tsx`
+
+---
+
+## ПРЕДИШНА ПРОМЯНА - ЗАВЪРШЕНА ✅
 **Budget Tracking Fix - Поправка на проследяването на бюджети** - 14 Яну 2026
 
 ### Проблем:

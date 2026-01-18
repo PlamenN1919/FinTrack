@@ -66,7 +66,7 @@ export interface GamificationProfile {
   xp: number;
   level: number;
   streakDays: number;
-  lastActiveDate?: string; // Последна дата на активност (за правилно проследяване на дни стрийк)
+  lastActiveDate?: string; // Последна дата на транзакция (ISO format: YYYY-MM-DD) - за streak проследяване
   achievements: Achievement[];
   completedAchievements: number;
   totalAchievements: number;

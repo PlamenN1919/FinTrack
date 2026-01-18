@@ -429,33 +429,6 @@ const WelcomeScreen: React.FC = () => {
 
       {/* Main Content with Enhanced Layout */}
       <View style={styles.contentContainer}>
-        
-        {/* Clean Logo Section with Single Ring */}
-        <Animated.View
-          style={[
-            styles.logoSection,
-            {
-              opacity: logoOpacity,
-              transform: [
-                { scale: logoScale },
-                {
-                  rotate: logoRotation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0deg', '360deg'],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View style={[styles.logoContainer, { borderColor: isDark ? '#A68A64' : '#807A5C' }]}>
-            <Image
-              source={require('../../assets/images/F.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-        </Animated.View>
 
         {/* Enhanced Hero Section */}
         <Animated.View
@@ -556,7 +529,7 @@ const WelcomeScreen: React.FC = () => {
               }]}
             >
               <View style={[styles.buttonContent, { paddingHorizontal: 24 }]}>
-                <Text style={[styles.primaryButtonText, { color: '#FFFFFF', marginLeft: 30 }]}>
+                <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>
                   Започнете пътуването
                 </Text>
                 <View style={[styles.buttonIcon, { backgroundColor: 'rgba(255, 255, 255, 0.3)' }]}>
@@ -712,7 +685,7 @@ const styles = StyleSheet.create({
 
   contentContainer: {
     flex: 1,
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
     paddingTop: 20,
@@ -929,6 +902,10 @@ const styles = StyleSheet.create({
   buttonIconText: {
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 32,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
 
   // Decorative Elements

@@ -21,6 +21,8 @@ import { formatPrice, getPlanPrice } from '../../config/subscription.config';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../utils/ThemeContext';
 import ReferralService from '../../services/ReferralService';
+import { confirmSubscriptionPaymentCallable } from '../../config/firebase.config';
+import { logError } from '../../utils/crashlytics';
 
 const { width, height } = Dimensions.get('window');
 
@@ -45,7 +47,7 @@ const PaymentSuccessScreen: React.FC = () => {
     fullObject: subscription
   });
 
-  // CRITICAL: Save subscription to AsyncStorage IMMEDIATELY on mount
+  // CRITICAL: Save subscription to Firestore AND AsyncStorage IMMEDIATELY on mount
   // This ensures subscription is saved even if user closes app before pressing button
   useEffect(() => {
     const saveSubscriptionImmediately = async () => {
@@ -53,7 +55,7 @@ const PaymentSuccessScreen: React.FC = () => {
         console.log('========================================');
         console.log('[PaymentSuccessScreen] 💾 AUTO-SAVING subscription on mount...');
         
-        if (!subscription || !subscription.id || !subscription.plan) {
+        if (!subscription || !subscription.id) {
           console.log('[PaymentSuccessScreen] ⚠️ Missing subscription data, skipping auto-save');
           return;
         }
@@ -63,16 +65,31 @@ const PaymentSuccessScreen: React.FC = () => {
           return;
         }
 
+        // STEP 1: Confirm subscription payment in Firebase (updates Firestore to 'active')
+        console.log('[PaymentSuccessScreen] 🔄 Confirming subscription payment in Firestore...');
+        try {
+          const result = await confirmSubscriptionPaymentCallable({
+            subscriptionId: subscription.id,
+            paymentIntentId: (subscription as any).paymentIntentId || subscription.id,
+          });
+          console.log('[PaymentSuccessScreen] ✅ Subscription confirmed in Firestore:', result.data);
+        } catch (confirmError: any) {
+          console.error('[PaymentSuccessScreen] ⚠️ Firestore confirm error (non-fatal):', confirmError?.message);
+          logError(confirmError, 'PaymentSuccessScreen - confirmSubscriptionPayment');
+          // Continue anyway - the webhook might have already updated it
+        }
+
+        // STEP 2: Save to AsyncStorage (local cache)
         const activeSubscription = {
           id: subscription.id,
           userId: subscription.userId || authState.user.uid,
-          plan: subscription.plan,
+          plan: subscription.plan || (subscription as any).planId,
           status: SubscriptionStatus.ACTIVE,
           currentPeriodStart: subscription.currentPeriodStart || new Date(),
           currentPeriodEnd: subscription.currentPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           cancelAtPeriodEnd: subscription.cancelAtPeriodEnd || false,
           stripeCustomerId: subscription.stripeCustomerId || '',
-          stripeSubscriptionId: subscription.stripeSubscriptionId || '',
+          stripeSubscriptionId: subscription.stripeSubscriptionId || subscription.id,
           priceId: subscription.priceId || '',
           amount: subscription.amount || 0,
           currency: subscription.currency || 'EUR',
@@ -80,13 +97,14 @@ const PaymentSuccessScreen: React.FC = () => {
           updatedAt: new Date()
         };
 
-        console.log('[PaymentSuccessScreen] 💾 Saving subscription:', activeSubscription);
+        console.log('[PaymentSuccessScreen] 💾 Saving subscription to AsyncStorage:', activeSubscription);
         await setSubscription(activeSubscription);
-        console.log('[PaymentSuccessScreen] ✅ Subscription AUTO-SAVED successfully!');
+        console.log('[PaymentSuccessScreen] ✅ Subscription saved to AsyncStorage!');
         console.log('========================================');
         
       } catch (error) {
         console.error('[PaymentSuccessScreen] ❌ Failed to auto-save subscription:', error);
+        logError(error as Error, 'PaymentSuccessScreen - saveSubscriptionImmediately');
       }
     };
 

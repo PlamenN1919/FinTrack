@@ -15,9 +15,8 @@ interface StripeContextProviderProps {
   children: React.ReactNode;
 }
 
-// HARDCODED Stripe TEST publishable key
-// TODO: Move to environment variable before production
-const STRIPE_PUBLISHABLE_KEY = 'pk_test_51RHUZWG1pdDRlAv6QC7FQEqooq2KOzfWQE7w8C0YU9y82dIy9CemK0afCxTIgLcLK4eSWrkqnl4mNscYRM7xb70K00iRSlDuTF';
+// Stripe LIVE publishable key - Production mode
+const STRIPE_PUBLISHABLE_KEY = 'pk_live_51RHUZWG1pdDRlAv6QmXDa9GYBXlCxLZo1XFbXQYRJhs98fzMbkxGgIBkHX7FyXp1jOEZuGmTGmqmREA2siiVajcj00KVZbWE63';
 
 export const StripeContextProvider: React.FC<StripeContextProviderProps> = ({ children }) => {
   console.log('[StripeContext] StripeContextProvider component rendering...');

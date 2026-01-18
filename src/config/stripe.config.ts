@@ -10,25 +10,25 @@ export interface StripeConfig {
 
 /**
  * Get Stripe publishable key
- * HARDCODED for now - works immediately without .env setup
+ * PRODUCTION MODE - Using LIVE keys
  */
 const getPublishableKey = (): string => {
-  // HARDCODED TEST key
-  const HARDCODED_TEST_KEY = 'pk_test_51RHUZWG1pdDRlAv6QC7FQEqooq2KOzfWQE7w8C0YU9y82dIy9CemK0afCxTIgLcLK4eSWrkqnl4mNscYRM7xb70K00iRSlDuTF';
+  // LIVE key for production
+  const LIVE_KEY = 'pk_live_51RHUZWG1pdDRlAv6QmXDa9GYBXlCxLZo1XFbXQYRJhs98fzMbkxGgIBkHX7FyXp1jOEZuGmTGmqmREA2siiVajcj00KVZbWE63';
   
-  console.log('[Stripe] Using HARDCODED TEST key');
-  return HARDCODED_TEST_KEY;
+  console.log('[Stripe] Using LIVE key');
+  return LIVE_KEY;
 };
 
 const getStripeConfig = (): StripeConfig => {
-  // ALWAYS return hardcoded key - no more fallbacks
+  // PRODUCTION - using LIVE keys
   const config: StripeConfig = {
-    publishableKey: 'pk_test_51RHUZWG1pdDRlAv6QC7FQEqooq2KOzfWQE7w8C0YU9y82dIy9CemK0afCxTIgLcLK4eSWrkqnl4mNscYRM7xb70K00iRSlDuTF',
+    publishableKey: 'pk_live_51RHUZWG1pdDRlAv6QmXDa9GYBXlCxLZo1XFbXQYRJhs98fzMbkxGgIBkHX7FyXp1jOEZuGmTGmqmREA2siiVajcj00KVZbWE63',
     merchantIdentifier: 'merchant.com.fintrack.app',
     urlScheme: 'fintrack-payments',
   };
 
-  console.log('[Stripe Config] Returning REAL TEST key:', config.publishableKey.substring(0, 30) + '...');
+  console.log('[Stripe Config] Returning LIVE key:', config.publishableKey.substring(0, 30) + '...');
   return config;
 };
 
@@ -103,8 +103,8 @@ export const getCardType = (cardNumber: string): string => {
 export const STRIPE_ERROR_MESSAGES: Record<string, string> = {
   // Card errors
   'card_declined': 'Картата беше отхвърлена. Моля, опитайте с друга карта.',
-  'card_not_supported': 'Тази карта не е поддържана. За тестване използвайте: 4242 4242 4242 4242',
-  'test_mode_live_card': 'Не можете да използвате реална карта в тестови режим! Използвайте тестова карта: 4242 4242 4242 4242',
+  'card_not_supported': 'Тази карта не е поддържана. Моля, опитайте с друга карта.',
+  'test_mode_live_card': 'Моля, използвайте валидна платежна карта.',
   'expired_card': 'Картата е изтекла. Моля, обновете данните си.',
   'insufficient_funds': 'Недостатъчно средства по картата.',
   'incorrect_cvc': 'Невалиден CVC код.',

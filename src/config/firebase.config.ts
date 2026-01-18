@@ -33,6 +33,11 @@ export const checkExpiredSubscriptionsCallable = functionsInstance.httpsCallable
   timeout: FUNCTIONS_TIMEOUT
 });
 
+// Confirm subscription payment after successful Stripe payment
+export const confirmSubscriptionPaymentCallable = functionsInstance.httpsCallable('confirmSubscriptionPayment', {
+  timeout: FUNCTIONS_TIMEOUT
+});
+
 // Referral system callable functions
 export const generateReferralLinkCallable = functionsInstance.httpsCallable('generateReferralLink', {
   timeout: FUNCTIONS_TIMEOUT

@@ -232,15 +232,6 @@ const StripeCardForm: React.FC<StripeCardFormProps> = ({
           </View>
         </View>
 
-        {/* Test Card Notice - Elegant */}
-        <View style={styles.testNotice}>
-          <View style={styles.testIcon}>
-            <Text style={styles.testIconText}>⚡</Text>
-          </View>
-          <Text style={[styles.testText, { color: getAccentColor() }]}>
-            Тест режим: 4242 4242 4242 4242
-          </Text>
-        </View>
       </View>
 
       {/* Premium Action Buttons */}
@@ -441,25 +432,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.3,
     opacity: 0.7,
-  },
-
-  // Test Notice
-  testNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-  },
-  testIcon: {
-    marginRight: 8,
-  },
-  testIconText: {
-    fontSize: 14,
-  },
-  testText: {
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.3,
   },
 
   // Premium Actions

@@ -24,7 +24,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlan, PlanConfig> = {
     currency: 'EUR',
     features: ALL_FEATURES,
     stripePriceIds: {
-      monthly: 'price_1SoQM7G1pdDRlAv65jodPGib',
+      monthly: 'price_1SmYnPG1pdDRlAv6q17RYNIr',
     },
   },
   
@@ -38,7 +38,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlan, PlanConfig> = {
     features: ALL_FEATURES,
     popular: true, // Най-популярен план
     stripePriceIds: {
-      quarterly: 'price_1SoQNHG1pdDRlAv6j0XFjpuD',
+      quarterly: 'price_1SmYsVG1pdDRlAv6u14OQk4u',
     },
   },
   
@@ -52,7 +52,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionPlan, PlanConfig> = {
     features: ALL_FEATURES,
     bestValue: true, // Най-изгоден план
     stripePriceIds: {
-      yearly: 'price_1SoQNHG1pdDRlAv6yXGPyu00',
+      yearly: 'price_1SmYsVG1pdDRlAv6oZxuHfRF',
     },
   },
 };
@@ -129,11 +129,11 @@ export const getSavingsAmount = (plan: SubscriptionPlan, period: 'quarterly' | '
   return (monthlyPrice * periodsCount) - totalPrice;
 };
 
-// Stripe Price IDs за различните планове (TEST mode EUR цени - 11 Jan 2026)
+// Stripe Price IDs за различните планове (LIVE mode EUR цени - 18 Яну 2026)
 export const STRIPE_PRICE_IDS = {
-  MONTHLY_EUR: 'price_1SoQM7G1pdDRlAv65jodPGib',
-  QUARTERLY_EUR: 'price_1SoQNHG1pdDRlAv6j0XFjpuD', 
-  YEARLY_EUR: 'price_1SoQNHG1pdDRlAv6yXGPyu00',
+  MONTHLY_EUR: 'price_1SmYnPG1pdDRlAv6q17RYNIr',
+  QUARTERLY_EUR: 'price_1SmYsVG1pdDRlAv6u14OQk4u', 
+  YEARLY_EUR: 'price_1SmYsVG1pdDRlAv6oZxuHfRF',
 } as const;
 
 // Валидация на плановете

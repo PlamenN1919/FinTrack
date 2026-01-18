@@ -8,6 +8,14 @@ import {
 import { mockGamificationProfile } from '../data/gamificationData';
 import { LEVEL_THRESHOLDS } from '../utils/constants';
 import storageService from './StorageService';
+import {
+  getTodayDateString,
+  isValidISODateString,
+  getDaysDifference,
+  isSameDay,
+  isYesterday,
+  normalizeDateToStartOfDay,
+} from '../utils/dateUtils';
 
 /**
  * Event emitter for gamification updates
@@ -523,114 +531,273 @@ class GamificationService {
   
   /**
    * Проверява и актуализира стрийк при отваряне на приложението
+   * ВАЖНО: Този метод САМО проверява streak при app startup
+   * За streak актуализация при транзакции използвай updateStreakForTransaction()
    */
   checkDailyStreak(): number {
     try {
-      const today = new Date().toDateString(); // Получаваме днешната дата в формат "Wed Oct 05 2011"
+      const today = getTodayDateString(); // "2026-01-17" (ISO format)
       const lastActiveDate = this.profile.lastActiveDate;
       
+      console.log(`🔍 Checking daily streak - Today: ${today}, Last active: ${lastActiveDate || 'Never'}`);
+      
       // Ако няма запазена последна активна дата, това е първо отваряне
-      if (!lastActiveDate) {
-        this.profile.streakDays = 1;
-        this.profile.lastActiveDate = today;
-        console.log(`🎯 First time opening app today! Streak: 1 day`);
+      if (!lastActiveDate || !isValidISODateString(lastActiveDate)) {
+        console.log(`🎯 First time tracking streak - initializing with 0 days (waiting for first transaction)`);
+        // НЕ задаваме streak = 1, защото потребителят още не е направил транзакция
+        // Streak се увеличава САМО при updateStreakForTransaction()
+        this.profile.streakDays = 0;
+        this.profile.lastActiveDate = undefined;
         this.saveProfile();
         return this.profile.streakDays;
       }
       
-      // Ако последната активна дата е днес, не правим нищо
+      // Ако последната активна дата е днес, streak-ът е актуален
       if (lastActiveDate === today) {
-        console.log(`✅ Already opened app today. Streak: ${this.profile.streakDays} days`);
+        console.log(`✅ Streak already counted for today: ${this.profile.streakDays} days`);
         return this.profile.streakDays;
       }
       
-      // Изчисляваме разликата в дни
-      try {
-        const lastDate = new Date(lastActiveDate);
-        const todayDate = new Date(today);
-        
-        // Проверяваме дали датите са валидни
-        if (isNaN(lastDate.getTime()) || isNaN(todayDate.getTime())) {
-          console.warn('⚠️ Invalid dates detected, resetting streak');
-          this.profile.streakDays = 1;
-          this.profile.lastActiveDate = today;
-          this.saveProfile();
-          return this.profile.streakDays;
-        }
-        
-        const daysDifference = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-        
+      // Проверяваме дали streak-ът трябва да се нулира поради пропуснати дни
+      // Streak се губи ако са минали 2+ дни БЕЗ активност
+      const daysSinceLastActivity = getDaysDifference(today, lastActiveDate);
+      
+      if (daysSinceLastActivity > 1) {
+        // Пропуснати дни - streak се нулира
         const oldStreak = this.profile.streakDays;
         
-        if (daysDifference === 1) {
-          // Това е следващия ден - увеличаваме стрийка
-          this.profile.streakDays += 1;
-          this.profile.lastActiveDate = today;
-          
-          console.log(`🔥 Consecutive day! Streak: ${oldStreak} → ${this.profile.streakDays} days`);
-          
-          // На всеки 7 дни последователно активност даваме допълнителен XP
-          if (this.profile.streakDays % 7 === 0) {
-            console.log(`🎯 Weekly streak bonus! +25 XP`);
-            this.addXP(25);
-          }
-          
-          // Емитираме event за streak промяна
-          this.eventEmitter.emit('streakUpdated', { 
-            oldStreak, 
-            newStreak: this.profile.streakDays, 
-            hasActivity: true,
-            isConsecutive: true
-          });
+        console.log(`💔 Streak broken! ${daysSinceLastActivity} days since last activity. ${oldStreak} → 0 days`);
+        
+        this.profile.streakDays = 0;
+        this.profile.lastActiveDate = undefined;
+        
+        // Емитираме event за счупен streak
+        this.eventEmitter.emit('streakUpdated', { 
+          oldStreak, 
+          newStreak: 0, 
+          hasActivity: false,
+          isConsecutive: false,
+          daysMissed: daysSinceLastActivity - 1,
+          streakBroken: true
+        });
 
-          // Проверяваме постижения за streak update
-          this.checkAchievementsForAction('streak_updated', {
-            oldStreak,
-            newStreak: this.profile.streakDays,
-            isConsecutive: true
-          });
-          
-        } else {
-          // Пропуснати дни - нулираме стрийка и започваме отново
-          this.profile.streakDays = 1; // Започваме отново от 1 за днес
-          this.profile.lastActiveDate = today;
-          
-          if (oldStreak > 0) {
-            console.log(`💔 Streak broken after ${daysDifference} days gap. ${oldStreak} → 1 day`);
-          } else {
-            console.log(`🎯 Starting new streak: 1 day`);
-          }
-          
-          // Емитираме event за streak промяна
-          this.eventEmitter.emit('streakUpdated', { 
-            oldStreak, 
-            newStreak: this.profile.streakDays, 
-            hasActivity: true,
-            isConsecutive: false,
-            daysMissed: daysDifference - 1
-          });
-
-          // Проверяваме постижения за streak update (reset случай)
-          this.checkAchievementsForAction('streak_updated', {
-            oldStreak,
-            newStreak: this.profile.streakDays,
-            isConsecutive: false,
-            wasReset: true
-          });
-        }
-      } catch (dateError) {
-        console.error('❌ Error calculating date difference:', dateError);
-        // При грешка reset-ваме streak-а
-        this.profile.streakDays = 1;
-        this.profile.lastActiveDate = today;
+        // Проверяваме постижения за streak reset
+        this.checkAchievementsForAction('streak_updated', {
+          oldStreak,
+          newStreak: 0,
+          isConsecutive: false,
+          wasReset: true,
+          streakBroken: true
+        });
+        
+        this.saveProfile();
       }
       
-      this.saveProfile();
+      // Връщаме текущия streak (може да е нулиран или все още активен)
       return this.profile.streakDays;
+      
     } catch (error) {
       console.error('❌ Critical error in checkDailyStreak:', error);
-      // При критична грешка връщаме текущия streak
-      return this.profile.streakDays || 1;
+      // При критична грешка връщаме текущия streak без промени
+      return this.profile.streakDays || 0;
+    }
+  }
+
+  /**
+   * Актуализира streak при добавяне на транзакция
+   * ТОВА Е ОСНОВНИЯТ МЕТОД за streak management
+   * 
+   * @param transactionDate - Дата на транзакцията (ISO string YYYY-MM-DD)
+   * @returns Обект с информация за streak промяната
+   */
+  updateStreakForTransaction(transactionDate: string): {
+    streakDays: number;
+    isNewStreak: boolean;
+    isContinued: boolean;
+    isFirstOfDay: boolean;
+    wasReset: boolean;
+  } {
+    try {
+      const today = getTodayDateString();
+      const lastActiveDate = this.profile.lastActiveDate;
+      
+      // Валидация на датата на транзакцията
+      if (!isValidISODateString(transactionDate)) {
+        console.warn(`⚠️ Invalid transaction date: ${transactionDate}`);
+        return {
+          streakDays: this.profile.streakDays,
+          isNewStreak: false,
+          isContinued: false,
+          isFirstOfDay: false,
+          wasReset: false
+        };
+      }
+      
+      // Проверка дали транзакцията е от бъдещето
+      const daysDiff = getDaysDifference(transactionDate, today);
+      if (normalizeDateToStartOfDay(transactionDate) > normalizeDateToStartOfDay(today)) {
+        console.warn(`⚠️ Transaction date is in the future: ${transactionDate}`);
+        return {
+          streakDays: this.profile.streakDays,
+          isNewStreak: false,
+          isContinued: false,
+          isFirstOfDay: false,
+          wasReset: false
+        };
+      }
+      
+      console.log(`🔍 Updating streak for transaction - Date: ${transactionDate}, Last active: ${lastActiveDate || 'Never'}`);
+      
+      const oldStreak = this.profile.streakDays;
+      let isNewStreak = false;
+      let isContinued = false;
+      let isFirstOfDay = false;
+      let wasReset = false;
+      
+      // СЛУЧАЙ 1: Първа транзакция изобщо (нов потребител)
+      if (!lastActiveDate || !isValidISODateString(lastActiveDate)) {
+        this.profile.streakDays = 1;
+        this.profile.lastActiveDate = transactionDate;
+        isNewStreak = true;
+        isFirstOfDay = true;
+        
+        console.log(`🎯 First transaction ever! Streak started: 1 day`);
+        
+        // Емитираме event
+        this.eventEmitter.emit('streakUpdated', { 
+          oldStreak: 0, 
+          newStreak: 1, 
+          hasActivity: true,
+          isConsecutive: false,
+          isNewStreak: true
+        });
+
+        this.checkAchievementsForAction('streak_updated', {
+          oldStreak: 0,
+          newStreak: 1,
+          isConsecutive: false,
+          isNewStreak: true
+        });
+        
+        this.saveProfile();
+        return { streakDays: 1, isNewStreak: true, isContinued: false, isFirstOfDay: true, wasReset: false };
+      }
+      
+      // СЛУЧАЙ 2: Транзакцията е от същия ден като последната активност
+      if (transactionDate === lastActiveDate) {
+        console.log(`✅ Additional transaction for same day (${transactionDate}). Streak unchanged: ${this.profile.streakDays} days`);
+        return { 
+          streakDays: this.profile.streakDays, 
+          isNewStreak: false, 
+          isContinued: false, 
+          isFirstOfDay: false,
+          wasReset: false 
+        };
+      }
+      
+      // Изчисляваме разликата в дни
+      const daysSinceLastActivity = getDaysDifference(transactionDate, lastActiveDate);
+      
+      // СЛУЧАЙ 3: Транзакцията е от следващия ден (consecutive)
+      if (daysSinceLastActivity === 1 && normalizeDateToStartOfDay(transactionDate) > normalizeDateToStartOfDay(lastActiveDate)) {
+        this.profile.streakDays += 1;
+        this.profile.lastActiveDate = transactionDate;
+        isContinued = true;
+        isFirstOfDay = true;
+        
+        console.log(`🔥 Consecutive day transaction! Streak: ${oldStreak} → ${this.profile.streakDays} days`);
+        
+        // Награда на всеки 7 дни
+        if (this.profile.streakDays % 7 === 0) {
+          console.log(`🎯 Weekly streak milestone! +25 XP for ${this.profile.streakDays} days streak`);
+          this.addXP(25);
+        }
+        
+        // Емитираме event
+        this.eventEmitter.emit('streakUpdated', { 
+          oldStreak, 
+          newStreak: this.profile.streakDays, 
+          hasActivity: true,
+          isConsecutive: true,
+          isContinued: true
+        });
+
+        this.checkAchievementsForAction('streak_updated', {
+          oldStreak,
+          newStreak: this.profile.streakDays,
+          isConsecutive: true,
+          isContinued: true
+        });
+        
+        this.saveProfile();
+        return { 
+          streakDays: this.profile.streakDays, 
+          isNewStreak: false, 
+          isContinued: true, 
+          isFirstOfDay: true,
+          wasReset: false 
+        };
+      }
+      
+      // СЛУЧАЙ 4: Пропуснати дни - streak се нулира и започва отново
+      if (daysSinceLastActivity > 1) {
+        this.profile.streakDays = 1;
+        this.profile.lastActiveDate = transactionDate;
+        wasReset = true;
+        isNewStreak = true;
+        isFirstOfDay = true;
+        
+        console.log(`💔 Streak broken after ${daysSinceLastActivity} days gap. ${oldStreak} → 1 day (restarting)`);
+        
+        // Емитираме event
+        this.eventEmitter.emit('streakUpdated', { 
+          oldStreak, 
+          newStreak: 1, 
+          hasActivity: true,
+          isConsecutive: false,
+          daysMissed: daysSinceLastActivity - 1,
+          wasReset: true,
+          streakBroken: true
+        });
+
+        this.checkAchievementsForAction('streak_updated', {
+          oldStreak,
+          newStreak: 1,
+          isConsecutive: false,
+          wasReset: true,
+          streakBroken: true
+        });
+        
+        this.saveProfile();
+        return { 
+          streakDays: 1, 
+          isNewStreak: true, 
+          isContinued: false, 
+          isFirstOfDay: true,
+          wasReset: true 
+        };
+      }
+      
+      // СЛУЧАЙ 5: Транзакция от ПРЕДИ последната активност (backdated transaction)
+      // Не актуализираме streak, защото не е consecutive
+      console.log(`⏮️ Transaction is from before last activity (${transactionDate} < ${lastActiveDate}). Streak unchanged.`);
+      return { 
+        streakDays: this.profile.streakDays, 
+        isNewStreak: false, 
+        isContinued: false, 
+        isFirstOfDay: false,
+        wasReset: false 
+      };
+      
+    } catch (error) {
+      console.error('❌ Critical error in updateStreakForTransaction:', error);
+      return {
+        streakDays: this.profile.streakDays,
+        isNewStreak: false,
+        isContinued: false,
+        isFirstOfDay: false,
+        wasReset: false
+      };
     }
   }
 
