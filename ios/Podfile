@@ -1,6 +1,11 @@
 # Use CDN for faster downloads
 source 'https://cdn.cocoapods.org/'
 
+# Specify the Xcode project
+project 'FinTrackNew.xcodeproj'
+
+# Note: Static linking is required for Firebase (FirebaseAnalytics has static binaries)
+
 # Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
   'require.resolve(
@@ -27,7 +32,7 @@ setup_permissions([
   'Camera',
 ])
 
-# Camera Kit iOS configuration
+# Camera Kit iOS configuration AND RNFB build phase fixes
 post_integrate do |installer|
   installer.pods_project.targets.each do |target|
     if target.name == 'ReactNativeCameraKit'
@@ -36,22 +41,41 @@ post_integrate do |installer|
       end
     end
   end
+  
+  # Fix for RNFB build phase warnings in main project
+  # These warnings appear because the build phases don't specify output files
+  # Must be done in post_integrate, after CocoaPods finishes integrating
+  main_project_path = "#{installer.sandbox.root}/../FinTrackNew.xcodeproj"
+  main_project = Xcodeproj::Project.open(main_project_path)
+  
+  main_project.targets.each do |target|
+    if target.name == 'FinTrackNew'
+      target.build_phases.each do |phase|
+        if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
+          if phase.name&.include?('[RNFB] Core Configuration')
+            phase.output_paths = ["$(DERIVED_FILE_DIR)/RNFB-Core-Configuration-Done.txt"]
+          elsif phase.name&.include?('[RNFB] Crashlytics Configuration')
+            phase.output_paths = ["$(DERIVED_FILE_DIR)/RNFB-Crashlytics-Configuration-Done.txt"]
+          end
+        end
+      end
+    end
+  end
+  
+  main_project.save
 end
 
-# Firebase SDK requires modular headers configuration
-# Using dynamic linking instead of static to fix Firebase/Firebase.h not found
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+# Firebase iOS SDK v9+ REQUIRES use_frameworks for Swift headers (FirebaseAuth-Swift.h)
+# Required for RNFBFirestore, RNFBFunctions - "FirebaseAuth/FirebaseAuth-Swift.h file not found"
+use_frameworks! :linkage => :static
+$RNFirebaseAsStaticFramework = true
 
 target 'FinTrackNew' do
-  # Enable modular headers globally for Firebase compatibility
-  use_modular_headers!
+  # NOTE: Do NOT use use_modular_headers! globally - it causes "Redefinition of module 'react_runtime'"
   config = use_native_modules!
   
-  # Firebase dependencies with modular headers
+  # Firebase dependencies - modular headers required for Swift pods (Crashlytics, etc.)
+  # Use per-pod :modular_headers => true to avoid "Redefinition of module 'react_runtime'"
   pod 'Firebase', :modular_headers => true
   pod 'FirebaseCore', :modular_headers => true
   pod 'FirebaseAuth', :modular_headers => true
@@ -66,6 +90,10 @@ target 'FinTrackNew' do
   pod 'RecaptchaInterop', :modular_headers => true
   pod 'GoogleUtilities', :modular_headers => true
   pod 'GTMSessionFetcher', :modular_headers => true
+  # Required for FirebaseCrashlytics/FirebaseSessions Swift pods
+  pod 'FirebaseInstallations', :modular_headers => true
+  pod 'GoogleDataTransport', :modular_headers => true
+  pod 'nanopb', :modular_headers => true
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -74,6 +102,21 @@ target 'FinTrackNew' do
   )
 
   post_install do |installer|
+    # Fix: FirebaseCrashlytics PrivacyInfo.xcprivacy missing with use_frameworks static
+    # React Native's privacy manifest aggregation expects this path
+    firebase_crashlytics_privacy = "#{installer.sandbox.root}/FirebaseCrashlytics/Crashlytics/Resources/PrivacyInfo.xcprivacy"
+    if !File.exist?(firebase_crashlytics_privacy)
+      require 'fileutils'
+      FileUtils.mkdir_p(File.dirname(firebase_crashlytics_privacy))
+      minimal_privacy = {
+        'NSPrivacyTracking' => false,
+        'NSPrivacyCollectedDataTypes' => [],
+        'NSPrivacyAccessedAPITypes' => []
+      }
+      Xcodeproj::Plist.write_to_path(minimal_privacy, firebase_crashlytics_privacy)
+      Pod::UI.puts "[FinTrack] Created missing FirebaseCrashlytics PrivacyInfo.xcprivacy".yellow
+    end
+    
     # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
     react_native_post_install(
       installer,
@@ -111,23 +154,41 @@ target 'FinTrackNew' do
         config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'NO'
       end
       
-      # Specific fix for gRPC targets
-      if target.name.include?('gRPC')
+      # Specific fix for gRPC targets - C++ standard library issues with Xcode 26
+      # In Xcode 26, C++ headers moved from Toolchain to SDK
+      if target.name.include?('gRPC') || target.name.include?('BoringSSL') || target.name.include?('abseil')
         target.build_configurations.each do |config|
-          config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
-          config.build_settings['DEFINES_MODULE'] = 'NO'
-          config.build_settings['USE_HEADERMAP'] = 'YES'
-          
-          # Add abseil headers to search path
-          config.build_settings['HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
-          config.build_settings['HEADER_SEARCH_PATHS'] << '$(PODS_ROOT)/abseil/absl'
-          config.build_settings['HEADER_SEARCH_PATHS'] << '$(PODS_TARGET_SRCROOT)'
-          
-          # Fix for zlib fdopen conflict with iOS SDK 26.0
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'NO_GZCOMPRESS=1'
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'Z_SOLO=1'
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'NO_GZIP=1'
+          # Fix for 'string' file not found - C++ standard library in Xcode 26
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+          config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+          config.build_settings['GCC_ENABLE_CPP_EXCEPTIONS'] = 'YES'
+          config.build_settings['GCC_ENABLE_CPP_RTTI'] = 'YES'
+        end
+      end
+      
+      # Fix gRPC-Core zutil.c fdopen macro conflict with iOS SDK 26
+      # Patch zutil.h to prevent fdopen macro from conflicting with stdio.h
+      if target.name == 'gRPC-Core'
+        zutil_path = "#{installer.sandbox.root}/gRPC-Core/third_party/zlib/zutil.h"
+        if File.exist?(zutil_path)
+          # Use sed command to patch the file (avoids permission issues with Ruby File.write)
+          sed_command = "sed -i '' 's/#.*define fdopen(fd,mode) NULL.*No fdopen.*$/\\/\\* fdopen macro removed for iOS SDK 26 \\*\\//' '#{zutil_path}'"
+          system(sed_command)
+          puts "[gRPC-Core] Patched zutil.h to fix fdopen macro conflict with iOS SDK 26"
+        end
+        
+        # Create symlink for modulemap in the expected location
+        grpc_dir = "#{installer.sandbox.root}/Headers/Private/grpc"
+        modulemap_source = "#{installer.sandbox.root}/Target Support Files/gRPC-Core/gRPC-Core.modulemap"
+        modulemap_dest = "#{grpc_dir}/gRPC-Core.modulemap"
+        
+        require 'fileutils'
+        if File.exist?(modulemap_source) && !File.exist?(modulemap_dest)
+          FileUtils.mkdir_p(grpc_dir)
+          FileUtils.cp(modulemap_source, modulemap_dest)
+          puts "[gRPC-Core] Copied modulemap to expected location"
+        elsif File.exist?(modulemap_dest)
+          puts "[gRPC-Core] Modulemap already exists at destination"
         end
       end
       
@@ -141,23 +202,12 @@ target 'FinTrackNew' do
         end
       end
       
-      # Fix for Stripe deprecated API warnings and resource issues
+      # Fix for Stripe deprecated API warnings
       if target.name.include?('Stripe')
         target.build_configurations.each do |config|
           config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
           config.build_settings['WARNING_CFLAGS'] ||= ['$(inherited)']
           config.build_settings['WARNING_CFLAGS'] << '-Wno-deprecated-declarations'
-          
-          # Fix for lstat resource bundle issues in Xcode 16
-          config.build_settings['EXCLUDED_SOURCE_FILE_NAMES'] ||= ['$(inherited)']
-          config.build_settings['EXCLUDED_SOURCE_FILE_NAMES'] << '*.lproj'
-        end
-        
-        # Remove problematic resource bundles
-        target.resources_build_phase.files.each do |file|
-          if file.file_ref && file.file_ref.path && file.file_ref.path.include?('.lproj')
-            target.resources_build_phase.remove_file_reference(file.file_ref)
-          end
         end
       end
     end
@@ -170,5 +220,43 @@ target 'FinTrackNew' do
         end
       end
     end
+    
+    # Fix for gRPC-Core zutil "cannot specify -o" error in Xcode 26
+    # This error occurs when gRPC tries to compile multiple files with single output
+    installer.pods_project.targets.each do |target|
+      if target.name == 'gRPC-Core'
+        target.build_configurations.each do |config|
+          # CRITICAL: Disable whole module optimization - main cause of "-o with multiple files"
+          config.build_settings['SWIFT_COMPILATION_MODE'] = 'singlefile'
+          config.build_settings['SWIFT_WHOLE_MODULE_OPTIMIZATION'] = 'NO'
+          
+          # Disable batch compilation which causes the "-o with multiple files" error
+          config.build_settings['CLANG_ENABLE_MODULE_IMPLEMENTATION_OF'] = 'NO'
+          config.build_settings['CLANG_USE_OPTIMIZATION_PROFILE'] = 'NO'
+          
+          # Disable Link-Time Optimization which can cause similar issues
+          config.build_settings['LLVM_LTO'] = 'NO'
+          
+          # Force compilation to process files individually
+          config.build_settings['RUN_CLANG_STATIC_ANALYZER'] = 'NO'
+          
+          # Additional zlib/zutil fix for Xcode 26
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'ZLIB_CONST=1'
+        end
+      end
+      
+      # Fix for hermes-engine build phase warning - add output paths
+      if target.name == 'hermes-engine'
+        target.build_phases.each do |phase|
+          if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
+            if phase.name&.include?('Hermes') && (phase.output_paths.nil? || phase.output_paths.empty?)
+              phase.output_paths = ["$(DERIVED_FILE_DIR)/hermes-done.txt"]
+            end
+          end
+        end
+      end
+    end
+    
   end
 end

@@ -109,3 +109,5 @@ yarn-error.log
 **/*release*.keystore
 **/*production*.keystore
 !debug.keystore
+node_modules 2/
+node_modules 3/
