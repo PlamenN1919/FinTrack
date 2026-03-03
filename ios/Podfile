@@ -70,6 +70,9 @@ end
 use_frameworks! :linkage => :static
 $RNFirebaseAsStaticFramework = true
 
+# Suppress ALL warnings from third-party pods
+inhibit_all_warnings!
+
 target 'FinTrackNew' do
   # NOTE: Do NOT use use_modular_headers! globally - it causes "Redefinition of module 'react_runtime'"
   config = use_native_modules!
@@ -128,10 +131,13 @@ target 'FinTrackNew' do
     # Fix for Xcode 26 beta compatibility
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        # Suppress warnings
+        # Suppress ALL warnings from pods (C/ObjC/Swift)
         config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
         config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
         config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+        config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+        config.build_settings['CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS'] = 'NO'
+        config.build_settings['CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF'] = 'NO'
         
         # Fix for Xcode 26 beta asset catalog issues
         config.build_settings['ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS'] = 'NO'
@@ -256,6 +262,12 @@ target 'FinTrackNew' do
           end
         end
       end
+    end
+    
+    # Fix "Update to recommended settings" for Pods project
+    installer.pods_project.build_configurations.each do |config|
+      config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
+      config.build_settings['LOCALIZATION_PREFERS_STRING_CATALOGS'] = 'YES'
     end
     
   end
