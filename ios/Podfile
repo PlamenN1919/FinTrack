@@ -160,12 +160,12 @@ target 'FinTrackNew' do
         config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'NO'
       end
       
-      # Specific fix for gRPC targets - C++ standard library issues with Xcode 26
+      # Specific fix for gRPC targets and React-oscompat - C++ standard library issues with Xcode 26
       # In Xcode 26, C++ headers moved from Toolchain to SDK
-      if target.name.include?('gRPC') || target.name.include?('BoringSSL') || target.name.include?('abseil')
+      if target.name.include?('gRPC') || target.name.include?('BoringSSL') || target.name.include?('abseil') || target.name == 'React-oscompat'
         target.build_configurations.each do |config|
-          # Fix for 'string' file not found - C++ standard library in Xcode 26
-          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+          # Fix for 'cstdint'/'string' file not found - C++ standard library in Xcode 26
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
           config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
           config.build_settings['GCC_ENABLE_CPP_EXCEPTIONS'] = 'YES'
           config.build_settings['GCC_ENABLE_CPP_RTTI'] = 'YES'
@@ -208,12 +208,14 @@ target 'FinTrackNew' do
         end
       end
       
-      # Fix for Stripe deprecated API warnings
+      # Fix for Stripe deprecated API warnings (including UITextItemInteraction Swift deprecation)
       if target.name.include?('Stripe')
         target.build_configurations.each do |config|
           config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
           config.build_settings['WARNING_CFLAGS'] ||= ['$(inherited)']
           config.build_settings['WARNING_CFLAGS'] << '-Wno-deprecated-declarations'
+          config.build_settings['GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS'] = 'NO'
+          config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
         end
       end
     end
@@ -256,8 +258,8 @@ target 'FinTrackNew' do
       if target.name == 'hermes-engine'
         target.build_phases.each do |phase|
           if phase.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
-            if phase.name&.include?('Hermes') && (phase.output_paths.nil? || phase.output_paths.empty?)
-              phase.output_paths = ["$(DERIVED_FILE_DIR)/hermes-done.txt"]
+            if phase.name&.include?('Hermes')
+              phase.always_out_of_date = '1'
             end
           end
         end
@@ -268,6 +270,13 @@ target 'FinTrackNew' do
     installer.pods_project.build_configurations.each do |config|
       config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
       config.build_settings['LOCALIZATION_PREFERS_STRING_CATALOGS'] = 'YES'
+    end
+    
+    # Fix glog set_ctr bug: void function should not return a value (Xcode 26 treats as error)
+    glog_logging_h = "#{installer.sandbox.root}/glog/src/glog/logging.h"
+    if File.exist?(glog_logging_h)
+      system("sed -i '' 's/void set_ctr(int ctr) { return ctr_; }/void set_ctr(int ctr) { ctr_ = ctr; }/' '#{glog_logging_h}'")
+      puts "[glog] Patched set_ctr in logging.h to fix void return error"
     end
     
   end

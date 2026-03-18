@@ -24,6 +24,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -37,6 +39,8 @@
 	<string>Приложението се нуждае от достъп до микрофона, за да може да записва аудио по време на видеозапис на разходи (ако е приложимо).</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Приложението се нуждае от достъп до галерията, за да можете да избирате и прикачвате изображения към вашите транзакции.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Приложението се нуждае от достъп до разпознаването на реч за гласово въвеждане на команди и данни.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>
